@@ -2,9 +2,12 @@ module.exports = {
     root: true,
     plugins: [
         'jest',
+        'playwright',
     ],
     extends: [
         'eslint:recommended',
+        'plugin:jest/recommended',
+        'plugin:playwright/recommended',
     ],
     env: {
         es6: true,
@@ -21,11 +24,6 @@ module.exports = {
         'node_modules/**/*',
     ],
     globals: {
-        browser: 'readonly',
-        page: 'readonly',
-        context: 'readonly',
-        puppeteerConfig: 'readonly',
-        jestPuppeteer: 'readonly',
     },
     rules: {
         'no-unused-vars': ['error', { args: 'none' }],

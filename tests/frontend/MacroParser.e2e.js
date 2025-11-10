@@ -1,23 +1,24 @@
+import { test, expect } from '@playwright/test';
+
 /** @typedef {import('chevrotain').CstNode} CstNode */
 /** @typedef {import('chevrotain').IRecognitionException} IRecognitionException */
 
 /** @typedef {{[tokenName: string]: (string|string[]|TestableCstNode|TestableCstNode[])}} TestableCstNode */
 /** @typedef {{name: string, message: string}} TestableRecognitionException */
 
-// Those tests ar evaluating via puppeteer, the need more time to run and finish
-jest.setTimeout(10_000);
+test.setTimeout(10_000);
 
-describe('MacroParser', () => {
-    beforeAll(async () => {
-        await page.goto(global.ST_URL);
+test.describe('MacroParser', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto('/');
         await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
     });
 
-    describe('General Macro', () => {
+    test.describe('General Macro', () => {
         // {{user}}
-        it('should parse a simple macro', async () => {
+        test('should parse a simple macro', async ({ page }) => {
             const input = '{{user}}';
-            const macroCst = await runParser(input);
+            const macroCst = await runParser(page, input);
 
             const expectedCst = {
                 'Macro.Start': '{{',
@@ -28,9 +29,9 @@ describe('MacroParser', () => {
             expect(macroCst).toEqual(expectedCst);
         });
         // {{  user  }}
-        it('should generally handle whitespaces', async () => {
+        test('should generally handle whitespaces', async ({ page }) => {
             const input = '{{  user  }}';
-            const macroCst = await runParser(input);
+            const macroCst = await runParser(page, input);
 
             const expectedCst = {
                 'Macro.Start': '{{',
@@ -41,11 +42,11 @@ describe('MacroParser', () => {
             expect(macroCst).toEqual(expectedCst);
         });
 
-        describe('Error Cases (General Macro)', () => {
+        test.describe('Error Cases (General Macro)', () => {
             // {{}}
-            it('[Error] should throw an error for empty macro', async () => {
+            test('[Error] should throw an error for empty macro', async ({ page }) => {
                 const input = '{{}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
                     { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.Identifier <-- but found --> \'}}\' <--' },
@@ -55,9 +56,9 @@ describe('MacroParser', () => {
                 expect(errors).toEqual(expectedErrors);
             });
             // {{§!#&blah}}
-            it('[Error] should throw an error for invalid identifier', async () => {
+            test('[Error] should throw an error for invalid identifier', async ({ page }) => {
                 const input = '{{§!#&blah}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
                     { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.Identifier <-- but found --> \'!\' <--' },
@@ -67,9 +68,9 @@ describe('MacroParser', () => {
                 expect(errors).toEqual(expectedErrors);
             });
             // {{user
-            it('[Error] should throw an error for incomplete macro', async () => {
+            test('[Error] should throw an error for incomplete macro', async ({ page }) => {
                 const input = '{{user';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
                     { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.End <-- but found --> \'\' <--' },
@@ -81,9 +82,9 @@ describe('MacroParser', () => {
 
             // something{{user}}
             // something{{user}}
-            it('[Error] for testing purposes, macros need to start at the beginning of the string', async () => {
+            test('[Error] for testing purposes, macros need to start at the beginning of the string', async ({ page }) => {
                 const input = 'something{{user}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
                     { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.Start <-- but found --> \'something\' <--' },
@@ -95,11 +96,11 @@ describe('MacroParser', () => {
         });
     });
 
-    describe('Arguments Handling', () => {
+    test.describe('Arguments Handling', () => {
         // {{getvar::myvar}}
-        it('should parse macros with double-colon argument', async () => {
+        test('should parse macros with double-colon argument', async ({ page }) => {
             const input = '{{getvar::myvar}}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
             });
             expect(macroCst).toEqual({
@@ -114,9 +115,9 @@ describe('MacroParser', () => {
         });
 
         // {{roll:3d20}}
-        it('should parse macros with single colon argument', async () => {
+        test('should parse macros with single colon argument', async ({ page }) => {
             const input = '{{roll:3d20}}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
             });
             expect(macroCst).toEqual({
@@ -131,9 +132,9 @@ describe('MacroParser', () => {
         });
 
         // {{setvar::myvar::value}}
-        it('should parse macros with multiple double-colon arguments', async () => {
+        test('should parse macros with multiple double-colon arguments', async ({ page }) => {
             const input = '{{setvar::myvar::value}}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
                 ignoreKeys: ['arguments.Args.DoubleColon'],
             });
@@ -149,9 +150,9 @@ describe('MacroParser', () => {
         });
 
         // {{something::  spaced  }}
-        it('should strip spaces around arguments', async () => {
+        test('should strip spaces around arguments', async ({ page }) => {
             const input = '{{something::  spaced  }}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
                 ignoreKeys: ['arguments.separator', 'arguments.Args.DoubleColon'],
             });
@@ -164,9 +165,9 @@ describe('MacroParser', () => {
         });
 
         // {{something::with:single:colons}}
-        it('should treat single colons as part of the argument with double-colon separator', async () => {
+        test('should treat single colons as part of the argument with double-colon separator', async ({ page }) => {
             const input = '{{something::with:single:colons}}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
                 ignoreKeys: ['arguments.Args.DoubleColon'],
             });
@@ -182,9 +183,9 @@ describe('MacroParser', () => {
         });
 
         // {{legacy:something:else}}
-        it('should treat single colons as part of the argument even with colon separator', async () => {
+        test('should treat single colons as part of the argument even with colon separator', async ({ page }) => {
             const input = '{{legacy:something:else}}';
-            const macroCst = await runParser(input, {
+            const macroCst = await runParser(page, input, {
                 flattenKeys: ['arguments.argument'],
                 ignoreKeys: ['arguments.separator', 'arguments.Args.Colon'],
             });
@@ -196,11 +197,11 @@ describe('MacroParser', () => {
             });
         });
 
-        describe('Error Cases (Arguments Handling)', () => {
+        test.describe('Error Cases (Arguments Handling)', () => {
             // {{something::}}
-            it('[Error] should throw an error for double-colon without a value', async () => {
+            test('[Error] should throw an error for double-colon without a value', async ({ page }) => {
                 const input = '{{something::}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
                     {
@@ -215,10 +216,10 @@ describe('MacroParser', () => {
 
     });
 
-    describe('Nested Macros', () => {
-        it('should parse nested macros inside arguments', async () => {
+    test.describe('Nested Macros', () => {
+        test('should parse nested macros inside arguments', async ({ page }) => {
             const input = '{{outer::word {{inner}}}}';
-            const macroCst = await runParser(input, {});
+            const macroCst = await runParser(page, input, {});
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
                 'Macro.Identifier': 'outer',
@@ -237,9 +238,9 @@ describe('MacroParser', () => {
             });
         });
 
-        it('should parse two nested macros next to each other inside an argument', async () => {
+        test('should parse two nested macros next to each other inside an argument', async ({ page }) => {
             const input = '{{outer::word {{inner1}}{{inner2}}}}';
-            const macroCst = await runParser(input, {});
+            const macroCst = await runParser(page, input, {});
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
                 'Macro.Identifier': 'outer',
@@ -265,19 +266,19 @@ describe('MacroParser', () => {
             });
         });
 
-        describe('Error Cases (Nested Macros)', () => {
+        test.describe('Error Cases (Nested Macros)', () => {
 
-            it('[Error] should throw when there is a nested macro instead of an identifier', async () => {
+            test('[Error] should throw when there is a nested macro instead of an identifier', async ({ page }) => {
                 const input = '{{{{macroindentifier}}::value}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 expect(macroCst).toBeUndefined();
                 expect(errors).toHaveLength(1); // error doesn't really matter. Just don't parse it pls.
             });
 
-            it('[Error] should throw when there is a macro inside an identifier', async () => {
+            test('[Error] should throw when there is a macro inside an identifier', async ({ page }) => {
                 const input = '{{inside{{macro}}me}}';
-                const { macroCst, errors } = await runParserAndGetErrors(input);
+                const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 expect(macroCst).toBeUndefined();
                 expect(errors).toHaveLength(1); // error doesn't really matter. Just don't parse it pls.
@@ -290,14 +291,15 @@ describe('MacroParser', () => {
 /**
  * Runs the input through the MacroParser and returns the result.
  *
+ * @param {import('@playwright/test').Page} page - The Playwright page object.
  * @param {string} input - The input string to be parsed.
  * @param {Object} [options={}] Optional arguments
  * @param {string[]} [options.flattenKeys=[]] Optional array of dot-separated keys to flatten
  * @param {string[]} [options.ignoreKeys=[]] Optional array of dot-separated keys to ignore
  * @returns {Promise<TestableCstNode>} A promise that resolves to the result of the MacroParser.
  */
-async function runParser(input, options = {}) {
-    const { cst, errors } = await runParserAndGetErrors(input, options);
+async function runParser(page, input, options = {}) {
+    const { cst, errors } = await runParserAndGetErrors(page, input, options);
 
     // Make sure that parser errors get correctly marked as errors during testing, even if the resulting structure might work.
     // If we don't test for errors, the test should fail.
@@ -313,13 +315,14 @@ async function runParser(input, options = {}) {
  *
  * Use `runParser` if you don't want to explicitly test against parser errors.
  *
+ * @param {import('@playwright/test').Page} page - The Playwright page object.
  * @param {string} input - The input string to be parsed.
  * @param {Object} [options={}] Optional arguments
  * @param {string[]} [options.flattenKeys=[]] Optional array of dot-separated keys to flatten
  * @param {string[]} [options.ignoreKeys=[]] Optional array of dot-separated keys to ignore
  * @returns {Promise<{cst: TestableCstNode, errors: TestableRecognitionException[]}>} A promise that resolves to the result of the MacroParser and error list.
  */
-async function runParserAndGetErrors(input, options = {}) {
+async function runParserAndGetErrors(page, input, options = {}) {
     const result = await page.evaluate(async (input) => {
         /** @type {import('../../public/scripts/macros/MacroParser.js')} */
         const { MacroParser } = await import('./scripts/macros/MacroParser.js');
