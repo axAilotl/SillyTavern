@@ -238,25 +238,25 @@ export function resolveVariable(name, scope = null) {
 export function getVariableMacros() {
     return [
         // Replace {{setvar::name::value}} with empty string and set the variable name to value
-        { name: 'setvar', replace: ({ args }) => { setLocalVariable(args[0]?.trim(), args[1]); return ''; } },
+        { regex: /{{setvar::([^:]+)::([^}]+)}}/gi, replace: (_, name, value) => { setLocalVariable(name.trim(), value); return ''; } },
         // Replace {{addvar::name::value}} with empty string and add value to the variable value
-        { name: 'addvar', replace: ({ args }) => { addLocalVariable(args[0]?.trim(), args[1]); return ''; } },
+        { regex: /{{addvar::([^:]+)::([^}]+)}}/gi, replace: (_, name, value) => { addLocalVariable(name.trim(), value); return ''; } },
         // Replace {{incvar::name}} with empty string and increment the variable name by 1
-        { name: 'incvar', replace: ({ args }) => incrementLocalVariable(args[0].trim()) },
+        { regex: /{{incvar::([^}]+)}}/gi, replace: (_, name) => incrementLocalVariable(name.trim()) },
         // Replace {{decvar::name}} with empty string and decrement the variable name by 1
-        { name: 'decvar', replace: ({ args }) => decrementLocalVariable(args[0]?.trim()) },
+        { regex: /{{decvar::([^}]+)}}/gi, replace: (_, name) => decrementLocalVariable(name.trim()) },
         // Replace {{getvar::name}} with the value of the variable name
-        { name: 'getvar', replace: ({ args }) => getLocalVariable(args[0]?.trim()) },
+        { regex: /{{getvar::([^}]+)}}/gi, replace: (_, name) => getLocalVariable(name.trim()) },
         // Replace {{setglobalvar::name::value}} with empty string and set the global variable name to value
-        { name: 'setglobalvar', replace: ({ args }) => { setGlobalVariable(args[0]?.trim(), args[1]); return ''; } },
+        { regex: /{{setglobalvar::([^:]+)::([^}]+)}}/gi, replace: (_, name, value) => { setGlobalVariable(name.trim(), value); return ''; } },
         // Replace {{addglobalvar::name::value}} with empty string and add value to the global variable value
-        { name: 'addglobalvar', replace: ({ args }) => { addGlobalVariable(args[0]?.trim(), args[1]); return ''; } },
+        { regex: /{{addglobalvar::([^:]+)::([^}]+)}}/gi, replace: (_, name, value) => { addGlobalVariable(name.trim(), value); return ''; } },
         // Replace {{incglobalvar::name}} with empty string and increment the global variable name by 1
-        { name: 'incglobalvar', replace: ({ args }) => incrementGlobalVariable(args[0]?.trim()) },
+        { regex: /{{incglobalvar::([^}]+)}}/gi, replace: (_, name) => incrementGlobalVariable(name.trim()) },
         // Replace {{decglobalvar::name}} with empty string and decrement the global variable name by 1
-        { name: 'decglobalvar', replace: ({ args }) => decrementGlobalVariable(args[0]?.trim()) },
+        { regex: /{{decglobalvar::([^}]+)}}/gi, replace: (_, name) => decrementGlobalVariable(name.trim()) },
         // Replace {{getglobalvar::name}} with the value of the global variable name
-        { name: 'getglobalvar', replace: ({ args }) => getGlobalVariable(args[0]?.trim()) },
+        { regex: /{{getglobalvar::([^}]+)}}/gi, replace: (_, name) => getGlobalVariable(name.trim()) },
     ];
 }
 
@@ -321,7 +321,7 @@ async function listVariablesCallback(args) {
  */
 async function whileCallback(args, value) {
     if (args.guard instanceof SlashCommandClosure) throw new Error('argument \'guard\' cannot be a closure for command /while');
-    const isGuardOff = isFalseBoolean(args?.guard?.toString());
+    const isGuardOff = isFalseBoolean(args.guard);
     const iterations = isGuardOff ? Number.MAX_SAFE_INTEGER : MAX_LOOPS;
     /**@type {string|SlashCommandClosure} */
     let command;
@@ -380,7 +380,7 @@ async function timesCallback(args, value) {
         [repeats, ...command] = /**@type {string}*/(value).split(' ');
         command = command.join(' ');
     }
-    const isGuardOff = isFalseBoolean(args?.guard?.toString());
+    const isGuardOff = isFalseBoolean(args.guard);
     const iterations = Math.min(Number(repeats), isGuardOff ? Number.MAX_SAFE_INTEGER : MAX_LOOPS);
     let result;
     for (let i = 0; i < iterations; i++) {
