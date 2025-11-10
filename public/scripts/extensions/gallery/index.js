@@ -18,6 +18,7 @@ import { DragAndDropHandler } from '../../dragdrop.js';
 import { commonEnumProviders } from '../../slash-commands/SlashCommandCommonEnumsProvider.js';
 import { t, translate } from '../../i18n.js';
 import { Popup } from '../../popup.js';
+import { deleteMediaFromServer } from '../../chats.js';
 
 const extensionName = 'gallery';
 const extensionFolderPath = `scripts/extensions/${extensionName}/`;
@@ -63,10 +64,10 @@ mutationObserver.observe(document.body, {
 });
 
 const SORT = Object.freeze({
-    NAME_ASC: { value: 'nameAsc', field: 'name', order: 'asc', label: t`Sort By: Name (A-Z)` },
-    NAME_DESC: { value: 'nameDesc', field: 'name', order: 'desc', label: t`Sort By: Name (Z-A)` },
-    DATE_ASC: { value: 'dateAsc', field: 'date', order: 'asc', label: t`Sort By: Date (Oldest First)` },
-    DATE_DESC: { value: 'dateDesc', field: 'date', order: 'desc', label: t`Sort By: Date (Newest First)` },
+    NAME_ASC: { value: 'nameAsc', field: 'name', order: 'asc', label: t`Name (A-Z)` },
+    NAME_DESC: { value: 'nameDesc', field: 'name', order: 'desc', label: t`Name (Z-A)` },
+    DATE_DESC: { value: 'dateDesc', field: 'date', order: 'desc', label: t`Newest` },
+    DATE_ASC: { value: 'dateAsc', field: 'date', order: 'asc', label: t`Oldest` },
 });
 
 const defaultSettings = Object.freeze({
@@ -163,21 +164,9 @@ async function getGalleryFolders() {
  * @param {string} url - The URL of the image to be deleted.
  */
 async function deleteGalleryItem(url) {
-    try {
-        const response = await fetch('/api/images/delete', {
-            method: 'POST',
-            headers: getRequestHeaders(),
-            body: JSON.stringify({ path: url }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error. Status: ${response.status}`);
-        }
-
+    const isDeleted = await deleteMediaFromServer(url, false);
+    if (isDeleted){
         toastr.success(t`Image deleted successfully.`);
-    } catch (error) {
-        console.error('Failed to delete the image:', error);
-        toastr.error(t`Failed to delete the image. Check the console for details.`);
     }
 }
 
@@ -376,6 +365,11 @@ async function makeMovable(url) {
     const titleText = document.createElement('span');
     titleText.textContent = t`Image Gallery`;
     dragTitle.append(titleText);
+
+    // Create a container for the controls
+    const controlsContainer = document.createElement('div');
+    controlsContainer.classList.add('flex-container', 'alignItemsCenter');
+
     const sortSelect = document.createElement('select');
     sortSelect.classList.add('gallery-sort-select');
 
@@ -394,7 +388,42 @@ async function makeMovable(url) {
     });
 
     sortSelect.value = getSortOrder();
-    dragTitle.append(sortSelect);
+    controlsContainer.appendChild(sortSelect);
+
+    // Create the "Add Image" button
+    const addImageButton = document.createElement('div');
+    addImageButton.classList.add('menu_button', 'menu_button_icon', 'interactable');
+    addImageButton.title = 'Add Image';
+    addImageButton.innerHTML = '<i class="fa-solid fa-plus fa-fw"></i><div>Add Image</div>';
+
+    // Create a hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.multiple = true;
+    fileInput.style.display = 'none';
+
+    // Trigger file input when the button is clicked
+    addImageButton.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Handle file selection
+    fileInput.addEventListener('change', async () => {
+        const files = fileInput.files;
+        if (files.length > 0) {
+            for (const file of files) {
+                await uploadFile(file, url);
+            }
+            // Refresh the gallery
+            closeButton.trigger('click');
+            await showCharGallery();
+        }
+    });
+
+    controlsContainer.appendChild(addImageButton);
+    dragTitle.append(controlsContainer);
+    newElement.append(fileInput); // Append hidden file input to the main element
 
     // add no-scrollbar class to this element
     newElement.addClass('no-scrollbar');
@@ -603,6 +632,9 @@ function makeDragImg(id, url) {
             counter++;
         }
         draggableElem.id = uniqueId;
+
+        // Add the galleryImageDraggable to have unique class
+        draggableElem.classList.add('galleryImageDraggable');
 
         // Ensure that the newly added element is displayed as block
         draggableElem.style.display = 'block';

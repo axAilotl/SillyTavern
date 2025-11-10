@@ -24,6 +24,10 @@ export let openRouterModels = [];
  * @type {string[]}
  */
 const OPENROUTER_PROVIDERS = [
+    // An alphabetically separate set of very-dead providers is kept at the top of the list in the docs.
+    // These do not appear outside the docs: Anyscale, Cent-ML, HuggingFace ... SF Compute, Together 2, 01.AI
+    // As a visual check, AI21 is the topmost provider in the sidebar of https://openrouter.ai/models, thus we want to copy from this point and below.
+    // Providers endpoint: https://openrouter.ai/api/v1/providers
     'AI21',
     'AionLabs',
     'Alibaba',
@@ -36,6 +40,8 @@ const OPENROUTER_PROVIDERS = [
     'BaseTen',
     'Cerebras',
     'Chutes',
+    'Cirrascale',
+    'Clarifai',
     'Cloudflare',
     'Cohere',
     'CrofAI',
@@ -43,6 +49,7 @@ const OPENROUTER_PROVIDERS = [
     'DeepInfra',
     'DeepSeek',
     'Enfer',
+    'FakeProvider',
     'Featherless',
     'Fireworks',
     'Friendli',
@@ -62,6 +69,8 @@ const OPENROUTER_PROVIDERS = [
     'Meta',
     'Minimax',
     'Mistral',
+    'ModelRun',
+    'Modular',
     'Moonshot AI',
     'Morph',
     'NCompass',
@@ -69,19 +78,24 @@ const OPENROUTER_PROVIDERS = [
     'NextBit',
     'Nineteen',
     'Novita',
+    'Nvidia',
     'OpenAI',
     'OpenInference',
     'Parasail',
     'Perplexity',
     'Phala',
+    'Relace',
     'SambaNova',
+    'SiliconFlow',
     'Stealth',
     'Switchpoint',
     'Targon',
     'Together',
     'Ubicloud',
     'Venice',
+    'WandB',
     'xAI',
+    'Z.AI',
 ];
 
 export async function loadOllamaModels(data) {
@@ -920,15 +934,9 @@ export function getCurrentOpenRouterModelTokenizer() {
 export function getCurrentDreamGenModelTokenizer() {
     const modelId = textgen_settings.dreamgen_model;
     const model = dreamGenModels.find(x => x.id === modelId);
-    if (model.id.startsWith('opus-v1-sm')) {
+    if (model.id.startsWith('lucid-v1-medium') || model.id.startsWith('lucid-v1-base')) {
         return tokenizers.MISTRAL;
-    } else if (model.id.startsWith('opus-v1-lg')) {
-        return tokenizers.YI;
-    } else if (model.id.startsWith('opus-v1-xl')) {
-        return tokenizers.LLAMA;
-    } else if (model.id.startsWith('lucid-v1-medium')) {
-        return tokenizers.NEMO;
-    } else if (model.id.startsWith('lucid-v1-extra-large')) {
+    } else if (model.id.startsWith('lucid-v1-extra-large') || model.id.startsWith('lucid-v1-max')) {
         return tokenizers.LLAMA3;
     } else {
         return tokenizers.MISTRAL;

@@ -28,3 +28,101 @@ export const IGNORE_SYMBOL = Symbol.for('ignore');
  * https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats
  */
 export const VIDEO_EXTENSIONS = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', '3gp', 'mkv', 'mpg'];
+
+/**
+ * Known generation triggers that can be passed to Generate function.
+ */
+export const GENERATION_TYPE_TRIGGERS = [
+    'normal',
+    'continue',
+    'impersonate',
+    'swipe',
+    'regenerate',
+    'quiet',
+];
+
+/**
+ * Known injection IDs and helper functions for system extensions handling.
+ */
+export const inject_ids = {
+    STORY_STRING: '__STORY_STRING__',
+    QUIET_PROMPT: 'QUIET_PROMPT',
+    DEPTH_PROMPT: 'DEPTH_PROMPT',
+    DEPTH_PROMPT_INDEX: (index) => `DEPTH_PROMPT_${index}`,
+    CUSTOM_WI_DEPTH: 'customDepthWI',
+    CUSTOM_WI_DEPTH_ROLE: (depth, role) => `customDepthWI_${depth}_${role}`,
+    CUSTOM_WI_OUTLET: (key) => `customWIOutlet_${key}`,
+};
+
+export const COMETAPI_IGNORE_PATTERNS = [
+    // Image generation models
+    'dall-e', 'dalle', 'midjourney', 'mj_', 'stable-diffusion', 'sd-',
+    'flux-', 'playground-v', 'ideogram', 'recraft-', 'black-forest-labs',
+    '/recraft-v3', 'recraftv3', 'stability-ai/', 'sdxl',
+    // Audio generation models
+    'suno_', 'tts', 'whisper',
+    // Video generation models
+    'runway', 'luma_', 'luma-', 'veo', 'kling_', 'minimax_video', 'hunyuan-t1',
+    // Utility models
+    'embedding', 'search-gpts', 'files_retrieve', 'moderation',
+];
+
+/**
+ * @enum {string}
+ * @readonly
+ */
+export const MEDIA_SOURCE = {
+    API: 'api',
+    UPLOAD: 'upload',
+    GENERATED: 'generated',
+    CAPTIONED: 'captioned',
+};
+
+/**
+ * @enum {string}
+ * @readonly
+ */
+export const MEDIA_DISPLAY = {
+    LIST: 'list',
+    GALLERY: 'gallery',
+};
+
+/**
+ * @readonly
+ */
+export const MEDIA_TYPE = {
+    getFromMime: (/** @type {string} */ mimeType) => {
+        if (mimeType.startsWith('image/')) {
+            return MEDIA_TYPE.IMAGE;
+        }
+        if (mimeType.startsWith('video/')) {
+            return MEDIA_TYPE.VIDEO;
+        }
+        if (mimeType.startsWith('audio/')) {
+            return MEDIA_TYPE.AUDIO;
+        }
+        return null;
+    },
+    IMAGE: 'image',
+    VIDEO: 'video',
+    AUDIO: 'audio',
+};
+
+/**
+ * Scroll behavior options when appending media to messages.
+ * @enum {string}
+ * @readonly
+ */
+export const SCROLL_BEHAVIOR = {
+    NONE: 'none',
+    KEEP: 'keep',
+    ADJUST: 'adjust',
+};
+
+/**
+ * @type {{readonly LEFT: 'left', readonly RIGHT: 'right'}}
+ */
+export const SWIPE_DIRECTION = {
+    LEFT: 'left',
+    RIGHT: 'right',
+};

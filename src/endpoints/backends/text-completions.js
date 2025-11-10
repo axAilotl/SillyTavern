@@ -72,15 +72,20 @@ async function parseOllamaStream(jsonStream, request, response) {
 
 /**
  * Abort KoboldCpp generation request.
+ * @param {import('express').Request} request the generation request
  * @param {string} url Server base URL
  * @returns {Promise<void>} Promise resolving when we are done
  */
-async function abortKoboldCppRequest(url) {
+async function abortKoboldCppRequest(request, url) {
     try {
         console.info('Aborting Kobold generation...');
-        const abortResponse = await fetch(`${url}/api/extra/abort`, {
+        const args = {
             method: 'POST',
-        });
+            headers: {},
+        };
+
+        setAdditionalHeaders(request, args, url);
+        const abortResponse = await fetch(`${url}/api/extra/abort`, args);
 
         if (!abortResponse.ok) {
             console.error('Error sending abort request to Kobold:', abortResponse.status, abortResponse.statusText);
@@ -275,7 +280,7 @@ router.post('/generate', async function (request, response) {
         request.socket.removeAllListeners('close');
         request.socket.on('close', async function () {
             if (request.body.api_type === TEXTGEN_TYPES.KOBOLDCPP && !response.writableEnded) {
-                await abortKoboldCppRequest(trimV1(baseUrl));
+                await abortKoboldCppRequest(request, trimV1(baseUrl));
             }
 
             controller.abort();
@@ -478,7 +483,8 @@ ollama.post('/caption-image', async function (request, response) {
         });
 
         if (!fetchResponse.ok) {
-            console.error('Ollama caption error:', fetchResponse.status, fetchResponse.statusText);
+            const errorText = await fetchResponse.text();
+            console.error('Ollama caption error:', fetchResponse.status, fetchResponse.statusText, errorText);
             return response.status(500).send({ error: true });
         }
 

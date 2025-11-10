@@ -53,12 +53,22 @@ import {
     swipe_right,
     swipe_left,
     generateRaw,
+    showSwipeButtons,
+    hideSwipeButtons,
+    deleteMessage,
+    refreshSwipeButtons,
+    isSwipingAllowed,
+    ensureMessageMediaIsArray,
+    getMediaDisplay,
+    getMediaIndex,
 } from '../script.js';
 import {
     extension_settings,
     ModuleWorkerWrapper,
+    openThirdPartyExtensionMenu,
     renderExtensionTemplate,
     renderExtensionTemplateAsync,
+    saveMetadataDebounced,
     writeExtensionField,
 } from './extensions.js';
 import { groups, openGroupChat, selected_group, unshallowGroupMembers } from './group-chats.js';
@@ -112,11 +122,13 @@ export function getContext() {
         onlineStatus: online_status,
         maxContext: Number(max_context),
         chatMetadata: chat_metadata,
+        saveMetadataDebounced,
         streamingProcessor,
         eventSource,
         eventTypes: event_types,
         addOneMessage,
         deleteLastMessage,
+        deleteMessage,
         generate: Generate,
         sendStreamingRequest,
         sendGenerationRequest,
@@ -203,12 +215,22 @@ export function getContext() {
         humanizedDateTime,
         updateMessageBlock,
         appendMediaToMessage,
+        ensureMessageMediaIsArray,
+        getMediaDisplay,
+        getMediaIndex,
         macros: {
             MacroLexer,
             MacroParser,
             MacroEngine,
         },
-        swipe: { left: swipe_left, right: swipe_right },
+        swipe: {
+            left: swipe_left,
+            right: swipe_right,
+            show: showSwipeButtons,
+            hide: hideSwipeButtons,
+            refresh: refreshSwipeButtons,
+            isAllowed: () => isSwipingAllowed,
+        },
         variables: {
             local: {
                 get: getLocalVariable,
@@ -239,6 +261,7 @@ export function getContext() {
         parseReasoningFromString,
         unshallowCharacter,
         unshallowGroupMembers,
+        openThirdPartyExtensionMenu,
         symbols: {
             ignore: IGNORE_SYMBOL,
         },

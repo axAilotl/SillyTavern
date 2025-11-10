@@ -14,7 +14,7 @@ import storage from 'node-persist';
 
 import { AVATAR_WIDTH, AVATAR_HEIGHT, DEFAULT_AVATAR_PATH } from '../constants.js';
 import { default as validateAvatarUrlMiddleware, getFileNameValidationFunction } from '../middleware/validateFileName.js';
-import { deepMerge, humanizedISO8601DateTime, tryParse, extractFileFromZipBuffer, MemoryLimitedMap, getConfigValue, mutateJsonString } from '../util.js';
+import { deepMerge, humanizedISO8601DateTime, tryParse, extractFileFromZipBuffer, MemoryLimitedMap, getConfigValue, mutateJsonString, clientRelativePath, getUniqueName, sanitizeSafeCharacterReplacements } from '../util.js';
 import { TavernCardValidator } from '../validator/TavernCardValidator.js';
 import { parse, read, write } from '../character-card-parser.js';
 import { readWorldInfoFile } from './worldinfo.js';
@@ -22,6 +22,8 @@ import { invalidateThumbnail } from './thumbnails.js';
 import { importRisuSprites } from './sprites.js';
 import { getUserDirectories } from '../users.js';
 import { getChatInfo } from './chats.js';
+import { ByafParser } from '../byaf.js';
+import cacheBuster from '../middleware/cacheBuster.js';
 
 // With 100 MB limit it would take roughly 3000 characters to reach this limit
 const memoryCacheCapacity = getConfigValue('performance.memoryCacheCapacity', '100mb');
@@ -106,6 +108,7 @@ class DiskCache {
             dir: this.cachePath,
             ttl: false,
             forgiveParseErrors: true,
+            expiredInterval: 0,
             // @ts-ignore
             maxFileDescriptors: 100,
         });
@@ -504,6 +507,9 @@ function readFromV2(char) {
         return char;
     }
 
+    // If 'json_data' was already saved, don't let it propagate
+    _.unset(char, 'json_data');
+
     const fieldMappings = {
         name: 'name',
         description: 'description',
@@ -559,6 +565,9 @@ function readFromV2(char) {
 function charaFormatData(data, directories) {
     // This is supposed to save all the foreign keys that ST doesn't care about
     const char = tryParse(data.json_data) || {};
+
+    // Prevent erroneous 'json_data' recursive saving
+    _.unset(char, 'json_data');
 
     // Checks if data.alternate_greetings is an array, a string, or neither, and acts accordingly. (expected to be an array of strings)
     const getAlternateGreetings = data => {
@@ -686,6 +695,7 @@ function convertWorldInfoToCharacterBook(name, entries) {
                 useProbability: entry.useProbability ?? false,
                 depth: entry.depth ?? 4,
                 selectiveLogic: entry.selectiveLogic ?? 0,
+                outlet_name: entry.outletName ?? '',
                 group: entry.group ?? '',
                 group_override: entry.groupOverride ?? false,
                 group_weight: entry.groupWeight ?? null,
@@ -707,6 +717,8 @@ function convertWorldInfoToCharacterBook(name, entries) {
                 match_character_depth_prompt: entry.matchCharacterDepthPrompt ?? false,
                 match_scenario: entry.matchScenario ?? false,
                 match_creator_notes: entry.matchCreatorNotes ?? false,
+                triggers: entry.triggers ?? [],
+                ignore_budget: entry.ignoreBudget ?? false,
             },
         };
 
@@ -792,6 +804,79 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
     card.name = sanitize(card.name);
     const fileName = preservedFileName || getPngName(card.name, request.user.directories);
     const result = await writeCharacterData(avatar, JSON.stringify(card), fileName, request);
+    return result ? fileName : '';
+}
+
+async function importFromByaf(uploadPath, { request }, preservedFileName) {
+    const data = (await fsPromises.readFile(uploadPath)).buffer;
+    await fsPromises.unlink(uploadPath);
+    console.info('Importing from BYAF');
+
+    const byafData = await new ByafParser(data).parse();
+    const card = readFromV2(byafData.card);
+    const fileName = preservedFileName || getPngName(sanitize(byafData.character.displayName || card.name, { replacement: sanitizeSafeCharacterReplacements }), request.user.directories);
+
+    // Don't import chats and images if the character is being replaced or updated, instead of newly imported.
+    if (!preservedFileName) {
+        /**
+         * @param {Partial<ByafScenario>} scenario
+        */
+        const createChatAsCurrentPersona = (scenario) => {
+            const chatName = sanitize(`${scenario.title || card.name} - ${humanizedISO8601DateTime()} imported.jsonl`, { replacement: sanitizeSafeCharacterReplacements });
+            const filePath = path.join(request.user.directories.chats, path.basename(fileName), chatName);
+            const dir = path.dirname(filePath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            writeFileAtomicSync(filePath, ByafParser.getChatFromScenario(scenario, request.body.user_name, card.name, byafData.chatBackgrounds), 'utf8');
+            console.log(`Created ${chatName} chat from BYAF import`);
+            return chatName;
+        };
+
+        // Upload backgrounds
+        for (const bg of byafData.chatBackgrounds) {
+            const extension = path.extname(bg.paths?.[0]) || '.png';
+            const baseName = `${path.basename(fileName)}_bg`;
+            const filePath = path.join(request.user.directories.userImages, fileName);
+            if (!fs.existsSync(filePath)) fs.mkdirSync(filePath, { recursive: true });
+            const file = getUniqueName(baseName, (name) => fs.existsSync(path.join(filePath, `${name}${extension}`)));
+            if (Buffer.isBuffer(bg.data)) {
+                const newFile = `${file}${extension}`;
+                writeFileAtomicSync(path.join(filePath, newFile), bg.data);
+                bg.name = clientRelativePath(request.user.directories.root, path.join(filePath, newFile)); // Update background name to the new file
+                console.log(`Created ${newFile} background from BYAF import`);
+            }
+        }
+
+        const chats = [];
+        // Create chats for each scenario
+        if (Array.isArray(byafData.scenarios)) {
+            for (const scenario of byafData.scenarios) {
+                chats.push(createChatAsCurrentPersona(scenario));
+            }
+        }
+
+        // Update the default chat if there are any so we open to an existing chat instead of creating a new one and opening that.
+        if (chats.length > 0) {
+            card.chat = path.basename(chats[0], path.extname(chats[0]));
+        }
+
+        // Save alternate icons for the character.
+        for (const icon of byafData.images.slice(1)) {
+            // BYAF does not support character expressions, so using the same structure will not result in conflicts,
+            // even if the expression system did not tolerate additional icons that are not mapped to expressions.
+            // This will not yet allow changing icons within the UI but at least the icons will be available for manual selection, rather than being lost.
+            const altImagesFolder = path.join(request.user.directories.characters, sanitize(card.name));
+            if (!fs.existsSync(altImagesFolder)) fs.mkdirSync(altImagesFolder, { recursive: true });
+            const extension = path.extname(icon.filename) || '.png';
+            const file = getUniqueName(`${sanitize(icon.label, { replacement: sanitizeSafeCharacterReplacements }) || 'alt'}`, (name) => fs.existsSync(path.join(altImagesFolder, `${name}${extension}`)));
+            if (Buffer.isBuffer(icon.image)) {
+                writeFileAtomicSync(path.join(altImagesFolder, `${file}${extension}`), icon.image);
+                console.log(`Created ${file}${extension} alternate icon from BYAF import`);
+            }
+        }
+    }
+
+    const result = await writeCharacterData(byafData.images[0].image, JSON.stringify(card), fileName, request);
+
     return result ? fileName : '';
 }
 
@@ -1042,7 +1127,7 @@ router.post('/edit', validateAvatarUrlMiddleware, async function (request, respo
             fs.unlinkSync(newAvatarPath);
 
             // Bust cache to reload the new avatar
-            response.setHeader('Clear-Site-Data', '"cache"');
+            cacheBuster.bust(request, response);
         }
 
         return response.sendStatus(200);
@@ -1072,6 +1157,11 @@ router.post('/edit-attribute', validateAvatarUrlMiddleware, async function (requ
     if (request.body.ch_name === '' || request.body.ch_name === undefined || request.body.ch_name === '.') {
         console.warn('Error: invalid name.');
         return response.status(400).send('Error: invalid name.');
+    }
+
+    if (request.body.field === 'json_data') {
+        console.warn('Error: cannot edit json_data field.');
+        return response.status(400).send('Error: cannot edit json_data field.');
     }
 
     try {
@@ -1121,6 +1211,10 @@ router.post('/merge-attributes', getFileNameValidationFunction('avatar'), async 
         }
 
         let character = JSON.parse(pngStringData);
+
+        _.unset(update, 'json_data');
+        _.unset(character, 'json_data');
+
         character = deepMerge(character, update);
 
         const validator = new TavernCardValidator(character);
@@ -1198,7 +1292,8 @@ router.post('/all', async function (request, response) {
         return response.send(data);
     } catch (err) {
         console.error(err);
-        response.sendStatus(500);
+        const isRangeError = err instanceof RangeError;
+        response.status(500).send({ overflow: isRangeError, error: true });
     }
 });
 
@@ -1299,6 +1394,7 @@ router.post('/import', async function (request, response) {
         'json': importFromJson,
         'png': importFromPng,
         'charx': importFromCharX,
+        'byaf': importFromByaf,
     };
 
     try {

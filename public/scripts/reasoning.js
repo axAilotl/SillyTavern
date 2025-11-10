@@ -15,6 +15,7 @@ import { commonEnumProviders, enumIcons } from './slash-commands/SlashCommandCom
 import { enumTypes, SlashCommandEnumValue } from './slash-commands/SlashCommandEnumValue.js';
 import { SlashCommandParser } from './slash-commands/SlashCommandParser.js';
 import { textgen_types, textgenerationwebui_settings } from './textgen-settings.js';
+import { applyStreamFadeIn } from './util/stream-fadein.js';
 import { copyText, escapeRegex, isFalseBoolean, isTrueBoolean, setDatasetProperty, trimSpaces } from './utils.js';
 
 /**
@@ -118,8 +119,15 @@ export function extractReasoningFromData(data, {
                     return data?.responseContent?.parts?.filter(part => part.thought)?.map(part => part.text)?.join('\n\n') ?? '';
                 case chat_completion_sources.CLAUDE:
                     return data?.content?.find(part => part.type === 'thinking')?.thinking ?? '';
+                case chat_completion_sources.MISTRALAI:
+                    return data?.choices?.[0]?.message?.content?.[0]?.thinking?.map(part => part.text)?.filter(x => x)?.join('\n\n') ?? '';
                 case chat_completion_sources.AIMLAPI:
                 case chat_completion_sources.POLLINATIONS:
+                case chat_completion_sources.MOONSHOT:
+                case chat_completion_sources.COMETAPI:
+                case chat_completion_sources.ELECTRONHUB:
+                case chat_completion_sources.NANOGPT:
+                case chat_completion_sources.ZAI:
                 case chat_completion_sources.CUSTOM: {
                     return data?.choices?.[0]?.message?.reasoning_content
                         ?? data?.choices?.[0]?.message?.reasoning
@@ -401,7 +409,7 @@ export class ReasoningHandler {
         if (!power_user.reasoning.prefix || !power_user.reasoning.suffix)
             return mesChanged;
 
-        /** @type {{ mes: string, [key: string]: any}} */
+        /** @type {ChatMessage} */
         const message = chat[messageId];
         if (!message) return mesChanged;
 
@@ -491,7 +499,12 @@ export class ReasoningHandler {
         // Update the reasoning message
         const reasoning = trimSpaces(this.reasoningDisplayText ?? this.reasoning);
         const displayReasoning = messageFormatting(reasoning, '', false, false, messageId, {}, true);
-        this.messageReasoningContentDom.innerHTML = displayReasoning;
+
+        if (power_user.stream_fade_in) {
+            applyStreamFadeIn(this.messageReasoningContentDom, displayReasoning);
+        } else {
+            this.messageReasoningContentDom.innerHTML = displayReasoning;
+        }
 
         // Update tooltip for hidden reasoning edit
         /** @type {HTMLElement} */
@@ -1071,6 +1084,13 @@ function setReasoningEventHandlers() {
         }
     });
 
+    $(document).on('click', '.mes_reasoning_close_all', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        $('.mes_reasoning_details[open] .mes_reasoning_header').trigger('click');
+    });
+
     $(document).on('click', '.mes_reasoning_edit_done', async function (e) {
         e.stopPropagation();
         e.preventDefault();
@@ -1239,7 +1259,7 @@ export function parseReasoningFromString(str, { strict = true } = {}) {
 /**
  * Parse reasoning in an array of swipe strings if auto-parsing is enabled.
  * @param {string[]} swipes Array of swipe strings
- * @param {{extra: ReasoningMessageExtra}[]} swipeInfoArray Array of swipe info objects
+ * @param {{extra: Partial<ReasoningMessageExtra>}[]} swipeInfoArray Array of swipe info objects
  * @param {number?} duration Duration of the reasoning
  * @typedef {object} ReasoningMessageExtra Extra reasoning data
  * @property {string} reasoning Reasoning block
@@ -1337,6 +1357,29 @@ function registerReasoningAppEvents() {
     for (const event of [event_types.GENERATION_STOPPED, event_types.GENERATION_ENDED, event_types.CHAT_CHANGED]) {
         eventSource.on(event, () => PromptReasoning.clearLatest());
     }
+
+    eventSource.makeFirst(event_types.IMPERSONATE_READY, async () => {
+        if (!power_user.reasoning.auto_parse) {
+            return;
+        }
+
+        const sendTextArea = /** @type {HTMLTextAreaElement} */ (document.getElementById('send_textarea'));
+
+        if (!sendTextArea) {
+            console.warn('[Reasoning] Send textarea not found');
+            return;
+        }
+
+        console.debug('[Reasoning] Auto-parsing reasoning block for impersonation');
+
+        if (!sendTextArea.value) {
+            console.debug('[Reasoning] Reasoning is empty, skipping');
+            return;
+        }
+
+        sendTextArea.value = removeReasoningFromString(sendTextArea.value);
+        sendTextArea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
 }
 
 /**
