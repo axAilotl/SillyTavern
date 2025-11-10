@@ -4,7 +4,9 @@ export default defineConfig({
     testMatch: '*.e2e.js',
     use: {
         baseURL: 'http://127.0.0.1:8000',
-        video: 'on',
+        video: 'only-on-failure',
         screenshot: 'only-on-failure',
     },
+    workers: process.env.CI ?? '80%',
+    fullyParallel: true,
 });
