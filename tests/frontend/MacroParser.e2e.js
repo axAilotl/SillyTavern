@@ -279,6 +279,24 @@ test.describe('MacroParser', () => {
             });
         });
 
+        test('should parse legacy single colon argument that allows double colons inside the argument', async ({ page }) => {
+            const input = '{{reverse:this contains::double::colons}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'reverse',
+                'arguments': {
+                    'separator': ':',
+                    'argument': 'this contains::double::colons',
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+
         // TODO: Comment like // is not a valid identifier, needs to be an exception (until we maybe add flags)
         test('should parse legacy comment macro', async ({ page }) => {
             const input = '{{//comment-style macro}}';

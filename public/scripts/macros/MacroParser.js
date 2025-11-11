@@ -52,7 +52,7 @@ class MacroParser extends CstParser {
                         $.CONSUME(Tokens.Args.DoubleColon, { LABEL: 'separator' });
                         $.AT_LEAST_ONE_SEP({
                             SEP: Tokens.Args.DoubleColon,
-                            DEF: () => $.SUBRULE($.argument),
+                            DEF: () => $.SUBRULE($.argument, { LABEL: 'argument' }),
                         });
                     },
                 },
@@ -61,22 +61,36 @@ class MacroParser extends CstParser {
                         $.OPTION(() => {
                             $.CONSUME(Tokens.Args.Colon, { LABEL: 'separator' });
                         });
-                        $.SUBRULE1($.argument);
+                        $.SUBRULE($.argumentAllowingColons, { LABEL: 'argument' });
                     },
+                    // So, this is a bit hacky. But implemented below, the argument capture does explicitly exclude double colons
+                    // from being captured as the first token. The potential ambiguity chevrotain claims here is not possible.
+                    // It says stuff like <Args.DoubleColon, Identifier/Macro/Unknown> is possible in both branches, but it is not.
+                    IGNORE_AMBIGUITIES: true,
                 },
             ]);
         });
 
+        // List the argument tokens here, as we need two rules, one to be able to parse with double colons and one without
+        const validArgumentTokens = [
+            { ALT: () => $.SUBRULE($.macro) }, // Nested Macros
+            { ALT: () => $.CONSUME(Tokens.Identifier) },
+            { ALT: () => $.CONSUME(Tokens.Unknown) },
+            { ALT: () => $.CONSUME(Tokens.Args.Colon) },
+            { ALT: () => $.CONSUME(Tokens.Args.Equals) },
+            { ALT: () => $.CONSUME(Tokens.Args.Quote) },
+        ];
+
         $.argument = $.RULE('argument', () => {
             $.AT_LEAST_ONE(() => {
+                $.OR(validArgumentTokens);
+            });
+        });
+        $.argumentAllowingColons = $.RULE('argumentAllowingColons', () => {
+            $.AT_LEAST_ONE(() => {
                 $.OR([
-                    { ALT: () => $.SUBRULE($.macro) }, // Nested Macros
-                    { ALT: () => $.CONSUME(Tokens.Identifier) },
-                    { ALT: () => $.CONSUME(Tokens.Unknown) },
-                    { ALT: () => $.CONSUME(Tokens.Args.Colon) },
-                    // { ALT: () => $.CONSUME(Tokens.Args.DoubleColon) },
-                    { ALT: () => $.CONSUME(Tokens.Args.Equals) },
-                    { ALT: () => $.CONSUME(Tokens.Args.Quote) },
+                    ...validArgumentTokens,
+                    { ALT: () => $.CONSUME(Tokens.Args.DoubleColon) },
                 ]);
             });
         });
