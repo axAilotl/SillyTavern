@@ -216,6 +216,183 @@ test.describe('MacroParser', () => {
 
     });
 
+    test.describe('Legacy Macros', () => {
+        // TODO: Need to update parser to handle space separator after macro identifier
+        test('should parse legacy roll macro with whitespace separator', async ({ page }) => {
+            const input = '{{roll 1d5}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'roll',
+                'arguments': { 'argument': '1d5' },
+                'Macro.End': '}}',
+            });
+        });
+
+        test('should parse legacy roll macro with explicit colon separator', async ({ page }) => {
+            const input = '{{roll:2d20}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'roll',
+                'arguments': {
+                    'separator': ':',
+                    'argument': '2d20',
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Need to update parser to handle space separator after macro identifier
+        test('should parse legacy roll macro with numeric argument', async ({ page }) => {
+            const input = '{{roll 20}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'roll',
+                'arguments': { 'argument': '20' },
+                'Macro.End': '}}',
+            });
+        });
+
+        test('should parse reverse legacy macro with colon argument', async ({ page }) => {
+            const input = '{{reverse:something}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'reverse',
+                'arguments': {
+                    'separator': ':',
+                    'argument': 'something',
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Comment like // is not a valid identifier, needs to be an exception (until we maybe add flags)
+        test('should parse legacy comment macro', async ({ page }) => {
+            const input = '{{//comment-style macro}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': '//',
+                'arguments': { 'argument': 'comment-style macro' },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Need to update parser to handle space separator after macro identifier
+        test('should parse legacy datetime format macro', async ({ page }) => {
+            const input = '{{datetimeformat HH:mm}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'datetimeformat',
+                'arguments': { 'argument': 'HH:mm' },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Not sure how to handle that yet, + and - aren't really valid separators I want to target. Maybe simply making a whole parsing branch for just this macro...
+        test('should parse legacy time macro with positive offset', async ({ page }) => {
+            const input = '{{time_UTC+2}}';
+            const macroCst = await runParser(page, input);
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'time_UTC',
+                'arguments': {
+                    'separator': '+',
+                    'argument': '2',
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Not sure how to handle that yet, + and - aren't really valid separators I want to target. Maybe simply making a whole parsing branch for just this macro...
+        test('should parse legacy time macro with negative offset', async ({ page }) => {
+            const input = '{{time_UTC-10}}';
+            const macroCst = await runParser(page, input);
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'time_UTC',
+                'arguments': {
+                    'separator': '-',
+                    'argument': '10',
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Need to update parser to handle space separator after macro identifier
+        test('should parse legacy banned macro with quoted argument', async ({ page }) => {
+            const input = '{{banned "abannedword"}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'banned',
+                'arguments': { 'argument': '"abannedword"' },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: Need to update parser to handle space separator after macro identifier
+        test('should parse legacy macro with empty quoted argument', async ({ page }) => {
+            const input = '{{banned ""}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'banned',
+                'arguments': { 'argument': '""' },
+                'Macro.End': '}}',
+            });
+        });
+
+        // TODO: We likely need to support empty arguments, hmh
+        test('should allow legacy setvar with empty value argument', async ({ page }) => {
+            const input = '{{setvar::myvar::}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'setvar',
+                'arguments': {
+                    'separator': '::',
+                    'argument': ['myvar', ''],
+                },
+                'Macro.End': '}}',
+            });
+        });
+
+    });
+
     test.describe('Nested Macros', () => {
         test('should parse nested macros inside arguments', async ({ page }) => {
             const input = '{{outer::word {{inner}}}}';
