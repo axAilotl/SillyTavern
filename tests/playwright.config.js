@@ -7,6 +7,6 @@ export default defineConfig({
         video: 'only-on-failure',
         screenshot: 'only-on-failure',
     },
-    workers: process.env.CI ?? '80%',
+    workers: 4,
     fullyParallel: true,
 });
