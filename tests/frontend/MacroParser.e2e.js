@@ -217,7 +217,6 @@ test.describe('MacroParser', () => {
     });
 
     test.describe('Legacy Macros', () => {
-        // TODO: Need to update parser to handle space separator after macro identifier
         test('should parse legacy roll macro with whitespace separator', async ({ page }) => {
             const input = '{{roll 1d5}}';
             const macroCst = await runParser(page, input, {
@@ -249,7 +248,6 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // TODO: Need to update parser to handle space separator after macro identifier
         test('should parse legacy roll macro with numeric argument', async ({ page }) => {
             const input = '{{roll 20}}';
             const macroCst = await runParser(page, input, {
@@ -296,7 +294,6 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // TODO: Need to update parser to handle space separator after macro identifier
         test('should parse legacy datetime format macro', async ({ page }) => {
             const input = '{{datetimeformat HH:mm}}';
             const macroCst = await runParser(page, input, {

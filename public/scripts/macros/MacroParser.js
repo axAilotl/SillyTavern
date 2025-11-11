@@ -47,13 +47,24 @@ class MacroParser extends CstParser {
         // Arguments Parsing
         $.arguments = $.RULE('arguments', () => {
             $.OR([
-                { ALT: () => $.CONSUME(Tokens.Args.DoubleColon, { LABEL: 'separator' }) },
-                { ALT: () => $.CONSUME(Tokens.Args.Colon, { LABEL: 'separator' }) },
+                {
+                    ALT: () => {
+                        $.CONSUME(Tokens.Args.DoubleColon, { LABEL: 'separator' });
+                        $.AT_LEAST_ONE_SEP({
+                            SEP: Tokens.Args.DoubleColon,
+                            DEF: () => $.SUBRULE($.argument),
+                        });
+                    },
+                },
+                {
+                    ALT: () => {
+                        $.OPTION(() => {
+                            $.CONSUME(Tokens.Args.Colon, { LABEL: 'separator' });
+                        });
+                        $.SUBRULE1($.argument);
+                    },
+                },
             ]);
-            $.AT_LEAST_ONE_SEP({
-                SEP: Tokens.Args.DoubleColon,
-                DEF: () => $.SUBRULE($.argument),
-            });
         });
 
         $.argument = $.RULE('argument', () => {
