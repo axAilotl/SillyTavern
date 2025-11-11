@@ -340,7 +340,6 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // TODO: Need to update parser to handle space separator after macro identifier
         test('should parse legacy banned macro with quoted argument', async ({ page }) => {
             const input = '{{banned "abannedword"}}';
             const macroCst = await runParser(page, input, {
@@ -355,7 +354,6 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // TODO: Need to update parser to handle space separator after macro identifier
         test('should parse legacy macro with empty quoted argument', async ({ page }) => {
             const input = '{{banned ""}}';
             const macroCst = await runParser(page, input, {

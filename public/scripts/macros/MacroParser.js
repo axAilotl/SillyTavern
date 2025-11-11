@@ -74,6 +74,9 @@ class MacroParser extends CstParser {
                     { ALT: () => $.CONSUME(Tokens.Identifier) },
                     { ALT: () => $.CONSUME(Tokens.Unknown) },
                     { ALT: () => $.CONSUME(Tokens.Args.Colon) },
+                    // { ALT: () => $.CONSUME(Tokens.Args.DoubleColon) },
+                    { ALT: () => $.CONSUME(Tokens.Args.Equals) },
+                    { ALT: () => $.CONSUME(Tokens.Args.Quote) },
                 ]);
             });
         });
