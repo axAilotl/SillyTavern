@@ -110,6 +110,22 @@ class MacroParser extends CstParser {
 
         return { cst, errors: errors };
     }
+
+    /**
+     * Replaces legacy macros with the new macro format.
+     * @param {string} content - The string to replace legacy macros in.
+     * @returns {string} The string with legacy macros replaced.
+     */
+    preProcessFixLegacyMacros(content) {
+
+        // This legacy macro will not be supported by the new macro parser, but rather regex-replaced beforehand
+        // {{time_UTC-10}}   =>   {{time::UTC-10}}
+        content = content.replace(/{{time_(UTC[\+-]\d+)}}/gi, (match, offset) => {
+            return `{{time::${offset}}}`;
+        });
+
+        return content;
+    }
 }
 
 instance = MacroParser.instance;
