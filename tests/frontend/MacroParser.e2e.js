@@ -88,7 +88,6 @@ test.describe('MacroParser', () => {
             });
 
             // something{{user}}
-            // something{{user}}
             test('[Error] for testing purposes, macros need to start at the beginning of the string', async ({ page }) => {
                 const input = 'something{{user}}';
                 const { macroCst, errors } = await runParserAndGetErrors(page, input);
@@ -225,6 +224,7 @@ test.describe('MacroParser', () => {
     });
 
     test.describe('Legacy Macros', () => {
+        // {{roll 1d5}}
         test('should parse legacy roll macro with whitespace separator', async ({ page }) => {
             const input = '{{roll 1d5}}';
             const macroCst = await runParser(page, input, {
@@ -239,6 +239,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{roll:2d20}}
         test('should parse legacy roll macro with explicit colon separator', async ({ page }) => {
             const input = '{{roll:2d20}}';
             const macroCst = await runParser(page, input, {
@@ -256,6 +257,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{roll 20}}
         test('should parse legacy roll macro with numeric argument', async ({ page }) => {
             const input = '{{roll 20}}';
             const macroCst = await runParser(page, input, {
@@ -270,6 +272,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{reverse:something}}
         test('should parse reverse legacy macro with colon argument', async ({ page }) => {
             const input = '{{reverse:something}}';
             const macroCst = await runParser(page, input, {
@@ -287,6 +290,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{reverse:this contains::double::colons}}
         test('should parse legacy single colon argument that allows double colons inside the argument', async ({ page }) => {
             const input = '{{reverse:this contains::double::colons}}';
             const macroCst = await runParser(page, input, {
@@ -304,7 +308,7 @@ test.describe('MacroParser', () => {
             });
         });
 
-
+        // {{//comment-style macro}}
         // TODO: Comment like // is not a valid identifier, needs to be an exception (until we maybe add flags)
         test('should parse legacy comment macro', async ({ page }) => {
             const input = '{{//comment-style macro}}';
@@ -320,6 +324,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{datetimeformat HH:mm}}
         test('should parse legacy datetime format macro', async ({ page }) => {
             const input = '{{datetimeformat HH:mm}}';
             const macroCst = await runParser(page, input, {
@@ -334,6 +339,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{time_UTC+2}}
         // TODO: Not sure how to handle that yet, + and - aren't really valid separators I want to target. Maybe simply making a whole parsing branch for just this macro...
         test('should parse legacy time macro with positive offset', async ({ page }) => {
             const input = '{{time_UTC+2}}';
@@ -350,6 +356,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{time_UTC-10}}
         // TODO: Not sure how to handle that yet, + and - aren't really valid separators I want to target. Maybe simply making a whole parsing branch for just this macro...
         test('should parse legacy time macro with negative offset', async ({ page }) => {
             const input = '{{time_UTC-10}}';
@@ -366,6 +373,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{banned "abannedword"}}
         test('should parse legacy banned macro with quoted argument', async ({ page }) => {
             const input = '{{banned "abannedword"}}';
             const macroCst = await runParser(page, input, {
@@ -380,6 +388,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{banned ""}}
         test('should parse legacy macro with empty quoted argument', async ({ page }) => {
             const input = '{{banned ""}}';
             const macroCst = await runParser(page, input, {
@@ -394,6 +403,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{setvar::myvar::}}
         test('should allow legacy setvar with empty value argument', async ({ page }) => {
             const input = '{{setvar::myvar::}}';
             const macroCst = await runParser(page, input, {
@@ -414,6 +424,7 @@ test.describe('MacroParser', () => {
     });
 
     test.describe('Nested Macros', () => {
+        // {{outer::word {{inner}}}}
         test('should parse nested macros inside arguments', async ({ page }) => {
             const input = '{{outer::word {{inner}}}}';
             const macroCst = await runParser(page, input, {});
@@ -435,6 +446,7 @@ test.describe('MacroParser', () => {
             });
         });
 
+        // {{outer::word {{inner1}}{{inner2}}}}
         test('should parse two nested macros next to each other inside an argument', async ({ page }) => {
             const input = '{{outer::word {{inner1}}{{inner2}}}}';
             const macroCst = await runParser(page, input, {});
@@ -464,7 +476,7 @@ test.describe('MacroParser', () => {
         });
 
         test.describe('Error Cases (Nested Macros)', () => {
-
+            // {{{{macroindentifier}}::value}}
             test('[Error] should throw when there is a nested macro instead of an identifier', async ({ page }) => {
                 const input = '{{{{macroindentifier}}::value}}';
                 const { macroCst, errors } = await runParserAndGetErrors(page, input);
@@ -473,6 +485,7 @@ test.describe('MacroParser', () => {
                 expect(errors).toHaveLength(1); // error doesn't really matter. Just don't parse it pls.
             });
 
+            // {{inside{{macro}}me}}
             test('[Error] should throw when there is a macro inside an identifier', async ({ page }) => {
                 const input = '{{inside{{macro}}me}}';
                 const { macroCst, errors } = await runParserAndGetErrors(page, input);
@@ -591,7 +604,6 @@ function simplifyCstNode(cst, input, { flattenKeys = [], ignoreKeys = [], ignore
 
     return simplifyNode(cst);
 }
-
 
 /**
  * Simplifies a recognition exceptions into an easily testable format.
