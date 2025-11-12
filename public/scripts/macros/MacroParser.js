@@ -39,7 +39,10 @@ class MacroParser extends CstParser {
         // Basic Macro Structure
         $.macro = $.RULE('macro', () => {
             $.CONSUME(Tokens.Macro.Start);
-            $.CONSUME(Tokens.Macro.Identifier);
+            $.OR([
+                { ALT: () => $.CONSUME(Tokens.Macro.DoubleSlash, { LABEL: 'Macro.identifier' }) },
+                { ALT: () => $.CONSUME(Tokens.Macro.Identifier, { LABEL: 'Macro.identifier' }) },
+            ]);
             $.OPTION(() => $.SUBRULE($.arguments));
             $.CONSUME(Tokens.Macro.End);
         });

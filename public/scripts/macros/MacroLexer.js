@@ -24,6 +24,7 @@ const Tokens = {
         // Separate macro identifier needed, that is similar to the global indentifier, but captures the actual macro "name"
         // We need this, because this token is going to switch lexer mode, while the general identifier does not.
         Flags: createToken({ name: 'Macro.Flag', pattern: /[!?#~/.$]/ }),
+        DoubleSlash: createToken({ name: 'Macro.DoubleSlash', pattern: /\/\// }),
         Identifier: createToken({ name: 'Macro.Identifier', pattern: /[a-zA-Z][\w-_]*/ }),
         // At the end of an identifier, there has to be whitspace, or must be directly followed by colon/double-colon separator, output modifier or closing braces
         EndOfIdentifier: createToken({ name: 'Macro.EndOfIdentifier', pattern: /(?:\s+|(?=:{1,2})|(?=[|}]))/, group: Lexer.SKIPPED }),
@@ -74,6 +75,9 @@ const Def = {
         ],
         [modes.macro_def]: [
             exits(Tokens.Macro.End, modes.macro_def),
+
+            // An explicit double-slash will be treated above flags to consume, as it'll introduce a comment macro. Directly following is the args then.
+            enter(Tokens.Macro.DoubleSlash, modes.macro_args),
 
             using(Tokens.Macro.Flags),
 

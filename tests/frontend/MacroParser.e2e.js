@@ -29,7 +29,7 @@ test.describe('MacroParser', () => {
 
             const expectedCst = {
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'user',
+                'Macro.identifier': 'user',
                 'Macro.End': '}}',
             };
 
@@ -42,7 +42,7 @@ test.describe('MacroParser', () => {
 
             const expectedCst = {
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'user',
+                'Macro.identifier': 'user',
                 'Macro.End': '}}',
             };
 
@@ -56,11 +56,13 @@ test.describe('MacroParser', () => {
                 const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
-                    { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.Identifier <-- but found --> \'}}\' <--' },
+                    { name: 'NoViableAltException' },
                 ];
+                const expectedMessage = /Expecting: one of these possible Token sequences:(.*?)\[Macro\.Identifier\](.*?)but found: '}}'/gs;
 
                 expect(macroCst).toBeUndefined();
-                expect(errors).toEqual(expectedErrors);
+                expect(errors).toMatchObject(expectedErrors);
+                expect(errors[0].message).toMatch(expectedMessage);
             });
             // {{§!#&blah}}
             test('[Error] should throw an error for invalid identifier', async ({ page }) => {
@@ -68,11 +70,13 @@ test.describe('MacroParser', () => {
                 const { macroCst, errors } = await runParserAndGetErrors(page, input);
 
                 const expectedErrors = [
-                    { name: 'MismatchedTokenException', message: 'Expecting token of type --> Macro.Identifier <-- but found --> \'!\' <--' },
+                    { name: 'NoViableAltException' },
                 ];
+                const expectedMessage = /Expecting: one of these possible Token sequences:(.*?)\[Macro\.Identifier\](.*?)but found: '!'/gs;
 
                 expect(macroCst).toBeUndefined();
-                expect(errors).toEqual(expectedErrors);
+                expect(errors).toMatchObject(expectedErrors);
+                expect(errors[0].message).toMatch(expectedMessage);
             });
             // {{user
             test('[Error] should throw an error for incomplete macro', async ({ page }) => {
@@ -111,7 +115,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'getvar',
+                'Macro.identifier': 'getvar',
                 'arguments': {
                     'separator': '::',
                     'argument': 'myvar',
@@ -128,7 +132,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'roll',
+                'Macro.identifier': 'roll',
                 'arguments': {
                     'separator': ':',
                     'argument': '3d20',
@@ -146,7 +150,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'setvar',
+                'Macro.identifier': 'setvar',
                 'arguments': {
                     'separator': '::',
                     'argument': ['myvar', 'value'],
@@ -164,7 +168,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'something',
+                'Macro.identifier': 'something',
                 'arguments': { 'argument': 'spaced' },
                 'Macro.End': '}}',
             });
@@ -179,7 +183,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'something',
+                'Macro.identifier': 'something',
                 'arguments': {
                     'separator': '::',
                     'argument': 'with:single:colons',
@@ -197,7 +201,7 @@ test.describe('MacroParser', () => {
             });
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'legacy',
+                'Macro.identifier': 'legacy',
                 'arguments': { 'argument': 'something:else' },
                 'Macro.End': '}}',
             });
@@ -212,7 +216,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'something',
+                'Macro.identifier': 'something',
                 'arguments': {
                     'separator': '::',
                     'argument': '',
@@ -233,7 +237,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'roll',
+                'Macro.identifier': 'roll',
                 'arguments': { 'argument': '1d5' },
                 'Macro.End': '}}',
             });
@@ -248,7 +252,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'roll',
+                'Macro.identifier': 'roll',
                 'arguments': {
                     'separator': ':',
                     'argument': '2d20',
@@ -266,7 +270,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'roll',
+                'Macro.identifier': 'roll',
                 'arguments': { 'argument': '20' },
                 'Macro.End': '}}',
             });
@@ -281,7 +285,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'reverse',
+                'Macro.identifier': 'reverse',
                 'arguments': {
                     'separator': ':',
                     'argument': 'something',
@@ -299,7 +303,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'reverse',
+                'Macro.identifier': 'reverse',
                 'arguments': {
                     'separator': ':',
                     'argument': 'this contains::double::colons',
@@ -318,7 +322,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': '//',
+                'Macro.identifier': '//',
                 'arguments': { 'argument': 'comment-style macro' },
                 'Macro.End': '}}',
             });
@@ -333,7 +337,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'datetimeformat',
+                'Macro.identifier': 'datetimeformat',
                 'arguments': { 'argument': 'HH:mm' },
                 'Macro.End': '}}',
             });
@@ -349,7 +353,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'time',
+                'Macro.identifier': 'time',
                 'arguments': {
                     'separator': '::',
                     'argument': 'UTC+2',
@@ -368,7 +372,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'time',
+                'Macro.identifier': 'time',
                 'arguments': {
                     'separator': '::',
                     'argument': 'UTC-10',
@@ -386,7 +390,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'banned',
+                'Macro.identifier': 'banned',
                 'arguments': { 'argument': '"abannedword"' },
                 'Macro.End': '}}',
             });
@@ -401,7 +405,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'banned',
+                'Macro.identifier': 'banned',
                 'arguments': { 'argument': '""' },
                 'Macro.End': '}}',
             });
@@ -416,7 +420,7 @@ test.describe('MacroParser', () => {
 
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'setvar',
+                'Macro.identifier': 'setvar',
                 'arguments': {
                     'separator': '::',
                     'argument': ['myvar', ''],
@@ -427,6 +431,96 @@ test.describe('MacroParser', () => {
 
     });
 
+    test.describe('Comment Macros', () => {
+        // {{//comment}}
+        test('should parse comment macro without whitespace', async ({ page }) => {
+            const input = '{{//comment}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.identifier': '//',
+                'Macro.End': '}}',
+                'arguments': {
+                    'argument': 'comment'
+                },
+            });
+        });
+
+        // {{// comment}}
+        test('should parse comment macro with whitespace', async ({ page }) => {
+            const input = '{{// comment}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.identifier': '//',
+                'Macro.End': '}}',
+                'arguments': {
+                    'argument': 'comment'
+                },
+            });
+        });
+
+
+        // {{//!@#$%^&*()_+}}
+        test('should parse comment macro with special characters', async ({ page }) => {
+            const input = '{{//!@#$%^&*()_+}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.identifier': '//',
+                'Macro.End': '}}',
+                'arguments': {
+                    'argument': '!@#$%^&*()_+'
+                },
+            });
+        });
+
+
+        // {{//!@flags}}
+        test('should parse comment macro starting with flags', async ({ page }) => {
+            const input = '{{//!@flags}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.identifier': '//',
+                'Macro.End': '}}',
+                'arguments': {
+                    'argument': '!@flags'
+                },
+            });
+        });
+
+        // {{// This is a multiline comment.
+        // This is the second line
+        // }}
+        test('should parse multiline comments', async ({ page }) => {
+            const input = `{{// This is a multiline comment.
+This is the second line
+}}`;
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.identifier': '//',
+                'Macro.End': '}}',
+                'arguments': {
+                    'argument': 'This is a multiline comment.\nThis is the second line'
+                },
+            });
+        });
+
+
+    });
+
     test.describe('Nested Macros', () => {
         // {{outer::word {{inner}}}}
         test('should parse nested macros inside arguments', async ({ page }) => {
@@ -434,13 +528,13 @@ test.describe('MacroParser', () => {
             const macroCst = await runParser(page, input, {});
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'outer',
+                'Macro.identifier': 'outer',
                 'arguments': {
                     'argument': {
                         'Identifier': 'word',
                         'macro': {
                             'Macro.Start': '{{',
-                            'Macro.Identifier': 'inner',
+                            'Macro.identifier': 'inner',
                             'Macro.End': '}}',
                         },
                     },
@@ -456,19 +550,19 @@ test.describe('MacroParser', () => {
             const macroCst = await runParser(page, input, {});
             expect(macroCst).toEqual({
                 'Macro.Start': '{{',
-                'Macro.Identifier': 'outer',
+                'Macro.identifier': 'outer',
                 'arguments': {
                     'argument': {
                         'Identifier': 'word',
                         'macro': [
                             {
                                 'Macro.Start': '{{',
-                                'Macro.Identifier': 'inner1',
+                                'Macro.identifier': 'inner1',
                                 'Macro.End': '}}',
                             },
                             {
                                 'Macro.Start': '{{',
-                                'Macro.Identifier': 'inner2',
+                                'Macro.identifier': 'inner2',
                                 'Macro.End': '}}',
                             },
                         ],
