@@ -6,6 +6,13 @@ import { test, expect } from '@playwright/test';
 /** @typedef {{[tokenName: string]: (string|string[]|TestableCstNode|TestableCstNode[])}} TestableCstNode */
 /** @typedef {{name: string, message: string}} TestableRecognitionException */
 
+const DEFAULT_FLATTEN_KEYS = [
+    'arguments.Args.DoubleColon',
+];
+const DEFAULT_IGNORE_KEYS = [
+
+];
+
 test.setTimeout(10_000);
 
 test.describe('MacroParser', () => {
@@ -197,20 +204,21 @@ test.describe('MacroParser', () => {
             });
         });
 
-        test.describe('Error Cases (Arguments Handling)', () => {
-            // {{something::}}
-            test('[Error] should throw an error for double-colon without a value', async ({ page }) => {
-                const input = '{{something::}}';
-                const { macroCst, errors } = await runParserAndGetErrors(page, input);
+        // {{something::}}
+        test('should parse double-colon with an empty argument value', async ({ page }) => {
+            const input = '{{something::}}';
+            const macroCst = await runParser(page, input, {
+                flattenKeys: ['arguments.argument'],
+            });
 
-                const expectedErrors = [
-                    {
-                        name: 'EarlyExitException', message: expect.stringMatching(/^Expecting: expecting at least one iteration which starts with one of these possible Token sequences:/),
-                    },
-                ];
-
-                expect(macroCst).toBeUndefined();
-                expect(errors).toEqual(expectedErrors);
+            expect(macroCst).toEqual({
+                'Macro.Start': '{{',
+                'Macro.Identifier': 'something',
+                'arguments': {
+                    'separator': '::',
+                    'argument': '',
+                },
+                'Macro.End': '}}',
             });
         });
 
@@ -386,7 +394,6 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // TODO: We likely need to support empty arguments, hmh
         test('should allow legacy setvar with empty value argument', async ({ page }) => {
             const input = '{{setvar::myvar::}}';
             const macroCst = await runParser(page, input, {
@@ -533,7 +540,10 @@ async function runParserAndGetErrors(page, input, options = {}) {
  * @param {string[]} [options.ignoreKeys=[]] Optional array of dot-separated keys to ignore
  * @returns {TestableCstNode} The testable syntax tree
  */
-function simplifyCstNode(cst, input, { flattenKeys = [], ignoreKeys = [] } = {}) {
+function simplifyCstNode(cst, input, { flattenKeys = [], ignoreKeys = [], ignoreDefaultFlattenKeys = false, ignoreDefaultIgnoreKeys = false } = {}) {
+    if (!ignoreDefaultFlattenKeys) flattenKeys = [...flattenKeys, ...DEFAULT_FLATTEN_KEYS];
+    if (!ignoreDefaultIgnoreKeys) ignoreKeys = [...ignoreKeys, ...DEFAULT_IGNORE_KEYS];
+
     /** @returns {TestableCstNode} @param {CstNode} node @param {string[]} path */
     function simplifyNode(node, path = []) {
         if (!node) return node;
@@ -561,6 +571,7 @@ function simplifyCstNode(cst, input, { flattenKeys = [], ignoreKeys = [] } = {})
                     if (ignoreKeys.includes(flattenKey)) {
                         return null;
                     } else if (flattenKeys.includes(flattenKey)) {
+                        if (!childNode.location) return null;
                         const startOffset = childNode.location.startOffset;
                         const endOffset = childNode.location.endOffset;
                         return input.slice(startOffset, endOffset + 1);
@@ -570,8 +581,9 @@ function simplifyCstNode(cst, input, { flattenKeys = [], ignoreKeys = [] } = {})
                 }
 
                 const simplifiedValue = simplifyChildNode(node.children[key], path.concat(key));
-                simplifiedValue && (simplifiedChildren[key] = simplifiedValue);
+                if (simplifiedValue !== null) simplifiedChildren[key] = simplifiedValue;
             }
+            if (Object.values(simplifiedChildren).length === 0) return null;
             return simplifiedChildren;
         }
         return node.image;

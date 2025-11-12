@@ -82,8 +82,8 @@ class MacroParser extends CstParser {
         ];
 
         $.argument = $.RULE('argument', () => {
-            $.AT_LEAST_ONE(() => {
-                $.OR(validArgumentTokens);
+            $.MANY(() => {
+                $.OR([...validArgumentTokens]);
             });
         });
         $.argumentAllowingColons = $.RULE('argumentAllowingColons', () => {
