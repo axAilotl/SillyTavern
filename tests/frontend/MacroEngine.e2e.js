@@ -70,18 +70,18 @@ test.describe('MacroEngine', () => {
             expect(output).toBe('Shout: HELLO WORLD!');
         });
 
+        // {{upper: this is upper content}} -> 'THIS IS UPPER CONTENT'
+        test('should handle whitespace separated argument', async ({ page }) => {
+            const input = 'Wrapped: {{upper this is upper content}}';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('Wrapped: THIS IS UPPER CONTENT');
+        });
+
         // {{wrap::value::[::]}} -> '[value]'
         test('should handle macros with multiple unnamed arguments', async ({ page }) => {
             const input = 'Wrapped: {{wrap::value::[::]}}';
             const output = await evaluateWithEngine(page, input);
             expect(output).toBe('Wrapped: [value]');
-        });
-
-        // {{wrap: value ( )}} -> '(value)'
-        test('should handle whitespace separated arguments for wrap', async ({ page }) => {
-            const input = 'Wrapped: {{wrap: value ( )}}';
-            const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Wrapped: (value)');
         });
     });
 
