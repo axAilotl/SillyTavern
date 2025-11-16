@@ -3,6 +3,9 @@ import { MacroLexer } from './MacroLexer.js';
 const { CstParser } = chevrotain;
 
 /** @typedef {import('chevrotain').TokenType} TokenType */
+/** @typedef {import('chevrotain').CstNode} CstNode */
+/** @typedef {import('chevrotain').ILexingError} ILexingError */
+/** @typedef {import('chevrotain').IRecognitionException} IRecognitionException */
 
 /**
  * The singleton instance of the MacroParser.
@@ -101,6 +104,31 @@ class MacroParser extends CstParser {
         this.performSelfAnalysis();
     }
 
+    /**
+     * Parses a document into a CST.
+     *
+     * @param {string} input
+     * @returns {{ cst: CstNode?, errors: ({ message: string }|ILexingError|IRecognitionException)[] }}
+     */
+    parseDocument(input) {
+        if (!input) {
+            return { cst: null, errors: [{ message: 'Input is empty' }] };
+        }
+
+        const preProcessed = this.preProcessFixLegacyMacros(input);
+        const lexingResult = MacroLexer.tokenize(preProcessed);
+
+        this.input = lexingResult.tokens;
+        const cst = this.document();
+
+        const errors = [
+            ...lexingResult.errors,
+            ...this.errors,
+        ];
+
+        return { cst, errors };
+    }
+
     test(input) {
         const lexingResult = MacroLexer.tokenize(input);
         // "input" is a setter which will reset the parser's state.
@@ -123,7 +151,7 @@ class MacroParser extends CstParser {
 
         // This legacy macro will not be supported by the new macro parser, but rather regex-replaced beforehand
         // {{time_UTC-10}}   =>   {{time::UTC-10}}
-        content = content.replace(/{{time_(UTC[\+-]\d+)}}/gi, (match, offset) => {
+        content = content.replace(/{{time_(UTC[+-]\d+)}}/gi, (match, offset) => {
             return `{{time::${offset}}}`;
         });
 

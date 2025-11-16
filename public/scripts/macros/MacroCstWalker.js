@@ -1,7 +1,5 @@
-/**
- * @typedef {import('chevrotain').ICstNode} CstNode
- * @typedef {import('chevrotain').IToken} CstToken
- */
+/** @typedef {import('chevrotain').CstNode} CstNode */
+/** @typedef {import('chevrotain').IToken} IToken */
 
 /**
  * @typedef {Object} MacroCall
@@ -22,6 +20,12 @@
  */
 
 /**
+ * @typedef {Object} TokenRange
+ * @property {number} startOffset
+ * @property {number} endOffset
+ */
+
+/**
  * The singleton instance of the MacroCstWalker.
  *
  * @type {MacroCstWalker}
@@ -30,13 +34,8 @@ let instance;
 export { instance as MacroCstWalker };
 
 class MacroCstWalker {
-    /** @type {MacroCstWalker} */
-    static #instance;
-
-    /** @type {MacroCstWalker} */
-    static get instance() {
-        return MacroCstWalker.#instance ?? (MacroCstWalker.#instance = new MacroCstWalker());
-    }
+    /** @type {MacroCstWalker} */ static #instance;
+    /** @type {MacroCstWalker} */ static get instance() { return MacroCstWalker.#instance ?? (MacroCstWalker.#instance = new MacroCstWalker()); }
 
     /** @type {WeakMap<CstNode, string>} */
     #macroCache;
@@ -55,15 +54,13 @@ class MacroCstWalker {
         const { text, cst, env, resolveMacro } = options;
 
         if (typeof text !== 'string') {
-            return '';
+            throw new Error('MacroCstWalker.evaluateDocument: text must be a string');
         }
-
-        if (!cst) {
-            return text;
+        if (!cst || typeof cst !== 'object' || !cst.children) {
+            throw new Error('MacroCstWalker.evaluateDocument: cst must be a CstNode');
         }
-
         if (typeof resolveMacro !== 'function') {
-            throw new Error('resolveMacro must be a function');
+            throw new Error('MacroCstWalker.evaluateDocument: resolveMacro must be a function');
         }
 
         /** @type {EvaluationContext} */
@@ -77,11 +74,13 @@ class MacroCstWalker {
         let result = '';
         let cursor = 0;
 
+        // Iterate over all items in the document. Evaluate any macro being found, and keep them in the exact same place.
         for (const item of items) {
             if (item.startOffset > cursor) {
                 result += text.slice(cursor, item.startOffset);
             }
 
+            // Items can be either plaintext or macro nodes
             if (item.type === 'plaintext') {
                 result += text.slice(item.startOffset, item.endOffset + 1);
             } else {
@@ -99,21 +98,20 @@ class MacroCstWalker {
     }
 
     /**
+     * @typedef {{ type: 'plaintext', startOffset: number, endOffset: number, token: IToken } | { type: 'macro', startOffset: number, endOffset: number, node: CstNode }} DocumentItem
+     */
+
+    /**
      * Collects top-level plaintext tokens and macro nodes from the document CST.
      *
      * @param {CstNode} cst
-     * @returns {Array<{ type: 'plaintext', startOffset: number, endOffset: number, token: CstToken } | { type: 'macro', startOffset: number, endOffset: number, node: CstNode }>}
+     * @returns {Array<DocumentItem>}
      */
     #collectDocumentItems(cst) {
-        /** @type {any} */
-        const node = cst;
-        const children = node && node.children ? node.children : {};
+        const plaintextTokens = /** @type {IToken[]} */ (cst.children.Plaintext || []);
+        const macroNodes = /** @type {CstNode[]} */ (cst.children.macro || []);
 
-        /** @type {CstToken[]} */
-        const plaintextTokens = children.Plaintext || [];
-        /** @type {CstNode[]} */
-        const macroNodes = children.macro || [];
-
+        /** @type {Array<DocumentItem>} */
         const items = [];
 
         for (const token of plaintextTokens) {
@@ -164,34 +162,23 @@ class MacroCstWalker {
         const { text, env, resolveMacro } = context;
 
         const children = macroNode.children || {};
-        const identifierTokens = children['Macro.identifier'] || [];
-        /** @type {CstToken|undefined} */
-        const identifierToken = identifierTokens[0];
-        const name = identifierToken ? identifierToken.image : '';
+        const identifierTokens = /** @type {IToken[]} */ (children['Macro.identifier'] || []);
+        const name = identifierTokens[0]?.image || '';
 
         const range = this.#getMacroRange(macroNode);
-        const startTokens = children['Macro.Start'] || [];
-        const endTokens = children['Macro.End'] || [];
-        /** @type {CstToken|undefined} */
-        const startToken = startTokens[0];
-        /** @type {CstToken|undefined} */
-        const endToken = endTokens[0];
+        const startToken = /** @type {IToken?} */ ((children['Macro.Start'] || [])[0]);
+        const endToken = /** @type {IToken?} */ ((children['Macro.End'] || [])[0]);
 
         const innerStart = startToken ? startToken.endOffset + 1 : range.startOffset;
         const innerEnd = endToken ? endToken.startOffset - 1 : range.endOffset;
 
         // Extract argument nodes from the "arguments" rule (if present)
-        const argumentsNodes = children.arguments || [];
-        /** @type {CstNode|undefined} */
-        const argumentsNode = argumentsNodes[0];
-        /** @type {CstNode[]} */
-        const argumentNodes = argumentsNode && argumentsNode.children
-            ? (argumentsNode.children.argument || [])
-            : [];
+        const argumentsNode = /** @type {CstNode?} */ ((children.arguments || [])[0]);
+        const argumentNodes = /** @type {CstNode[]} */ (argumentsNode?.children?.argument || []);
 
         /** @type {string[]} */
         const args = [];
-        /** @type {{ value: string, startOffset: number, endOffset: number }[]} */
+        /** @type {({ value: string } & TokenRange)[]} */
         const evaluatedArguments = [];
 
         for (const argNode of argumentNodes) {
@@ -202,8 +189,7 @@ class MacroCstWalker {
             if (location) {
                 evaluatedArguments.push({
                     value: argValue,
-                    startOffset: location.startOffset,
-                    endOffset: location.endOffset,
+                    ...location,
                 });
             }
         }
@@ -264,14 +250,15 @@ class MacroCstWalker {
         }
 
         const { text } = context;
-        const children = argNode.children || {};
-        /** @type {CstNode[]} */
-        const nestedMacros = children.macro || [];
 
+        const nestedMacros = /** @type {CstNode[]} */ ((argNode.children || {}).macro || []);
+
+        // If there are no nested macros, we can just return the original text
         if (nestedMacros.length === 0) {
             return text.slice(location.startOffset, location.endOffset + 1);
         }
 
+        // If there are macros, evaluate them one by one in appearing order, inside the argument, before we return the resolved argument
         const nestedWithRange = nestedMacros.map(node => ({
             node,
             range: this.#getMacroRange(node),
@@ -304,30 +291,19 @@ class MacroCstWalker {
      * or its own location if those are not available.
      *
      * @param {CstNode} macroNode
-     * @returns {{ startOffset: number, endOffset: number }}
+     * @returns {TokenRange}
      */
     #getMacroRange(macroNode) {
-        const children = macroNode.children || {};
-        /** @type {CstToken[]} */
-        const startTokens = children['Macro.Start'] || [];
-        /** @type {CstToken[]} */
-        const endTokens = children['Macro.End'] || [];
+        const startToken = /** @type {IToken?} */ (((macroNode.children || {})['Macro.Start'] || [])[0]);
+        const endToken = /** @type {IToken?} */ (((macroNode.children || {})['Macro.End'] || [])[0]);
 
-        const startToken = startTokens[0];
-        const endToken = endTokens[0];
-
-        if (startToken && endToken && typeof startToken.startOffset === 'number' && typeof endToken.endOffset === 'number') {
-            return {
-                startOffset: startToken.startOffset,
-                endOffset: endToken.endOffset,
-            };
+        if (startToken && endToken) {
+            return { startOffset: startToken.startOffset, endOffset: endToken.endOffset };
         }
-
-        const location = macroNode.location || {};
-        const startOffset = typeof location.startOffset === 'number' ? location.startOffset : 0;
-        const endOffset = typeof location.endOffset === 'number' ? location.endOffset : startOffset;
-
-        return { startOffset, endOffset };
+        if (macroNode.location) {
+            return { startOffset: macroNode.location.startOffset, endOffset: macroNode.location.endOffset };
+        }
+        return { startOffset: 0, endOffset: 0 };
     }
 
     /**
@@ -335,7 +311,7 @@ class MacroCstWalker {
      * tokens and nested macros.
      *
      * @param {CstNode} argNode
-     * @returns {{ startOffset: number, endOffset: number } | null}
+     * @returns {TokenRange}
      */
     #getArgumentLocation(argNode) {
         const children = argNode.children || {};
@@ -343,23 +319,20 @@ class MacroCstWalker {
         let endOffset = Number.NEGATIVE_INFINITY;
 
         for (const key of Object.keys(children)) {
-            /** @type {(CstNode|CstToken)[]} */
-            const elements = children[key] || [];
-
-            for (const element of elements) {
+            for (const element of children[key] || []) {
                 if (this.#isCstNode(element)) {
                     const location = element.location;
                     if (!location) {
                         continue;
                     }
 
-                    if (typeof location.startOffset === 'number' && location.startOffset < startOffset) {
+                    if (location.startOffset < startOffset) {
                         startOffset = location.startOffset;
                     }
-                    if (typeof location.endOffset === 'number' && location.endOffset > endOffset) {
+                    if (location.endOffset > endOffset) {
                         endOffset = location.endOffset;
                     }
-                } else if (element && typeof element.startOffset === 'number' && typeof element.endOffset === 'number') {
+                } else if (element) {
                     if (element.startOffset < startOffset) {
                         startOffset = element.startOffset;
                     }

@@ -136,7 +136,7 @@ test.describe('MacroEngine', () => {
 async function evaluateWithEngine(page, input) {
     const result = await page.evaluate(async (input) => {
         /** @type {import('../../public/scripts/macros/MacroEngine.js')} */
-        const { macroEngineInstance } = await import('./scripts/macros/MacroEngine.js');
+        const { MacroEngine } = await import('./scripts/macros/MacroEngine.js');
         /** @type {import('../../public/scripts/macros/MacroBuiltins.js')} */
         const { registerPrototypeMacros } = await import('./scripts/macros/MacroBuiltins.js');
         /** @type {import('../../public/scripts/macros/MacroRegistry.js')} */
@@ -147,7 +147,7 @@ async function evaluateWithEngine(page, input) {
             registerPrototypeMacros();
         }
 
-        const output = await macroEngineInstance.evaluate(input);
+        const output = await MacroEngine.evaluate(input, {});
         return output;
     }, input);
 

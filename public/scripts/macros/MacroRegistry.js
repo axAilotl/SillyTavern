@@ -1,3 +1,5 @@
+/** @typedef {import('chevrotain').CstNode} CstNode */
+
 /**
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
@@ -5,6 +7,8 @@
  * @property {{ [key: string]: string }} [namedArgs]
  * @property {string} [raw]
  * @property {object} [env]
+ * @property {CstNode} [cstNode]
+ * @property {{ startOffset: number, endOffset: number }} [range]
  */
 
 /**
@@ -34,13 +38,8 @@ let instance;
 export { instance as MacroRegistry };
 
 class MacroRegistry {
-    /** @type {MacroRegistry} */
-    static #instance;
-
-    /** @type {MacroRegistry} */
-    static get instance() {
-        return MacroRegistry.#instance ?? (MacroRegistry.#instance = new MacroRegistry());
-    }
+    /** @type {MacroRegistry} */ static #instance;
+    /** @type {MacroRegistry} */ static get instance() { return MacroRegistry.#instance ?? (MacroRegistry.#instance = new MacroRegistry()); }
 
     /** @type {Map<string, MacroDefinition>} */
     #macros;
@@ -67,7 +66,6 @@ class MacroRegistry {
         }
 
         const normalizedName = name.trim();
-
         if (!normalizedName) {
             throw new Error('Macro name must not be empty or whitespace only');
         }
@@ -76,13 +74,8 @@ class MacroRegistry {
             throw new Error('Macro handler must be a function');
         }
 
-        const minArgs = typeof options.minArgs === 'number' && options.minArgs >= 0
-            ? options.minArgs
-            : 0;
-
-        const hasMaxArgs = typeof options.maxArgs === 'number';
-        const maxArgs = hasMaxArgs ? options.maxArgs : null;
-
+        const minArgs = typeof options.minArgs === 'number' && options.minArgs >= 0 ? options.minArgs : 0;
+        const maxArgs = typeof options.maxArgs === 'number' ? options.maxArgs : null;
         if (maxArgs !== null && maxArgs < minArgs) {
             throw new Error('maxArgs must be greater than or equal to minArgs');
         }
