@@ -21,10 +21,11 @@
 
 /**
  * @typedef {Object} MacroDefinitionOptions
- * @property {number} [requiredArgs]
- * @property {boolean|MacroListSpec} [list]
- * @property {boolean} [strictArgs]
- * @property {string} [description]
+ * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
+ * @property {number?} [requiredArgs]
+ * @property {boolean|MacroListSpec?} [list]
+ * @property {boolean?} [strictArgs]
+ * @property {string?} [description]
  */
 
 /**
@@ -64,54 +65,60 @@ class MacroRegistry {
      * Registers a macro with the registry.
      *
      * @param {string} name - Macro name (identifier).
-     * @param {(context: MacroExecutionContext) => (string|Promise<string>)} handler - Macro implementation.
-     * @param {MacroDefinitionOptions} [options] - Additional macro metadata.
+     * @param {MacroDefinitionOptions} options - Macro registration options including handler and metadata.
      * @returns {MacroDefinition}
      */
-    registerMacro(name, handler, options = {}) {
-        if (typeof name !== 'string') {
-            throw new Error('Macro name must be a string');
-        }
+    registerMacro(name, options) {
+        if (typeof name !== 'string' || !name.trim()) throw new Error('Macro name must be a non-empty string');
+        name = name.trim();
+        if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
-        const normalizedName = name.trim();
-        if (!normalizedName) {
-            throw new Error('Macro name must not be empty or whitespace only');
-        }
+        const { handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription } = options;
 
-        if (typeof handler !== 'function') {
-            throw new Error('Macro handler must be a function');
-        }
+        if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
 
-        const requiredArgs = typeof options.requiredArgs === 'number' && options.requiredArgs >= 0
-            ? options.requiredArgs
-            : 0;
+        let requiredArgs = 0;
+        if (rawRequiredArgs !== undefined) {
+            if (typeof rawRequiredArgs !== 'number' || !Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
+                throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
+            }
+            requiredArgs = rawRequiredArgs;
+        }
 
         /** @type {{ min: number, max: (number|null) }|null} */
         let list = null;
-        if (options.list === true) {
-            list = { min: 0, max: null };
-        } else if (options.list && typeof options.list === 'object') {
-            const min = typeof options.list.min === 'number' && options.list.min >= 0 ? options.list.min : 0;
-            const hasMax = typeof options.list.max === 'number';
-            const max = hasMax ? options.list.max : null;
-
-            if (max !== null && max < min) {
-                throw new Error('list.max must be greater than or equal to list.min');
+        if (rawList !== undefined) {
+            if (typeof rawList === 'boolean') {
+                list = rawList ? { min: 0, max: null } : null;
+            } else if (typeof rawList === 'object' && rawList !== null) {
+                if (typeof rawList.min !== 'number' || rawList.min < 0) throw new Error(`Macro "${name}" options.list.min must be a non-negative integer when provided.`);
+                if (rawList.max !== undefined && typeof rawList.max !== 'number') throw new Error(`Macro "${name}" options.list.max must be a number when provided.`);
+                if (rawList.max !== undefined && rawList.max < rawList.min) throw new Error(`Macro "${name}" options.list.max must be greater than or equal to options.list.min.`);
+                list = { min: rawList.min, max: rawList.max ?? null };
+            } else {
+                throw new Error(`Macro "${name}" options.list must be a boolean or an object with numeric min/max when provided.`);
             }
-
-            list = { min, max };
         }
 
-        const strictArgs = options.strictArgs !== false;
-        const description = typeof options.description === 'string' ? options.description : '';
+        let strictArgs = true;
+        if (rawStrictArgs !== undefined) {
+            if (typeof rawStrictArgs !== 'boolean') throw new Error(`Macro "${name}" options.strictArgs must be a boolean when provided.`);
+            strictArgs = rawStrictArgs;
+        }
 
-        if (this.#macros.has(normalizedName)) {
-            console.warn(`Macro "${normalizedName}" is already registered and will be overwritten.`);
+        let description = '';
+        if (rawDescription !== undefined) {
+            if (typeof rawDescription !== 'string') throw new Error(`Macro "${name}" options.description must be a string when provided.`);
+            description = rawDescription;
+        }
+
+        if (this.#macros.has(name)) {
+            console.warn(`Macro "${name}" is already registered and will be overwritten.`);
         }
 
         /** @type {MacroDefinition} */
         const definition = {
-            name: normalizedName,
+            name: name,
             handler,
             requiredArgs,
             list,
@@ -119,7 +126,7 @@ class MacroRegistry {
             description,
         };
 
-        this.#macros.set(normalizedName, definition);
+        this.#macros.set(name, definition);
 
         return definition;
     }
