@@ -4,6 +4,8 @@
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
  * @property {string[]} args
+ * @property {string[]} [requiredArgs]
+ * @property {string[]|null} [list]
  * @property {{ [key: string]: string }} [namedArgs]
  * @property {string} [raw]
  * @property {object} [env]
@@ -12,10 +14,16 @@
  */
 
 /**
+ * @typedef {Object} MacroListSpec
+ * @property {number} [min]
+ * @property {number} [max]
+ */
+
+/**
  * @typedef {Object} MacroDefinitionOptions
- * @property {number} [minArgs=0]
- * @property {number|null} [maxArgs=null]
- * @property {boolean} [enforceArity=false]
+ * @property {number} [requiredArgs]
+ * @property {boolean|MacroListSpec} [list]
+ * @property {boolean} [strictArgs]
  * @property {string} [description]
  */
 
@@ -23,9 +31,9 @@
  * @typedef {Object} MacroDefinition
  * @property {string} name
  * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
- * @property {number} minArgs
- * @property {number|null} maxArgs
- * @property {boolean} enforceArity
+ * @property {number} requiredArgs
+ * @property {{ min: number, max: (number|null) }|null} list
+ * @property {boolean} strictArgs
  * @property {string} description
  */
 
@@ -74,13 +82,27 @@ class MacroRegistry {
             throw new Error('Macro handler must be a function');
         }
 
-        const minArgs = typeof options.minArgs === 'number' && options.minArgs >= 0 ? options.minArgs : 0;
-        const maxArgs = typeof options.maxArgs === 'number' ? options.maxArgs : null;
-        if (maxArgs !== null && maxArgs < minArgs) {
-            throw new Error('maxArgs must be greater than or equal to minArgs');
+        const requiredArgs = typeof options.requiredArgs === 'number' && options.requiredArgs >= 0
+            ? options.requiredArgs
+            : 0;
+
+        /** @type {{ min: number, max: (number|null) }|null} */
+        let list = null;
+        if (options.list === true) {
+            list = { min: 0, max: null };
+        } else if (options.list && typeof options.list === 'object') {
+            const min = typeof options.list.min === 'number' && options.list.min >= 0 ? options.list.min : 0;
+            const hasMax = typeof options.list.max === 'number';
+            const max = hasMax ? options.list.max : null;
+
+            if (max !== null && max < min) {
+                throw new Error('list.max must be greater than or equal to list.min');
+            }
+
+            list = { min, max };
         }
 
-        const enforceArity = options.enforceArity === true;
+        const strictArgs = options.strictArgs !== false;
         const description = typeof options.description === 'string' ? options.description : '';
 
         if (this.#macros.has(normalizedName)) {
@@ -91,9 +113,9 @@ class MacroRegistry {
         const definition = {
             name: normalizedName,
             handler,
-            minArgs,
-            maxArgs,
-            enforceArity,
+            requiredArgs,
+            list,
+            strictArgs,
             description,
         };
 
@@ -189,24 +211,70 @@ class MacroRegistry {
         const args = Array.isArray(context?.args) ? context.args : [];
         const argc = args.length;
 
-        if (definition.enforceArity) {
-            const min = definition.minArgs;
-            const max = definition.maxArgs;
+        const requiredArgs = definition.requiredArgs;
+        const listSpec = definition.list;
 
-            if (argc < min || (max !== null && argc > max)) {
-                const rangeText = max !== null && min !== max
-                    ? `between ${min} and ${max}`
-                    : String(min);
-                console.warn(`Macro "${definition.name}" called with ${argc} arguments but expects ${rangeText}.`);
+        let isValid = true;
+        if (!listSpec) {
+            if (argc !== requiredArgs) {
+                isValid = false;
             }
+        } else {
+            const listCount = argc > requiredArgs ? argc - requiredArgs : 0;
+            const minTotal = requiredArgs + listSpec.min;
+
+            if (argc < minTotal) {
+                isValid = false;
+            }
+
+            if (listSpec.max !== null && listCount > listSpec.max) {
+                isValid = false;
+            }
+        }
+
+        if (!isValid) {
+            const expectedMin = listSpec ? requiredArgs + listSpec.min : requiredArgs;
+            const expectedMax = listSpec && listSpec.max !== null ? requiredArgs + listSpec.max : null;
+
+            let expectation;
+            if (!listSpec) {
+                expectation = String(requiredArgs);
+            } else if (expectedMax !== null && expectedMax !== expectedMin) {
+                expectation = `between ${expectedMin} and ${expectedMax}`;
+            } else if (expectedMax !== null && expectedMax === expectedMin) {
+                expectation = String(expectedMin);
+            } else {
+                expectation = `at least ${expectedMin}`;
+            }
+
+            console.warn(`Macro "${definition.name}" called with ${argc} unnamed arguments but expects ${expectation}.`);
+
+            if (definition.strictArgs) {
+                const rawInner = context?.raw;
+                if (typeof rawInner === 'string') {
+                    return `{{${rawInner}}}`;
+                }
+                return '';
+            }
+        }
+
+        const requiredArgsValues = args.slice(0, Math.min(requiredArgs, argc));
+        /** @type {string[]|null} */
+        let listValues = null;
+        if (listSpec) {
+            listValues = argc > requiredArgs ? args.slice(requiredArgs) : [];
         }
 
         const executionContext = {
             name: definition.name,
             args,
+            requiredArgs: requiredArgsValues,
+            list: listValues,
             namedArgs: context?.namedArgs,
             raw: context?.raw,
             env: context?.env,
+            cstNode: context?.cstNode,
+            range: context?.range,
         };
 
         const result = definition.handler(executionContext);

@@ -12,9 +12,7 @@ import { MacroRegistry } from './MacroRegistry.js';
 function registerPrototypeMacros() {
     // {{ping}} -> 'pong'
     MacroRegistry.registerMacro('ping', () => 'pong', {
-        minArgs: 0,
-        maxArgs: 0,
-        enforceArity: true,
+        requiredArgs: 0,
         description: 'Simple macro that always returns "pong".',
     });
 
@@ -22,9 +20,8 @@ function registerPrototypeMacros() {
     MacroRegistry.registerMacro('echo', ({ args }) => {
         return Array.isArray(args) ? args.join(' ') : '';
     }, {
-        minArgs: 0,
-        maxArgs: null,
-        enforceArity: false,
+        requiredArgs: 0,
+        list: true,
         description: 'Joins all unnamed arguments with a single space.',
     });
 
@@ -35,9 +32,8 @@ function registerPrototypeMacros() {
         }
         return args[0];
     }, {
-        minArgs: 1,
-        maxArgs: null,
-        enforceArity: true,
+        requiredArgs: 1,
+        list: true,
         description: 'Returns the first unnamed argument.',
     });
 
@@ -46,9 +42,8 @@ function registerPrototypeMacros() {
         const value = Array.isArray(args) && args.length > 0 ? args.join(' ') : '';
         return value.toUpperCase();
     }, {
-        minArgs: 1,
-        maxArgs: null,
-        enforceArity: true,
+        requiredArgs: 1,
+        list: true,
         description: 'Converts its unnamed arguments to upper case.',
     });
 
@@ -61,9 +56,8 @@ function registerPrototypeMacros() {
         const suffix = safeArgs.length >= 3 ? safeArgs[2] : prefix;
         return `${prefix}${value}${suffix}`;
     }, {
-        minArgs: 1,
-        maxArgs: 3,
-        enforceArity: false,
+        requiredArgs: 1,
+        list: { min: 0, max: 2 },
         description: 'Wraps the first argument in an optional prefix/suffix.',
     });
 }
