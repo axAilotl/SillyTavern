@@ -123,6 +123,46 @@ test.describe('MacroEngine', () => {
             expect(output).toBe('Test: {{unknown::my pong example}}');
         });
     });
+
+    test.describe('Arity errors', () => {
+        // ping expects 0 args; calling with any unnamed args should not resolve
+        test('should not resolve ping when called with arguments', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            const input = 'Start {{ping::extra}} end.';
+            const output = await evaluateWithEngine(page, input);
+
+            // Macro text should remain unchanged
+            expect(output).toBe(input);
+
+            // Should have logged an arity warning for ping
+            expect(warnings.some(w => w.includes('Macro "ping"') && w.includes('unnamed arguments'))).toBeTruthy();
+        });
+
+        // upper expects at least 1 unnamed arg; calling with none should not resolve
+        test('should not resolve upper when called without arguments', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            const input = 'Result: {{upper}}';
+            const output = await evaluateWithEngine(page, input);
+
+            expect(output).toBe(input);
+
+            expect(warnings.some(w => w.includes('Macro "upper"') && w.includes('unnamed arguments'))).toBeTruthy();
+        });
+    });
 });
 
 /**
