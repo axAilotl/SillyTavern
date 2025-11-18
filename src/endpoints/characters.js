@@ -14,7 +14,7 @@ import storage from 'node-persist';
 
 import { AVATAR_WIDTH, AVATAR_HEIGHT, DEFAULT_AVATAR_PATH } from '../constants.js';
 import { default as validateAvatarUrlMiddleware, getFileNameValidationFunction } from '../middleware/validateFileName.js';
-import { deepMerge, humanizedISO8601DateTime, tryParse, extractFileFromZipBuffer, MemoryLimitedMap, getConfigValue, mutateJsonString } from '../util.js';
+import { deepMerge, humanizedISO8601DateTime, tryParse, extractFileFromZipBuffer, extractFilesFromZipBuffer, normalizeZipEntryPath, MemoryLimitedMap, getConfigValue, mutateJsonString } from '../util.js';
 import { TavernCardValidator } from '../validator/TavernCardValidator.js';
 import { parse, read, write } from '../character-card-parser.js';
 import { readWorldInfoFile } from './worldinfo.js';
@@ -33,6 +33,10 @@ const isAndroid = process.platform === 'android';
 // Use shallow character data for the character list
 const useShallowCharacters = !!getConfigValue('performance.lazyLoadCharacters', false, 'boolean');
 const useDiskCache = !!getConfigValue('performance.useDiskCache', true, 'boolean');
+const CHARX_EMBEDDED_URI_PREFIXES = ['embeded://', 'embedded://', '__asset:'];
+const CHARX_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng', 'avif', 'bmp', 'jfif']);
+const CHARX_SPRITE_TYPES = new Set(['emotion', 'expression']);
+const CHARX_BACKGROUND_TYPES = new Set(['background']);
 
 class DiskCache {
     /**
@@ -755,6 +759,245 @@ async function importFromYaml(uploadPath, context, preservedFileName) {
     return result ? fileName : '';
 }
 
+function getEmbeddedZipPathFromUri(uri) {
+    if (typeof uri !== 'string') {
+        return null;
+    }
+
+    const trimmed = uri.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const lower = trimmed.toLowerCase();
+    for (const prefix of CHARX_EMBEDDED_URI_PREFIXES) {
+        if (lower.startsWith(prefix)) {
+            const rawPath = trimmed.slice(prefix.length);
+            return normalizeZipEntryPath(rawPath);
+        }
+    }
+
+    return null;
+}
+
+function deriveCharXAssetExtension(assetExt, zipPath) {
+    const metaExt = typeof assetExt === 'string' ? assetExt.trim().toLowerCase() : '';
+    const pathExt = path.extname(zipPath || '').replace('.', '').toLowerCase();
+    return metaExt || pathExt;
+}
+
+function collectCharXAssets(card) {
+    const assets = _.get(card, 'data.assets');
+    if (!Array.isArray(assets)) {
+        return [];
+    }
+
+    return assets.map((asset, index) => {
+        if (!asset) {
+            return null;
+        }
+
+        const zipPath = getEmbeddedZipPathFromUri(asset.uri);
+        if (!zipPath) {
+            return null;
+        }
+
+        const ext = deriveCharXAssetExtension(asset.ext, zipPath);
+        const type = typeof asset.type === 'string' ? asset.type.toLowerCase() : '';
+        const name = typeof asset.name === 'string' ? asset.name : '';
+
+        return {
+            type,
+            name,
+            ext,
+            zipPath,
+            order: index,
+        };
+    }).filter(Boolean);
+}
+
+function pickCharXIconAsset(assets) {
+    const iconAssets = assets.filter(asset => asset.type === 'icon' && CHARX_IMAGE_EXTENSIONS.has(asset.ext) && asset.zipPath);
+    if (iconAssets.length === 0) {
+        return null;
+    }
+
+    const mainIcon = iconAssets.find(asset => asset.name?.toLowerCase() === 'main');
+    return mainIcon || iconAssets[0];
+}
+
+function getCharXAssetBaseName(name, fallback) {
+    const cleaned = (String(name ?? '').trim() || '');
+    if (!cleaned) {
+        return fallback.toLowerCase();
+    }
+
+    // Convert to lowercase, replace spaces/special chars with underscores, remove consecutive underscores
+    let base = cleaned
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+
+    if (!base) {
+        return fallback.toLowerCase();
+    }
+
+    const sanitized = sanitize(base);
+    return (sanitized || fallback).toLowerCase();
+}
+
+function mapCharXAssetsForStorage(assets) {
+    return assets.reduce((acc, asset) => {
+        if (!asset?.zipPath) {
+            return acc;
+        }
+
+        const ext = (asset.ext || '').toLowerCase();
+        if (!CHARX_IMAGE_EXTENSIONS.has(ext)) {
+            return acc;
+        }
+
+        if (asset.type === 'icon' || asset.type === 'user_icon') {
+            return acc;
+        }
+
+        let storageCategory;
+        if (CHARX_SPRITE_TYPES.has(asset.type)) {
+            storageCategory = 'sprite';
+        } else if (CHARX_BACKGROUND_TYPES.has(asset.type)) {
+            storageCategory = 'background';
+        } else if (asset.type) {
+            storageCategory = 'misc';
+        } else {
+            storageCategory = 'misc';
+        }
+
+        acc.push({
+            ...asset,
+            ext,
+            storageCategory,
+            baseName: getCharXAssetBaseName(asset.name, `${storageCategory}_${asset.order ?? 0}`),
+        });
+
+        return acc;
+    }, []);
+}
+
+function ensureFolder(dirPath) {
+    try {
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        } else if (!fs.statSync(dirPath).isDirectory()) {
+            console.warn(`CharX: Path ${dirPath} exists and is not a directory.`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error(`CharX: Failed to prepare directory ${dirPath}`, error);
+        return false;
+    }
+}
+
+function getUniqueAssetPath(dirPath, baseName, ext) {
+    const safeExt = ext || 'png';
+    let suffix = 0;
+    let candidate = `${baseName}.${safeExt}`;
+
+    while (fs.existsSync(path.join(dirPath, candidate))) {
+        suffix++;
+        candidate = `${baseName}_${suffix}.${safeExt}`;
+    }
+
+    return path.join(dirPath, candidate);
+}
+
+function persistCharXAssetsFromBuffers(assets, bufferMap, directories, characterFolder) {
+    /** @type {{sprites: number, backgrounds: number, misc: number}} */
+    const summary = { sprites: 0, backgrounds: 0, misc: 0 };
+    if (!Array.isArray(assets) || assets.length === 0) {
+        return summary;
+    }
+
+    let spritesPath = null;
+    let miscPath = null;
+
+    const ensureSpritesPath = () => {
+        if (spritesPath) {
+            return spritesPath;
+        }
+        const candidate = path.join(directories.characters, characterFolder);
+        if (!ensureFolder(candidate)) {
+            return null;
+        }
+        spritesPath = candidate;
+        return spritesPath;
+    };
+
+    const ensureMiscPath = () => {
+        if (miscPath) {
+            return miscPath;
+        }
+        // Use the image gallery path: user/images/{characterName}/
+        const candidate = path.join(directories.userImages, characterFolder);
+        if (!ensureFolder(candidate)) {
+            return null;
+        }
+        miscPath = candidate;
+        return miscPath;
+    };
+
+    for (const asset of assets) {
+        if (!asset?.zipPath) {
+            continue;
+        }
+        const buffer = bufferMap.get(asset.zipPath);
+        if (!buffer) {
+            console.warn(`CharX: Asset ${asset.zipPath} missing or unsupported, skipping.`);
+            continue;
+        }
+
+        if (asset.storageCategory === 'sprite') {
+            const targetDir = ensureSpritesPath();
+            if (!targetDir) {
+                continue;
+            }
+            const filePath = getUniqueAssetPath(targetDir, asset.baseName, asset.ext);
+            writeFileAtomicSync(filePath, buffer);
+            console.debug(`CharX: Saved sprite "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
+            summary.sprites += 1;
+            continue;
+        }
+
+        if (asset.storageCategory === 'background') {
+            if (!ensureFolder(directories.backgrounds)) {
+                continue;
+            }
+            const backgroundBaseName = `${characterFolder}_${asset.baseName}`;
+            const filePath = getUniqueAssetPath(directories.backgrounds, backgroundBaseName, asset.ext);
+            writeFileAtomicSync(filePath, buffer);
+            invalidateThumbnail(directories, 'bg', path.basename(filePath));
+            console.debug(`CharX: Saved background "${asset.name}" as ${path.basename(filePath)}`);
+            summary.backgrounds += 1;
+            continue;
+        }
+
+        if (asset.storageCategory === 'misc') {
+            const miscDir = ensureMiscPath();
+            if (!miscDir) {
+                continue;
+            }
+            const filePath = getUniqueAssetPath(miscDir, asset.baseName, asset.ext);
+            writeFileAtomicSync(filePath, buffer);
+            console.debug(`CharX: Saved misc asset "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
+            summary.misc += 1;
+        }
+    }
+
+    return summary;
+}
+
 /**
  * Imports a character card from CharX (ZIP) file.
  * @param {string} uploadPath
@@ -773,23 +1016,48 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
         throw new Error('Failed to extract card.json from CharX file');
     }
 
+    console.debug('CharX: Parsing card.json');
     const card = readFromV2(JSON.parse(cardBuffer.toString()));
 
     if (card.spec === undefined) {
         throw new Error('Invalid CharX card file: missing spec field');
     }
 
+    console.debug(`CharX: Card spec=${card.spec}, name=${card.data?.name || card.name}`);
+
+    const embeddedAssets = collectCharXAssets(card);
+    console.debug(`CharX: Found ${embeddedAssets.length} total assets`);
+
+    const iconAsset = pickCharXIconAsset(embeddedAssets);
+    console.debug(`CharX: Icon asset:`, iconAsset ? `${iconAsset.name} (${iconAsset.zipPath})` : 'none');
+
+    const auxiliaryAssets = mapCharXAssetsForStorage(embeddedAssets);
+    console.debug(`CharX: Mapped ${auxiliaryAssets.length} auxiliary assets for storage`);
+
+    const archivePaths = new Set();
+
+    if (iconAsset?.zipPath) {
+        archivePaths.add(iconAsset.zipPath);
+    }
+    for (const asset of auxiliaryAssets) {
+        if (asset?.zipPath) {
+            archivePaths.add(asset.zipPath);
+        }
+    }
+
+    console.debug(`CharX: Extracting ${archivePaths.size} asset files from archive`);
+    let extractedBuffers = new Map();
+    if (archivePaths.size > 0) {
+        extractedBuffers = await extractFilesFromZipBuffer(data, [...archivePaths]);
+        console.debug(`CharX: Extracted ${extractedBuffers.size} asset files`);
+    }
+
     /** @type {string|Buffer} */
     let avatar = DEFAULT_AVATAR_PATH;
-    const assets = _.get(card, 'data.assets');
-    if (Array.isArray(assets) && assets.length) {
-        for (const asset of assets.filter(x => x.type === 'icon' && typeof x.uri === 'string')) {
-            const pathNoProtocol = String(asset.uri.replace(/^(?:\/\/|[^/]+)*\//, ''));
-            const buffer = await extractFileFromZipBuffer(data, pathNoProtocol);
-            if (buffer) {
-                avatar = buffer;
-                break;
-            }
+    if (iconAsset?.zipPath) {
+        const iconBuffer = extractedBuffers.get(iconAsset.zipPath);
+        if (iconBuffer) {
+            avatar = iconBuffer;
         }
     }
 
@@ -797,7 +1065,23 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
     card['create_date'] = humanizedISO8601DateTime();
     card.name = sanitize(card.name);
     const fileName = preservedFileName || getPngName(card.name, request.user.directories);
+    console.debug(`CharX: Saving character as ${fileName}.png`);
+
+    if (auxiliaryAssets.length > 0) {
+        try {
+            const summary = persistCharXAssetsFromBuffers(auxiliaryAssets, extractedBuffers, request.user.directories, fileName);
+            if (summary.sprites || summary.backgrounds || summary.misc) {
+                console.info(`CharX: Imported ${summary.sprites} sprite(s), ${summary.backgrounds} background(s), ${summary.misc} misc asset(s) for ${fileName}`);
+                console.info(`CharX: Sprites → characters/${fileName}/, Backgrounds → backgrounds/${fileName}_*, Gallery → user/images/${fileName}/`);
+            }
+        } catch (error) {
+            console.warn(`CharX: Failed to persist auxiliary assets for ${fileName}`, error);
+        }
+    }
+
+    console.debug('CharX: Writing character data to PNG');
     const result = await writeCharacterData(avatar, JSON.stringify(card), fileName, request);
+    console.debug(`CharX: Import ${result ? 'successful' : 'failed'} for ${fileName}`);
     return result ? fileName : '';
 }
 

@@ -207,6 +207,31 @@ export function formatBytes(bytes) {
  * @param {string} fileExtension File extension to look for
  * @returns {Promise<Buffer|null>} Buffer containing the extracted file. Null if the file was not found.
  */
+export function normalizeZipEntryPath(entryName) {
+    if (typeof entryName !== 'string') {
+        return null;
+    }
+
+    let normalized = entryName.replace(/\\/g, '/').trim();
+
+    if (!normalized) {
+        return null;
+    }
+
+    normalized = normalized.replace(/^\.\/+/g, '');
+    normalized = path.posix.normalize(normalized);
+
+    if (!normalized || normalized === '.' || normalized.startsWith('..')) {
+        return null;
+    }
+
+    if (normalized.startsWith('/')) {
+        normalized = normalized.slice(1);
+    }
+
+    return normalized;
+}
+
 export async function extractFileFromZipBuffer(archiveBuffer, fileExtension) {
     return await new Promise((resolve) => {
         try {
@@ -258,6 +283,110 @@ export async function extractFileFromZipBuffer(archiveBuffer, fileExtension) {
         } catch (error) {
             console.warn('Failed to process ZIP buffer', error);
             resolve(null);
+        }
+    });
+}
+
+export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
+    const targets = new Map();
+
+    if (Array.isArray(fileNames)) {
+        for (const fileName of fileNames) {
+            const normalized = normalizeZipEntryPath(fileName);
+            if (normalized && !targets.has(normalized)) {
+                targets.set(normalized, true);
+            }
+        }
+    }
+
+    if (targets.size === 0) {
+        console.debug('extractFilesFromZipBuffer: No targets to extract');
+        return new Map();
+    }
+
+    console.debug(`extractFilesFromZipBuffer: Extracting ${targets.size} files:`, [...targets.keys()]);
+
+    return await new Promise((resolve) => {
+        const results = new Map();
+
+        try {
+            yauzl.fromBuffer(Buffer.from(archiveBuffer), { lazyEntries: true }, (err, zipfile) => {
+                if (err) {
+                    console.warn(`Error opening ZIP file: ${err.message}`);
+                    return resolve(results);
+                }
+
+                let finished = false;
+                const finalize = () => {
+                    if (finished) {
+                        return;
+                    }
+                    finished = true;
+                    resolve(results);
+                };
+
+                zipfile.readEntry();
+
+                zipfile.on('entry', (entry) => {
+                    const normalizedEntry = normalizeZipEntryPath(entry.fileName);
+                    if (!normalizedEntry || !targets.has(normalizedEntry)) {
+                        return zipfile.readEntry();
+                    }
+
+                    console.debug(`extractFilesFromZipBuffer: Found target ${normalizedEntry}`);
+
+                    zipfile.openReadStream(entry, (streamErr, readStream) => {
+                        if (streamErr) {
+                            console.warn(`Error opening read stream: ${streamErr.message}`);
+                            return zipfile.readEntry();
+                        }
+
+                        const chunks = [];
+                        readStream.on('data', (chunk) => {
+                            chunks.push(chunk);
+                        });
+
+                        readStream.on('end', () => {
+                            results.set(normalizedEntry, Buffer.concat(chunks));
+                            targets.delete(normalizedEntry);
+                            console.debug(`extractFilesFromZipBuffer: Extracted ${normalizedEntry}, ${targets.size} remaining`);
+
+                            if (targets.size === 0) {
+                                console.debug('extractFilesFromZipBuffer: All targets found, finalizing');
+                                finalize();
+                            } else {
+                                zipfile.readEntry();
+                            }
+                        });
+
+                        readStream.on('error', (streamError) => {
+                            console.warn(`Error reading stream: ${streamError.message}`);
+                            zipfile.readEntry();
+                        });
+                    });
+                });
+
+                zipfile.on('error', (zipError) => {
+                    console.warn('ZIP processing error', zipError);
+                    finalize();
+                });
+
+                zipfile.on('close', () => {
+                    console.debug('extractFilesFromZipBuffer: ZIP closed');
+                    finalize();
+                });
+
+                zipfile.on('end', () => {
+                    console.debug('extractFilesFromZipBuffer: ZIP end reached');
+                    if (targets.size > 0) {
+                        console.warn(`extractFilesFromZipBuffer: ZIP ended but ${targets.size} targets not found:`, [...targets.keys()]);
+                    }
+                    finalize();
+                });
+            });
+        } catch (error) {
+            console.warn('Failed to process ZIP buffer', error);
+            resolve(results);
         }
     });
 }
