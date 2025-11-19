@@ -1,6 +1,47 @@
 /** @typedef {import('chevrotain').CstNode} CstNode */
 
 /**
+ * Structured environment object passed into macro handlers.
+ * This is the canonical shape going forward for macros that need
+ * access to prompt context, names, character card fields, etc.
+ */
+/**
+ * @typedef {Object} MacroEnvNames
+ * @property {string} [user]
+ * @property {string} [char]
+ * @property {string} [group]
+ * @property {string} [groupNotMuted]
+ * @property {string} [notChar]
+ */
+
+/**
+ * @typedef {Object} MacroEnvCharacter
+ * @property {string} [description]
+ * @property {string} [personality]
+ * @property {string} [scenario]
+ * @property {string} [persona]
+ * @property {string} [charPrompt]
+ * @property {string} [charInstruction]
+ * @property {string} [mesExamplesRaw]
+ * @property {string} [charDepthPrompt]
+ * @property {string} [creatorNotes]
+ * @property {string} [version]
+ */
+
+/**
+ * @typedef {Object} MacroEnvSystem
+ * @property {string} [model]
+ */
+
+/**
+ * @typedef {Object} MacroEnv
+ * @property {MacroEnvNames} [names]
+ * @property {MacroEnvCharacter} [character]
+ * @property {MacroEnvSystem} [system]
+ * @property {Record<string, unknown>} [extra]
+ */
+
+/**
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
  * @property {string[]} args
@@ -8,7 +49,7 @@
  * @property {string[]|null} [list]
  * @property {{ [key: string]: string }} [namedArgs]
  * @property {string} [raw]
- * @property {object} [env]
+ * @property {MacroEnv} [env]
  * @property {CstNode} [cstNode]
  * @property {{ startOffset: number, endOffset: number }} [range]
  */
@@ -21,11 +62,11 @@
 
 /**
  * @typedef {Object} MacroDefinitionOptions
- * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
- * @property {number?} [requiredArgs]
- * @property {boolean|MacroListSpec?} [list]
- * @property {boolean?} [strictArgs]
- * @property {string?} [description]
+ * @property {number?} [requiredArgs=0]
+ * @property {boolean|MacroListSpec?} [list=null]
+ * @property {boolean?} [strictArgs=true]
+ * @property {string?} [description='']
+ * @property {(context: MacroExecutionContext) => (string|Promise<string>)!} handler
  */
 
 /**

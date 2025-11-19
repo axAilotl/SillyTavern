@@ -408,7 +408,7 @@ async function ifCallback(args, value) {
     const { a, b, rule } = parseBooleanOperands(args);
     const result = evalBoolean(rule, a, b);
 
-    /**@type {string|SlashCommandClosure} */
+    /** @type {string|SlashCommandClosure} */
     let command;
     if (value) {
         if (value[0] instanceof SlashCommandClosure) {
@@ -917,6 +917,17 @@ function closureDeserializeCallback(args, value) {
     closure.scope.parent = args._scope;
     return closure;
 }
+
+export {
+    addLocalVariable,
+    addGlobalVariable,
+    incrementLocalVariable,
+    incrementGlobalVariable,
+    decrementLocalVariable,
+    decrementGlobalVariable,
+    deleteLocalVariable,
+    deleteGlobalVariable,
+};
 
 export function registerVariableCommands() {
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({

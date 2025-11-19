@@ -49,11 +49,16 @@ class MacroEngine {
             console.warn('Macro parsing errors detected:', MacroParser.errors);
         }
 
-        // Step 4: Evaluate the CST structure and resolve any macros
+        // Step 4: Evaluate the CST structure and resolve any macros.
+        // Freeze the environment to avoid accidental mutations inside
+        // macro handlers while still allowing the caller to pass in a
+        // plain, mutable object.
+        const safeEnv = env && typeof env === 'object' ? Object.freeze({ ...env }) : undefined;
+
         const result = await MacroCstWalker.evaluateDocument({
             text: preProcessed,
             cst,
-            env,
+            env: safeEnv,
             resolveMacro: this.#resolveMacro.bind(this),
         });
         return result;
