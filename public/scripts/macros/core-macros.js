@@ -15,7 +15,7 @@ import { registerInstructMacros } from './instruct-macros.js';
  * intended to preserve the behavior of the existing regex-based macros
  * in macros.js while using the new MacroRegistry/MacroEngine pipeline.
  */
-function registerCoreMacros() {
+export function registerCoreMacros() {
     // {{newline}} -> '\n'
     MacroRegistry.registerMacro('newline', {
         description: 'Inserts a newline character.',
@@ -365,5 +365,3 @@ function getTimeSinceLastMessageCore() {
 
     return 'just now';
 }
-
-export { registerCoreMacros };

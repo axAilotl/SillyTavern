@@ -6,6 +6,7 @@ import { getInstructMacros } from './instruct-mode.js';
 import { getVariableMacros } from './variables.js';
 import { isMobile } from './RossAscends-mods.js';
 import { inject_ids } from './constants.js';
+import { registerCoreMacros } from './macros/core-macros.js';
 
 /**
  * @typedef Macro
@@ -614,4 +615,7 @@ export function initMacros() {
 
     MacrosParser.registerMacro('isMobile', () => String(isMobile()));
     initLastGenerationType();
+
+    // TODO: Do we keep this here?
+    registerCoreMacros();
 }

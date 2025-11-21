@@ -5,7 +5,7 @@ import { power_user } from '../power-user.js';
  * Registers instruct-mode related {{...}} macros (instruct* and system
  * prompt/context macros) in the MacroRegistry.
  */
-function registerInstructMacros() {
+export function registerInstructMacros() {
     // Helper to register macros that just expose a value from power_user.instruct
     /**
      * @param {string[]} names
@@ -91,5 +91,3 @@ function registerInstructMacros() {
         handler: () => power_user.context.chat_start ?? '',
     });
 }
-
-export { registerInstructMacros };

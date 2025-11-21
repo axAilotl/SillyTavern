@@ -16,7 +16,7 @@ import {
  * Registers variable-related {{...}} macros that operate on local and global
  * variables (e.g. {{setvar}}, {{getvar}}, {{incvar}}, etc.).
  */
-function registerVariableMacros() {
+export function registerVariableMacros() {
     // {{setvar::name::value}} -> '' (side-effect on local variable)
     MacroRegistry.registerMacro('setvar', {
         requiredArgs: 2,
@@ -153,5 +153,3 @@ function registerVariableMacros() {
         },
     });
 }
-
-export { registerVariableMacros };
