@@ -58,33 +58,34 @@ export function registerCoreMacros() {
         handler: () => String(getLastCharMessageCore() ?? ''),
     });
     MacroRegistry.registerMacro('firstIncludedMessageId', {
-        description: 'ID of the first message included in the current context.',
+        description: 'Index of the first message included in the current context.',
         handler: () => String(getFirstIncludedMessageIdCore() ?? ''),
     });
     MacroRegistry.registerMacro('firstDisplayedMessageId', {
-        description: 'ID of the first displayed message in the chat.',
+        description: 'Index of the first displayed message in the chat.',
         handler: () => String(getFirstDisplayedMessageIdCore() ?? ''),
     });
     MacroRegistry.registerMacro('lastSwipeId', {
-        description: '1-based ID of the last swipe for the last message.',
+        description: '1-based index of the last swipe for the last message.',
         handler: () => String(getLastSwipeIdCore() ?? ''),
     });
     MacroRegistry.registerMacro('currentSwipeId', {
-        description: '1-based ID of the current swipe.',
+        description: '1-based index of the current swipe.',
         handler: () => String(getCurrentSwipeIdCore() ?? ''),
     });
 
     // String utilities
     MacroRegistry.registerMacro('reverse', {
         requiredArgs: 1,
-        description: 'Reverses the characters of its single unnamed argument.',
-        handler: ({ requiredArgs: [value] }) => Array.from(String(value ?? '')).reverse().join(''),
+        description: 'Reverses the characters of the argument provided.',
+        handler: ({ requiredArgs: [value] }) => Array.from(value).reverse().join(''),
     });
 
     // Comment macro: {{// ...}} -> '' (consumes any arguments)
     MacroRegistry.registerMacro('//', {
-        list: true,
-        description: 'Comment macro that produces an empty string.',
+        list: true,         // We consume any arguments as if this is a list, but we'll ignore them in the handler anyway
+        strictArgs: false,  // and we also always remove it, even if the parsing might say it's invalid
+        description: 'Comment macro that produces an empty string. Can be used for writing into prompt definitions, without being passed to the context.',
         handler: () => '',
     });
 
@@ -92,7 +93,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('time', {
         // Optional single list argument: UTC offset, e.g. {{time::UTC+2}}
         list: { min: 0, max: 1 },
-        description: 'Current local time, or UTC offset when called as {{time::UTC+1}}.',
+        description: 'Current local time, or UTC offset when called as {{time::UTC+1}} or {{time::UTC-7}}, etc.',
         handler: ({ list }) => {
             const offsetSpec = Array.isArray(list) && list.length > 0 ? String(list[0]).trim() : '';
             if (!offsetSpec) return moment().format('LT');
@@ -130,7 +131,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('datetimeformat', {
         requiredArgs: 1,
         description: 'Formats the current date/time using the given moment.js format string.',
-        handler: ({ requiredArgs: [format] }) => format ? moment().format(format) : '',
+        handler: ({ requiredArgs: [format] }) => moment().format(format),
     });
 
     MacroRegistry.registerMacro('idle_duration', {
@@ -152,14 +153,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('roll', {
         requiredArgs: 1,
         description: 'Rolls dice using droll syntax (e.g. {{roll 1d20}}).',
-        handler: ({ requiredArgs }) => {
-            const raw = requiredArgs && requiredArgs.length > 0 ? String(requiredArgs[0]) : '';
-            let formula = raw.trim();
-
-            if (!formula) {
-                return '';
-            }
-
+        handler: ({ requiredArgs: [formula] }) => {
             // If only digits were provided, treat it as `1dX`.
             if (/^\d+$/.test(formula)) {
                 formula = `1d${formula}`;
@@ -172,40 +166,24 @@ export function registerCoreMacros() {
             }
 
             const result = droll.roll(formula);
-            if (result === false) {
-                return '';
-            }
-
+            if (result === false) return '';
             return String(result.total);
         },
     });
 
     // Random choice macro: {{random::a::b}} or {{random a,b}}
     MacroRegistry.registerMacro('random', {
-        requiredArgs: 0,
         list: true,
-        description: 'Picks a random item from a list, compatible with the legacy {{random}} macro.',
-        handler: ({ raw }) => {
-            if (typeof raw !== 'string') {
-                return '';
-            }
-
-            // Reuse the legacy regex semantics on the raw inner text.
-            const pattern = /{{random\s?::?([^}]+)}}/i;
-            const rawWithBraces = `{{${raw}}}`;
-            const match = pattern.exec(rawWithBraces);
-            if (!match) {
-                return '';
-            }
-
-            const listString = match[1];
-            const list = listString.includes('::')
-                ? listString.split('::')
-                // Replace escaped commas with a placeholder to avoid splitting on them
-                : listString
+        description: 'Picks a random item from a list. Will be re-rolled every time macros are resolved.',
+        handler: ({ list, raw: rawListString }) => {
+            // We let double-colon args be handled by the list argument parser
+            // But for the ancient legacy comma separated list, we'll fall back to the raw argument and split via the old logic
+            if (list.length === 1) {
+                list = rawListString
                     .replace(/\\,/g, '##�COMMA�##')
                     .split(',')
                     .map(item => item.trim().replace(/##�COMMA�##/g, ','));
+            }
 
             if (list.length === 0) {
                 return '';
@@ -219,27 +197,16 @@ export function registerCoreMacros() {
 
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
-        requiredArgs: 0,
-        list: true,
-        description: 'Bans a word for textgenerationwebui backend and returns an empty string.',
-        handler: ({ raw }) => {
-            if (typeof raw !== 'string') {
-                return '';
-            }
-
-            const pattern = /{{banned "(.*)"}}/i;
-            const rawWithBraces = `{{${raw}}}`;
-            const match = pattern.exec(rawWithBraces);
-            if (!match) {
-                return '';
-            }
-
-            const bannedWord = match[1];
+        requiredArgs: 1,
+        description: 'Bans a word for textgenerationwebui backend.',
+        returns: 'Empty string',
+        handler: ({ requiredArgs: [bannedWord] }) => {
+            // Strip quotes via regex, which were allowed in legacy syntax
+            bannedWord = bannedWord.replace(/^"|"$/g, '');
             if (main_api === 'textgenerationwebui') {
                 console.log('Found banned word in macros: ' + bannedWord);
                 textgenerationwebui_banned_in_macros.push(bannedWord);
             }
-
             return '';
         },
     });
@@ -248,14 +215,9 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('outlet', {
         requiredArgs: 1,
         description: 'Returns the outlet prompt for a given outlet key.',
-        handler: ({ requiredArgs }) => {
-            const rawKey = requiredArgs && requiredArgs.length > 0 ? String(requiredArgs[0]) : '';
-            const key = rawKey.trim();
-            if (!key) {
-                return '';
-            }
-
-            const value = extension_prompts[inject_ids.CUSTOM_WI_OUTLET(key)]?.value;
+        handler: ({ requiredArgs: [outlet] }) => {
+            if (!outlet) return '';
+            const value = extension_prompts[inject_ids.CUSTOM_WI_OUTLET(outlet)]?.value;
             return value || '';
         },
     });

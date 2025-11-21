@@ -278,9 +278,14 @@ class MacroRegistry {
             range: context?.range,
         };
 
-        // Resolve promise, or return right away
+        // Resolve promise, catch any errors, and normalize result
         const result = def.handler(executionContext);
-        return Promise.resolve(result).then(value => normalizeMacroResult(value));
+        return Promise.resolve(result)
+            .catch(() => {
+                console.error(`Macro "${def.name}" handler failed to execute`, context);
+                return '';
+            })
+            .then(value => normalizeMacroResult(value));
     }
 }
 
