@@ -21,6 +21,7 @@ export function registerVariableMacros() {
     MacroRegistry.registerMacro('setvar', {
         requiredArgs: 2,
         description: 'Sets a local variable to the given value.',
+        returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
             setLocalVariable(name, value);
             return '';
@@ -30,7 +31,8 @@ export function registerVariableMacros() {
     // {{addvar::name::value}} -> '' (side-effect via addLocalVariable)
     MacroRegistry.registerMacro('addvar', {
         requiredArgs: 2,
-        description: 'Adds a value to an existing local variable (numeric or string append).',
+        description: 'Adds a value to an existing local variable (numeric or string append). If the variable does not exist, it will be created.',
+        returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
             addLocalVariable(name, value);
             return '';
@@ -40,28 +42,20 @@ export function registerVariableMacros() {
     // {{incvar::name}} -> returns new value
     MacroRegistry.registerMacro('incvar', {
         requiredArgs: 1,
-        description: 'Increments a local variable by 1 and returns the new value.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return incrementLocalVariable(name);
+        description: 'Increments a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = incrementLocalVariable(name);
+            return normalize(result);
         },
     });
 
     // {{decvar::name}} -> returns new value
     MacroRegistry.registerMacro('decvar', {
         requiredArgs: 1,
-        description: 'Decrements a local variable by 1 and returns the new value.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return decrementLocalVariable(name);
+        description: 'Decrements a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = decrementLocalVariable(name);
+            return normalize(result);
         },
     });
 
@@ -69,13 +63,9 @@ export function registerVariableMacros() {
     MacroRegistry.registerMacro('getvar', {
         requiredArgs: 1,
         description: 'Gets the value of a local variable.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return getLocalVariable(name);
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = getLocalVariable(name);
+            return normalize(result);
         },
     });
 
@@ -83,13 +73,8 @@ export function registerVariableMacros() {
     MacroRegistry.registerMacro('setglobalvar', {
         requiredArgs: 2,
         description: 'Sets a global variable to the given value.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const value = requiredArgs && requiredArgs.length > 1 ? requiredArgs[1] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
+        returns: '',
+        handler: ({ requiredArgs: [name, value] }) => {
             setGlobalVariable(name, value);
             return '';
         },
@@ -98,14 +83,9 @@ export function registerVariableMacros() {
     // {{addglobalvar::name::value}} -> ''
     MacroRegistry.registerMacro('addglobalvar', {
         requiredArgs: 2,
-        description: 'Adds a value to an existing global variable (numeric or string append).',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const value = requiredArgs && requiredArgs.length > 1 ? requiredArgs[1] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
+        description: 'Adds a value to an existing global variable (numeric or string append). If the variable does not exist, it will be created.',
+        returns: '',
+        handler: ({ requiredArgs: [name, value] }) => {
             addGlobalVariable(name, value);
             return '';
         },
@@ -114,28 +94,20 @@ export function registerVariableMacros() {
     // {{incglobalvar::name}} -> returns new value
     MacroRegistry.registerMacro('incglobalvar', {
         requiredArgs: 1,
-        description: 'Increments a global variable by 1 and returns the new value.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return incrementGlobalVariable(name);
+        description: 'Increments a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = incrementGlobalVariable(name);
+            return normalize(result);
         },
     });
 
     // {{decglobalvar::name}} -> returns new value
     MacroRegistry.registerMacro('decglobalvar', {
         requiredArgs: 1,
-        description: 'Decrements a global variable by 1 and returns the new value.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return decrementGlobalVariable(name);
+        description: 'Decrements a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = decrementGlobalVariable(name);
+            return normalize(result);
         },
     });
 
@@ -143,13 +115,19 @@ export function registerVariableMacros() {
     MacroRegistry.registerMacro('getglobalvar', {
         requiredArgs: 1,
         description: 'Gets the value of a global variable.',
-        handler: ({ requiredArgs }) => {
-            const nameRaw = requiredArgs && requiredArgs.length > 0 ? requiredArgs[0] : '';
-            const name = String(nameRaw).trim();
-            if (!name) {
-                return '';
-            }
-            return getGlobalVariable(name);
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = getGlobalVariable(name);
+            return normalize(result);
+        },
+    });
+
+    // {{getglobalvar::name}} -> returns current value
+    MacroRegistry.registerMacro('getglobalvar', {
+        requiredArgs: 1,
+        description: 'Gets the value of a global variable.',
+        handler: ({ requiredArgs: [name], normalize }) => {
+            const result = getGlobalVariable(name);
+            return normalize(result);
         },
     });
 }

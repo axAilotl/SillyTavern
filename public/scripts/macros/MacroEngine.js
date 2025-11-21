@@ -88,8 +88,33 @@ class MacroEngine {
             env: call.env,
             cstNode: call.cstNode,
             range: call.range,
+            normalize: this.normalizeMacroResult.bind(this),
         });
         return result;
+    }
+    /**
+    * Normalizes macro results into a string.
+    * This mirrors the behavior of the legacy macro system in a simplified way.
+    *
+    * @param {any} value
+    * @returns {string}
+    */
+    normalizeMacroResult(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (typeof value === 'object' || Array.isArray(value)) {
+            try {
+                return JSON.stringify(value);
+            } catch (_error) {
+                return String(value);
+            }
+        }
+
+        return String(value);
     }
 }
 

@@ -52,6 +52,7 @@
  * @property {MacroEnv} [env]
  * @property {CstNode} [cstNode]
  * @property {{ startOffset: number, endOffset: number }} [range]
+ * @property {(value: any) => string} normalize - Normalize function to use on unsure macro results to make sure they return strings as expected.
  */
 
 /**
@@ -266,6 +267,7 @@ class MacroRegistry {
         const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
         const listValues = !def.list ? null : args.length > def.requiredArgs ? args.slice(def.requiredArgs) : [];
 
+        /** @type {MacroExecutionContext} */
         const executionContext = {
             name: def.name,
             args,
@@ -276,6 +278,7 @@ class MacroRegistry {
             env: context?.env,
             cstNode: context?.cstNode,
             range: context?.range,
+            normalize: context?.normalize,
         };
 
         // Resolve promise, catch any errors, and normalize result
@@ -325,7 +328,7 @@ function normalizeMacroResult(value) {
     if (value instanceof Date) {
         return value.toISOString();
     }
-    if (typeof value === 'object') {
+    if (typeof value === 'object' || Array.isArray(value)) {
         try {
             return JSON.stringify(value);
         } catch (_error) {
