@@ -1,132 +1,102 @@
 import { test, expect } from '@playwright/test';
+import { testSetup } from './utils.js';
 
 // Those tests are evaluating via Playwright; they need more time to run and finish
-test.setTimeout(10_000);
+// For now, engine tests need a lot of setup, so we need a higher timeout
+test.setTimeout(20_000);
 
 test.describe('MacroEngine', () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/');
-        await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
-    });
+    test.beforeEach(testSetup.awaitST);
 
     test.describe('Basic evaluation', () => {
-        // Plain text without macros should be returned unchanged
         test('should return input unchanged when there are no macros', async ({ page }) => {
             const input = 'Hello world, no macros here.';
             const output = await evaluateWithEngine(page, input);
             expect(output).toBe(input);
         });
 
-        // {{ping}} -> 'pong'
         test('should evaluate a simple macro without arguments', async ({ page }) => {
-            const input = 'Start {{ping}} end.';
+            const input = 'Start {{newline}} end.';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Start pong end.');
+            expect(output).toBe('Start \n end.');
         });
 
-        // Multiple macros in a single string
         test('should evaluate multiple macros in order', async ({ page }) => {
-            const input = 'A {{ping}} B {{ping}} C';
+            const input = 'A {{setvar::test::4}}{{getvar::test}} B {{setvar::test::2}}{{getvar::test}} C';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('A pong B pong C');
+            expect(output).toBe('A 4 B 2 C');
         });
     });
 
     test.describe('Unnamed arguments', () => {
-        // {{echo::one::two}} -> 'one two'
-        test('should handle double-colon separated unnamed arguments', async ({ page }) => {
-            const input = 'Values: {{echo::one::two}}!';
+        test('should handle normal double-colon separated unnamed argument', async ({ page }) => {
+            const input = 'Reversed: {{reverse::abc}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Values: one two!');
+            expect(output).toBe('Reversed: cba!');
         });
 
-        // {{echo: one two}} -> 'one two'
-        test('should handle colon separated unnamed arguments', async ({ page }) => {
-            const input = 'Values: {{echo: one two}}!';
+        test('should handle (legacy) colon separated unnamed argument', async ({ page }) => {
+            const input = 'Reversed: {{reverse:abc}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Values: one two!');
+            expect(output).toBe('Reversed: cba!');
         });
 
-        // {{echo one two}} -> 'one two'
-        test('should handle whitespace separated unnamed arguments', async ({ page }) => {
-            const input = 'Values: {{echo one two}}!';
+        test('should handle (legacy) colon separated argument as only one, even with more separators (double colon)', async ({ page }) => {
+            const input = 'Reversed: {{reverse:abc::def}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Values: one two!');
+            expect(output).toBe('Reversed: fed::cba!');
         });
 
-        // {{first::a::b::c}} -> 'a'
-        test('should pass multiple arguments and allow macros to access the first one', async ({ page }) => {
-            const input = 'First: {{first::a::b::c}}.';
+        test('should handle (legacy) colon separated argument as only one, even with more separators (single colon)', async ({ page }) => {
+            const input = 'Reversed: {{reverse:abc:def}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('First: a.');
-        });
-    });
-
-    test.describe('Transforming arguments', () => {
-        // {{upper::hello world}} -> 'HELLO WORLD'
-        test('should transform argument content', async ({ page }) => {
-            const input = 'Shout: {{upper::hello world}}!';
-            const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Shout: HELLO WORLD!');
+            expect(output).toBe('Reversed: fed:cba!');
         });
 
-        // {{upper: this is upper content}} -> 'THIS IS UPPER CONTENT'
-        test('should handle whitespace separated argument', async ({ page }) => {
-            const input = 'Wrapped: {{upper this is upper content}}';
+        test('should handle (legacy) whitespace separated unnamed argument', async ({ page }) => {
+            const input = 'Values: {{roll 1d1}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Wrapped: THIS IS UPPER CONTENT');
+            expect(output).toBe('Values: 1!');
         });
 
-        // {{wrap::value::[::]}} -> '[value]'
-        test('should handle macros with multiple unnamed arguments', async ({ page }) => {
-            const input = 'Wrapped: {{wrap::value::[::]}}';
+        test('should handle (legacy) whitespace separated unnamed argument as only one, even with more separators (space)', async ({ page }) => {
+            const input = 'Values: {{reverse abc def}}!';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Wrapped: [value]');
+            expect(output).toBe('Values: fed cba!');
         });
     });
 
     test.describe('Nested macros', () => {
-        // {{upper: hey {{ping}}}} -> 'HEY PONG'
         test('should resolve nested macros inside arguments inside-out', async ({ page }) => {
-            const input = 'Result: {{upper: hey {{ping}}}}';
+            const input = 'Result: {{setvar::test::0}}{{reverse::{{addvar::test::100}}{{getvar::test}}}}{{setvar::test::0}}';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Result: HEY PONG');
-        });
-
-        // {{echo::before {{ping}} after}} -> 'before pong after'
-        test('should resolve nested macros inside double-colon arguments', async ({ page }) => {
-            const input = 'Result: {{echo::before {{ping}} after}}';
-            const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Result: before pong after');
+            expect(output).toBe('Result: 001');
         });
 
         // {{wrap::{{upper::x}}::[::]}} -> '[X]'
         test('should resolve nested macros across multiple arguments', async ({ page }) => {
-            const input = 'Wrapped: {{wrap::{{upper::x}}::[::]}}';
+            const input = 'Result: {{setvar::addvname::test}}{{addvar::{{getvar::addvname}}::{{setvar::test::5}}{{getvar::test}}}}{{getvar::test}}';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Wrapped: [X]');
+            expect(output).toBe('Result: 10');
         });
     });
 
     test.describe('Unknown macros', () => {
-        // {{unknown::{{ping}}}} -> '{{unknown::pong}}'
         test('should keep unknown macro syntax but resolve nested macros inside it', async ({ page }) => {
-            const input = 'Test: {{unknown::{{ping}}}}';
+            const input = 'Test: {{unknown::{{newline}}}}';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Test: {{unknown::pong}}');
+            expect(output).toBe('Test: {{unknown::\n}}');
         });
 
-        // {{unknown::my {{ping}} example}} -> '{{unknown::my pong example}}'
         test('should keep surrounding text inside unknown macros intact', async ({ page }) => {
-            const input = 'Test: {{unknown::my {{ping}} example}}';
+            const input = 'Test: {{unknown::my {{newline}} example}}';
             const output = await evaluateWithEngine(page, input);
-            expect(output).toBe('Test: {{unknown::my pong example}}');
+            expect(output).toBe('Test: {{unknown::my \n example}}');
         });
     });
 
     test.describe('Arity errors', () => {
-        // ping expects 0 args; calling with any unnamed args should not resolve
-        test('should not resolve ping when called with arguments', async ({ page }) => {
+        test('should not resolve newline when called with arguments', async ({ page }) => {
             /** @type {string[]} */
             const warnings = [];
             page.on('console', msg => {
@@ -135,18 +105,17 @@ test.describe('MacroEngine', () => {
                 }
             });
 
-            const input = 'Start {{ping::extra}} end.';
+            const input = 'Start {{newline::extra}} end.';
             const output = await evaluateWithEngine(page, input);
 
             // Macro text should remain unchanged
             expect(output).toBe(input);
 
-            // Should have logged an arity warning for ping
-            expect(warnings.some(w => w.includes('Macro "ping"') && w.includes('unnamed arguments'))).toBeTruthy();
+            // Should have logged an arity warning for newline
+            expect(warnings.some(w => w.includes('Macro "newline"') && w.includes('unnamed arguments'))).toBeTruthy();
         });
 
-        // upper expects at least 1 unnamed arg; calling with none should not resolve
-        test('should not resolve upper when called without arguments', async ({ page }) => {
+        test('should not resolve reverse when called without arguments', async ({ page }) => {
             /** @type {string[]} */
             const warnings = [];
             page.on('console', msg => {
@@ -155,38 +124,30 @@ test.describe('MacroEngine', () => {
                 }
             });
 
-            const input = 'Result: {{upper}}';
+            const input = 'Result: {{reverse}}';
             const output = await evaluateWithEngine(page, input);
 
             expect(output).toBe(input);
 
-            expect(warnings.some(w => w.includes('Macro "upper"') && w.includes('unnamed arguments'))).toBeTruthy();
+            expect(warnings.some(w => w.includes('Macro "reverse"') && w.includes('unnamed arguments'))).toBeTruthy();
         });
     });
 });
 
 /**
  * Evaluates the given input string using the MacroEngine inside the browser
- * context, ensuring that the prototype macros are registered.
+ * context, ensuring that the core macros are registered.
  *
  * @param {import('@playwright/test').Page} page
  * @param {string} input
  * @returns {Promise<string>}
  */
 async function evaluateWithEngine(page, input) {
+    await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
+    await page.waitForTimeout(1000);
     const result = await page.evaluate(async (input) => {
         /** @type {import('../../public/scripts/macros/MacroEngine.js')} */
         const { MacroEngine } = await import('./scripts/macros/MacroEngine.js');
-        /** @type {import('../../public/scripts/macros/MacroBuiltins.js')} */
-        const { registerPrototypeMacros } = await import('./scripts/macros/MacroBuiltins.js');
-        /** @type {import('../../public/scripts/macros/MacroRegistry.js')} */
-        const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
-
-        // Ensure prototype macros are registered exactly once per page
-        if (typeof MacroRegistry.hasMacro === 'function' && !MacroRegistry.hasMacro('ping')) {
-            registerPrototypeMacros();
-        }
-
         const output = await MacroEngine.evaluate(input, {});
         return output;
     }, input);
