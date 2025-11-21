@@ -1,13 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { testSetup } from './utils.js';
 
 // Playwright-based frontend tests need more time
 test.setTimeout(10_000);
 
 test.describe('MacroRegistry', () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/');
-        await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
-    });
+    // Currently this test suits runs without ST context. Enable, if ever needed
+    test.beforeEach(testSetup.goST);
 
     test.describe('valid', () => {
         test('should register a macro with valid options', async ({ page }) => {

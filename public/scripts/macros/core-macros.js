@@ -31,7 +31,7 @@ export function registerCoreMacros() {
     // {{input}} -> current textarea content
     MacroRegistry.registerMacro('input', {
         description: 'Current text from the send textarea.',
-        handler: () => (/** @type {HTMLTextAreaElement} */(document.querySelector('#send_textarea'))).value
+        handler: () => (/** @type {HTMLTextAreaElement} */(document.querySelector('#send_textarea'))).value,
     });
 
     // {{maxPrompt}} -> max context size

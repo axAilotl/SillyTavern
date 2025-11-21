@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { testSetup } from './utils.js';
 
 /** @typedef {import('chevrotain').ILexingResult} ILexingResult */
 /** @typedef {import('chevrotain').ILexingError} ILexingError */
@@ -8,10 +9,8 @@ import { test, expect } from '@playwright/test';
 test.setTimeout(10_000);
 
 test.describe('MacroLexer', () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/');
-        await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
-    });
+    // Currently this test suits runs without ST context. Enable, if ever needed
+    test.beforeEach(testSetup.goST);
 
     test.describe('General Macro', () => {
         // {{user}}
