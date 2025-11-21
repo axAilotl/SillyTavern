@@ -1,11 +1,35 @@
 import { moment, seedrandom, droll } from '../../lib.js';
-import { chat, chat_metadata, main_api, getMaxContextSize, extension_prompts } from '../../script.js';
-import { timestampToMoment } from '../utils.js';
+import { chat, chat_metadata, main_api, getMaxContextSize, extension_prompts, eventSource, event_types, getCurrentChatId } from '../../script.js';
+import { timestampToMoment, getStringHash } from '../utils.js';
 import { textgenerationwebui_banned_in_macros } from '../textgen-settings.js';
 import { inject_ids } from '../constants.js';
 import { MacroRegistry } from './MacroRegistry.js';
 import { registerVariableMacros } from './variable-macros.js';
 import { registerInstructMacros } from './instruct-macros.js';
+import { isMobile } from '../RossAscends-mods.js';
+
+let lastGenerationTypeValue = '';
+let lastGenerationTypeTrackingInitialized = false;
+
+function ensureLastGenerationTypeTracking() {
+    if (lastGenerationTypeTrackingInitialized) {
+        return;
+    }
+    lastGenerationTypeTrackingInitialized = true;
+
+    try {
+        eventSource?.on?.(event_types.GENERATION_STARTED, (type, _params, isDryRun) => {
+            if (isDryRun) return;
+            lastGenerationTypeValue = type || 'normal';
+        });
+
+        eventSource?.on?.(event_types.CHAT_CHANGED, () => {
+            lastGenerationTypeValue = '';
+        });
+    } catch {
+        // In non-runtime environments (tests), eventSource may be undefined or not fully initialized.
+    }
+}
 
 /**
  * Registers SillyTavern's core built-in macros in the MacroRegistry.
@@ -38,6 +62,146 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('maxPrompt', {
         description: 'Maximum prompt context size.',
         handler: () => String(getMaxContextSize()),
+    });
+
+    // Names and participant macros (from MacroEnv.names)
+    MacroRegistry.registerMacro('user', {
+        description: 'Your current Persona username.',
+        handler: ({ env }) => env?.names?.user ?? '',
+    });
+
+    MacroRegistry.registerMacro('char', {
+        description: 'The character\'s name.',
+        handler: ({ env }) => env?.names?.char ?? '',
+    });
+
+    MacroRegistry.registerMacro('group', {
+        description: 'Comma-separated list of group member names (including muted) or the character name in solo chats.',
+        handler: ({ env }) => env?.names?.group ?? '',
+    });
+
+    MacroRegistry.registerMacro('groupNotMuted', {
+        description: 'Comma-separated list of group member names excluding muted members.',
+        handler: ({ env }) => env?.names?.groupNotMuted ?? '',
+    });
+
+    MacroRegistry.registerMacro('notChar', {
+        description: 'Comma-separated list of all participants except the current speaker.',
+        handler: ({ env }) => env?.names?.notChar ?? '',
+    });
+
+    // Alias used in legacy docs: behaves like {{group}} / {{charIfNotGroup}}
+    MacroRegistry.registerMacro('charIfNotGroup', {
+        description: 'Alias for {{group}} in solo chats; behaves like the group macro.',
+        handler: ({ env }) => env?.names?.group ?? '',
+    });
+
+    // Character card field macros (from MacroEnv.character)
+    MacroRegistry.registerMacro('charPrompt', {
+        description: 'The character\'s Main Prompt override.',
+        handler: ({ env }) => env?.character?.charPrompt ?? '',
+    });
+
+    MacroRegistry.registerMacro('charInstruction', {
+        description: 'The character\'s Post-History Instructions override.',
+        handler: ({ env }) => env?.character?.charInstruction ?? '',
+    });
+
+    MacroRegistry.registerMacro('description', {
+        description: 'The character\'s description.',
+        handler: ({ env }) => env?.character?.description ?? '',
+    });
+
+    MacroRegistry.registerMacro('personality', {
+        description: 'The character\'s personality.',
+        handler: ({ env }) => env?.character?.personality ?? '',
+    });
+
+    MacroRegistry.registerMacro('scenario', {
+        description: 'The character\'s scenario.',
+        handler: ({ env }) => env?.character?.scenario ?? '',
+    });
+
+    MacroRegistry.registerMacro('persona', {
+        description: 'Your current Persona description.',
+        handler: ({ env }) => env?.character?.persona ?? '',
+    });
+
+    MacroRegistry.registerMacro('mesExamplesRaw', {
+        description: 'Unformatted dialogue examples from the character card.',
+        handler: ({ env }) => env?.character?.mesExamplesRaw ?? '',
+    });
+
+    MacroRegistry.registerMacro('charDepthPrompt', {
+        description: 'The character\'s @ Depth Note.',
+        handler: ({ env }) => env?.character?.charDepthPrompt ?? '',
+    });
+
+    MacroRegistry.registerMacro('creatorNotes', {
+        description: 'Creator notes from the character card.',
+        handler: ({ env }) => env?.character?.creatorNotes ?? '',
+    });
+
+    // Character version macros (legacy variants and documented {{version}})
+    MacroRegistry.registerMacro('version', {
+        description: 'The character\'s version number.',
+        handler: ({ env }) => env?.character?.version ?? '',
+    });
+
+    MacroRegistry.registerMacro('charVersion', {
+        description: 'Alias for the character\'s version number.',
+        handler: ({ env }) => env?.character?.version ?? '',
+    });
+
+    MacroRegistry.registerMacro('char_version', {
+        description: 'Legacy alias for the character\'s version number.',
+        handler: ({ env }) => env?.character?.version ?? '',
+    });
+
+    // System / env extras macros (from MacroEnv.system / MacroEnv.extra)
+    MacroRegistry.registerMacro('model', {
+        description: 'Text generation model name for the currently selected API.',
+        handler: ({ env }) => env?.system?.model ?? '',
+    });
+
+    // TODO: Move this to the summary extension, where it belongs
+    MacroRegistry.registerMacro('summary', {
+        description: 'Latest chat summary from the "Summarize" extension (when available).',
+        handler: ({ env }) => {
+            const value = env?.extra && /** @type {any} */ (env.extra).summary;
+            return value == null ? '' : String(value);
+        },
+    });
+
+    MacroRegistry.registerMacro('original', {
+        description: 'Original message content for {{original}} substitution in Advanced Definitions.',
+        handler: ({ env }) => {
+            const extra = /** @type {Record<string, any>|undefined} */ (env?.extra);
+            const source = extra?.original;
+
+            if (typeof source === 'function') {
+                try {
+                    const value = source();
+                    return value == null ? '' : String(value);
+                } catch {
+                    return '';
+                }
+            }
+
+            return source == null ? '' : String(source);
+        },
+    });
+
+    // Device / environment macros
+    MacroRegistry.registerMacro('isMobile', {
+        description: '"true" if currently running in a mobile environment, "false" otherwise.',
+        handler: () => String(isMobile()),
+    });
+
+    ensureLastGenerationTypeTracking();
+    MacroRegistry.registerMacro('lastGenerationType', {
+        description: 'Type of the last queued generation request (e.g. "normal", "impersonate", "regenerate", "quiet", "swipe", "continue"). Empty if none yet or chat was switched.',
+        handler: () => lastGenerationTypeValue,
     });
 
     // Chat inspection macros
@@ -195,6 +359,38 @@ export function registerCoreMacros() {
         },
     });
 
+    // Deterministic choice macro: {{pick::a::b}} or {{pick a,b}}
+    MacroRegistry.registerMacro('pick', {
+        list: true,
+        description: 'Picks a random item from a list, but keeps the choice stable for a given chat and macro position.',
+        handler: ({ list, raw: rawListString, range }) => {
+            /** @type {string[]} */
+            let items = Array.isArray(list) ? [...list] : [];
+
+            // Legacy comma-separated syntax: {{pick: a, b, c}}
+            if (items.length === 1 && typeof rawListString === 'string') {
+                items = rawListString
+                    .replace(/\\,/g, '##�COMMA�##')
+                    .split(',')
+                    .map(item => item.trim().replace(/##�COMMA�##/g, ','));
+            }
+
+            if (!items.length) {
+                return '';
+            }
+
+            const chatIdHash = getChatIdHashCore();
+            const listHash = getStringHash(typeof rawListString === 'string' ? rawListString : items.join('::'));
+            const offset = typeof range?.startOffset === 'number' ? range.startOffset : 0;
+
+            const combinedSeedString = `${chatIdHash}-${listHash}-${offset}`;
+            const finalSeed = getStringHash(combinedSeedString);
+            const rng = seedrandom(String(finalSeed));
+            const randomIndex = Math.floor(rng() * items.length);
+            return items[randomIndex];
+        },
+    });
+
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
         requiredArgs: 1,
@@ -227,6 +423,18 @@ export function registerCoreMacros() {
 
     // Instruct macros (instruct*, systemPrompt, chatSeparator/chatStart)
     registerInstructMacros();
+}
+
+function getChatIdHashCore() {
+    const cachedIdHash = chat_metadata['chat_id_hash'];
+    if (typeof cachedIdHash === 'number') {
+        return cachedIdHash;
+    }
+
+    const chatId = chat_metadata['main_chat'] ?? getCurrentChatId();
+    const chatIdHash = getStringHash(chatId);
+    chat_metadata['chat_id_hash'] = chatIdHash;
+    return chatIdHash;
 }
 
 function getLastMessageIdCore({ exclude_swipe_in_propress = true, filter = null } = {}) {

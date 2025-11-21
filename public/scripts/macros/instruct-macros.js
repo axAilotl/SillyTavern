@@ -62,6 +62,6 @@ export function registerInstructMacros() {
     });
 
     // Context template macros
-    registerSimple(['chatSeparator'], () => power_user.context.example_separator, () => true, 'Separator used between example chat blocks in instruct mode.');
+    registerSimple(['chatSeparator', 'exampleSeparator'], () => power_user.context.example_separator, () => true, 'Separator used between example chat blocks in instruct mode.');
     registerSimple(['chatStart'], () => power_user.context.chat_start, () => true, 'Chat start marker used in instruct mode.');
 }
