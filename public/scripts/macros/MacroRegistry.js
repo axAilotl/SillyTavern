@@ -62,21 +62,21 @@
 
 /**
  * @typedef {Object} MacroDefinitionOptions
- * @property {number?} [requiredArgs=0]
- * @property {boolean|MacroListSpec?} [list=null]
- * @property {boolean?} [strictArgs=true]
- * @property {string?} [description='']
- * @property {(context: MacroExecutionContext) => (string|Promise<string>)!} handler
+ * @property {number?} [requiredArgs=0] - Specifies the macro requires this many arguments. (defaults to 0)
+ * @property {boolean|MacroListSpec?} [list=null] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
+ * @property {boolean?} [strictArgs=true] - Whether the macro should be strict about its arguments.
+ * @property {string?} [description=''] - Add a description of what the macro does.
+ * @property {(context: MacroExecutionContext) => (string|Promise<string>)!} handler - The handler function for the macro.
  */
 
 /**
  * @typedef {Object} MacroDefinition
  * @property {string} name
- * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
  * @property {number} requiredArgs
  * @property {{ min: number, max: (number|null) }|null} list
  * @property {boolean} strictArgs
  * @property {string} description
+ * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
  */
 
 /**
@@ -160,11 +160,11 @@ class MacroRegistry {
         /** @type {MacroDefinition} */
         const definition = {
             name: name,
-            handler,
             requiredArgs,
             list,
             strictArgs,
             description,
+            handler,
         };
 
         this.#macros.set(name, definition);
@@ -179,17 +179,9 @@ class MacroRegistry {
      * @returns {boolean} True if a macro was removed.
      */
     unregisterMacro(name) {
-        if (typeof name !== 'string') {
-            throw new Error('Macro name must be a string');
-        }
-
-        const normalizedName = name.trim();
-
-        if (!normalizedName) {
-            throw new Error('Macro name must not be empty or whitespace only');
-        }
-
-        return this.#macros.delete(normalizedName);
+        if (typeof name !== 'string' || !name.trim()) throw new Error('Macro name must be a non-empty string');
+        name = name.trim();
+        return this.#macros.delete(name);
     }
 
     /**
@@ -199,17 +191,9 @@ class MacroRegistry {
      * @returns {boolean}
      */
     hasMacro(name) {
-        if (typeof name !== 'string') {
-            return false;
-        }
-
-        const normalizedName = name.trim();
-
-        if (!normalizedName) {
-            return false;
-        }
-
-        return this.#macros.has(normalizedName);
+        if (typeof name !== 'string' || !name.trim()) return false;
+        name = name.trim();
+        return this.#macros.has(name);
     }
 
     /**
@@ -219,17 +203,9 @@ class MacroRegistry {
      * @returns {MacroDefinition|undefined}
      */
     getMacro(name) {
-        if (typeof name !== 'string') {
-            return undefined;
-        }
-
-        const normalizedName = name.trim();
-
-        if (!normalizedName) {
-            return undefined;
-        }
-
-        return this.#macros.get(normalizedName);
+        if (typeof name !== 'string' || !name.trim()) return undefined;
+        name = name.trim();
+        return this.#macros.get(name);
     }
 
     /**
@@ -247,57 +223,29 @@ class MacroRegistry {
      *
      * @param {string} name - Macro name (identifier).
      * @param {MacroExecutionContext} [context] - Execution context.
-     * @returns {string|Promise<string>}
+     * @returns {Promise<string>}
      */
-    executeMacro(name, context) {
-        const definition = this.getMacro(name);
-
-        if (!definition) {
+    async executeMacro(name, context) {
+        const def = this.getMacro(name);
+        if (!def) {
             throw new Error(`Macro "${name}" is not registered`);
         }
 
         const args = Array.isArray(context?.args) ? context.args : [];
-        const argc = args.length;
 
-        const requiredArgs = definition.requiredArgs;
-        const listSpec = definition.list;
+        if (!isArgsValid(def, args)) {
+            const expectedMin = def.list ? def.requiredArgs + def.list.min : def.requiredArgs;
+            const expectedMax = def.list && def.list.max !== null ? def.requiredArgs + def.list.max : null;
 
-        let isValid = true;
-        if (!listSpec) {
-            if (argc !== requiredArgs) {
-                isValid = false;
-            }
-        } else {
-            const listCount = argc > requiredArgs ? argc - requiredArgs : 0;
-            const minTotal = requiredArgs + listSpec.min;
+            const expectation = (() => {
+                if (!def.list) return `${def.requiredArgs}`;
+                if (expectedMax !== null && expectedMax !== expectedMin) return `between ${expectedMin} and ${expectedMax}`;
+                if (expectedMax !== null && expectedMax === expectedMin) return `${expectedMin}`;
+                return `at least ${expectedMin}`;
+            })();
+            console.warn(`Macro "${def.name}" called with ${args.length} unnamed arguments but expects ${expectation}.`);
 
-            if (argc < minTotal) {
-                isValid = false;
-            }
-
-            if (listSpec.max !== null && listCount > listSpec.max) {
-                isValid = false;
-            }
-        }
-
-        if (!isValid) {
-            const expectedMin = listSpec ? requiredArgs + listSpec.min : requiredArgs;
-            const expectedMax = listSpec && listSpec.max !== null ? requiredArgs + listSpec.max : null;
-
-            let expectation;
-            if (!listSpec) {
-                expectation = String(requiredArgs);
-            } else if (expectedMax !== null && expectedMax !== expectedMin) {
-                expectation = `between ${expectedMin} and ${expectedMax}`;
-            } else if (expectedMax !== null && expectedMax === expectedMin) {
-                expectation = String(expectedMin);
-            } else {
-                expectation = `at least ${expectedMin}`;
-            }
-
-            console.warn(`Macro "${definition.name}" called with ${argc} unnamed arguments but expects ${expectation}.`);
-
-            if (definition.strictArgs) {
+            if (def.strictArgs) {
                 const rawInner = context?.raw;
                 if (typeof rawInner === 'string') {
                     return `{{${rawInner}}}`;
@@ -306,15 +254,11 @@ class MacroRegistry {
             }
         }
 
-        const requiredArgsValues = args.slice(0, Math.min(requiredArgs, argc));
-        /** @type {string[]|null} */
-        let listValues = null;
-        if (listSpec) {
-            listValues = argc > requiredArgs ? args.slice(requiredArgs) : [];
-        }
+        const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
+        const listValues = !def.list ? null : args.length > def.requiredArgs ? args.slice(def.requiredArgs) : [];
 
         const executionContext = {
-            name: definition.name,
+            name: def.name,
             args,
             requiredArgs: requiredArgsValues,
             list: listValues,
@@ -325,17 +269,33 @@ class MacroRegistry {
             range: context?.range,
         };
 
-        const result = definition.handler(executionContext);
-
-        if (result instanceof Promise) {
-            return result.then(value => normalizeMacroResult(value));
-        }
-
-        return normalizeMacroResult(result);
+        // Resolve promise, or return right away
+        const result = def.handler(executionContext);
+        return Promise.resolve(result).then(value => normalizeMacroResult(value));
     }
 }
 
 instance = MacroRegistry.instance;
+
+/**
+ * Validates the arguments for a macro definition.
+ *
+ * @param {MacroDefinition} def - Macro definition.
+ * @param {any[]} args - Arguments to validate.
+ * @returns {boolean} True if the arguments are valid, false otherwise.
+ */
+function isArgsValid(def, args) {
+    const hasListArgs = def.list !== null;
+    if (!hasListArgs) return args.length === def.requiredArgs;
+
+    const argsShorterThanMin = args.length < def.requiredArgs + def.list.min;
+    if (argsShorterThanMin) return false;
+
+    const listCount = args.length > def.requiredArgs ? args.length - def.requiredArgs : 0;
+    const argsLongerThanMax = def.list.max !== null && listCount > def.list.max;
+    if (argsLongerThanMax) return false;
+    return true;
+}
 
 /**
  * Normalizes macro results into a string.
@@ -348,11 +308,9 @@ function normalizeMacroResult(value) {
     if (value === null || value === undefined) {
         return '';
     }
-
     if (value instanceof Date) {
         return value.toISOString();
     }
-
     if (typeof value === 'object') {
         try {
             return JSON.stringify(value);
