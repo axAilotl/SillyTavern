@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testSetup } from './utils.js';
+import { testSetup } from './frontent-test-utils.js';
 
 // Playwright-based frontend tests need more time
 test.setTimeout(10_000);

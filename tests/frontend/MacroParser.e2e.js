@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testSetup } from './utils.js';
+import { testSetup } from './frontent-test-utils.js';
 
 /** @typedef {import('chevrotain').CstNode} CstNode */
 /** @typedef {import('chevrotain').IRecognitionException} IRecognitionException */

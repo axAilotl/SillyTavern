@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testSetup } from './utils.js';
+import { testSetup } from './frontent-test-utils.js';
 
 // Those tests are evaluating via Playwright; they need more time to run and finish
 // For now, engine tests need a lot of setup, so we need a higher timeout
