@@ -66,6 +66,7 @@
  * @property {boolean|MacroListSpec?} [list=null] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
  * @property {boolean?} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string?} [description=''] - Add a description of what the macro does.
+ * @property {string?} [returns=null] - Add a specific description of what the macro returns, if it is not obvious from the description.
  * @property {(context: MacroExecutionContext) => (string|Promise<string>)!} handler - The handler function for the macro.
  */
 
@@ -76,6 +77,7 @@
  * @property {{ min: number, max: (number|null) }|null} list
  * @property {boolean} strictArgs
  * @property {string} description
+ * @property {string?} returns
  * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
  */
 
@@ -114,7 +116,7 @@ class MacroRegistry {
         name = name.trim();
         if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
-        const { handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription } = options;
+        const { handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription, returns: rawReturns } = options;
 
         if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
 
@@ -153,6 +155,12 @@ class MacroRegistry {
             description = rawDescription;
         }
 
+        let returns = null;
+        if (rawReturns !== undefined && rawReturns !== null) {
+            if (typeof rawReturns !== 'string') throw new Error(`Macro "${name}" options.returns must be a string when provided.`);
+            returns = rawReturns;
+        }
+
         if (this.#macros.has(name)) {
             console.warn(`Macro "${name}" is already registered and will be overwritten.`);
         }
@@ -164,6 +172,7 @@ class MacroRegistry {
             list,
             strictArgs,
             description,
+            returns,
             handler,
         };
 
