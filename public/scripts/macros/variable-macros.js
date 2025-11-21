@@ -120,14 +120,4 @@ export function registerVariableMacros() {
             return normalize(result);
         },
     });
-
-    // {{getglobalvar::name}} -> returns current value
-    MacroRegistry.registerMacro('getglobalvar', {
-        requiredArgs: 1,
-        description: 'Gets the value of a global variable.',
-        handler: ({ requiredArgs: [name], normalize }) => {
-            const result = getGlobalVariable(name);
-            return normalize(result);
-        },
-    });
 }

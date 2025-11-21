@@ -1,5 +1,7 @@
 /** @typedef {import('chevrotain').CstNode} CstNode */
 
+import { MacroEngine } from './MacroEngine.js';
+
 /**
  * Structured environment object passed into macro handlers.
  * This is the canonical shape going forward for macros that need
@@ -278,7 +280,7 @@ class MacroRegistry {
             env: context?.env,
             cstNode: context?.cstNode,
             range: context?.range,
-            normalize: context?.normalize,
+            normalize: context?.normalize || MacroEngine.normalizeMacroResult.bind(this),
         };
 
         // Resolve promise, catch any errors, and normalize result
@@ -288,7 +290,7 @@ class MacroRegistry {
                 console.error(`Macro "${def.name}" handler failed to execute`, context);
                 return '';
             })
-            .then(value => normalizeMacroResult(value));
+            .then(value => executionContext.normalize(value));
     }
 }
 
@@ -312,29 +314,4 @@ function isArgsValid(def, args) {
     const argsLongerThanMax = def.list.max !== null && listCount > def.list.max;
     if (argsLongerThanMax) return false;
     return true;
-}
-
-/**
- * Normalizes macro results into a string.
- * This mirrors the behavior of the legacy macro system in a simplified way.
- *
- * @param {any} value
- * @returns {string}
- */
-function normalizeMacroResult(value) {
-    if (value === null || value === undefined) {
-        return '';
-    }
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    if (typeof value === 'object' || Array.isArray(value)) {
-        try {
-            return JSON.stringify(value);
-        } catch (_error) {
-            return String(value);
-        }
-    }
-
-    return String(value);
 }
