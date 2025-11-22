@@ -1,0 +1,177 @@
+import { name1, name2, characters, getCharacterCardFields, getGeneratingModel } from '../../../script.js';
+import { groups, selected_group } from '../../../scripts/group-chats.js';
+/**
+ * MacroEnvBuilder is responsible for constructing the MacroEnv object
+ * that is passed to macro handlers.
+ *
+ * It does **not** depend on the legacy regex macro system. Instead, it
+ * works from the same raw inputs that substituteParams receives plus a
+ * small bundle of global helpers, so it can eventually replace the
+ * environment-building block in substituteParams.
+ */
+
+/** @typedef {import('./MacroRegistry.js').MacroEnv} MacroEnv */
+
+/**
+ * @typedef {Object} MacroEnvRawContext
+ * @property {string} content
+ * @property {string|undefined} name1Override
+ * @property {string|undefined} name2Override
+ * @property {string|undefined} original
+ * @property {string|undefined} groupOverride
+ * @property {boolean} replaceCharacterCard
+ * @property {Record<string, any>|undefined} additionalMacro
+ */
+
+/**
+ * @typedef {(env: MacroEnv, ctx: MacroEnvRawContext) => void} MacroEnvProvider
+ */
+
+/**
+ * @enum {number} Exposed ordering buckets for providers. Callers can use envBuilder.providerOrder.* when registering providers.
+ */
+export const env_provider_order = {
+    EARLIEST: 0,
+    EARLY: 10,
+    NORMAL: 50,
+    LATE: 90,
+    LATEST: 100,
+};
+
+/** @type {MacroEnvBuilder} */
+let instance;
+export { instance as MacroEnvBuilder };
+
+class MacroEnvBuilder {
+    /** @type {MacroEnvBuilder} */ static #instance;
+    /** @type {MacroEnvBuilder} */ static get instance() { return MacroEnvBuilder.#instance ?? (MacroEnvBuilder.#instance = new MacroEnvBuilder()); }
+
+    /** @type {{ fn: MacroEnvProvider, order: env_provider_order }[]} */
+    #providers;
+
+    constructor() {
+        this.#providers = [];
+    }
+
+    /**
+     * Registers a provider that can augment the MacroEnv with additional
+     * data (for extensions, extra context, etc.).
+     *
+     * Should be called once during initialization.
+     *
+     * @param {MacroEnvProvider} provider
+     * @param {env_provider_order} [order=env_provider_order.NORMAL]
+     * @returns {void}
+     */
+    registerProvider(provider, order = env_provider_order.NORMAL) {
+        if (typeof provider !== 'function') throw new Error('Provider must be a function');
+        this.#providers.push({ fn: provider, order });
+    }
+
+    /**
+     * Builds a MacroEnv from the raw arguments that are conceptually the
+     * same as substituteParams receives, plus a bundle of global helpers.
+     *
+     * @param {MacroEnvRawContext} ctx
+     * @returns {MacroEnv}
+     */
+    buildFromRawEnv(ctx) {
+        /** @type {MacroEnv} */
+        const env = {
+            names: {},
+            character: {},
+            system: {},
+            extra: {},
+        };
+
+        if (ctx.replaceCharacterCard) {
+            const fields = getCharacterCardFields();
+            if (fields) {
+                env.character.charPrompt = fields.system || '';
+                env.character.charInstruction = fields.jailbreak || '';
+                env.character.description = fields.description || '';
+                env.character.personality = fields.personality || '';
+                env.character.scenario = fields.scenario || '';
+                env.character.persona = fields.persona || '';
+                env.character.mesExamplesRaw = fields.mesExamples || '';
+                env.character.version = fields.version || '';
+                env.character.charDepthPrompt = fields.charDepthPrompt || '';
+                env.character.creatorNotes = fields.creatorNotes || '';
+            }
+        }
+
+        // Names
+        env.names.user = ctx.name1Override ?? name1 ?? '';
+        env.names.char = ctx.name2Override ?? name2 ?? '';
+        env.names.group = getGroupValue(ctx, { currentChar: env.names.char, includeMuted: true });
+        env.names.groupNotMuted = getGroupValue(ctx, { currentChar: env.names.char, includeMuted: false });
+        env.names.notChar = getGroupValue(ctx, { currentChar: env.names.char, filterOutChar: true, includeUser: env.names.user });
+
+        // System
+        env.system.model = getGeneratingModel();
+
+        // Extras: original (one-shot) and arbitrary additional values
+        if (typeof ctx.original === 'string') {
+            let originalSubstituted = false;
+            env.extra.original = () => {
+                if (originalSubstituted) return '';
+                originalSubstituted = true;
+                return ctx.original;
+            };
+        }
+
+        // Additional macros with direct values, passed in from old context
+        if (ctx.additionalMacro && typeof ctx.additionalMacro === 'object') {
+            Object.assign(env.extra, ctx.additionalMacro);
+        }
+
+        // Let providers augment the env, if any are registered. Apply them in order,
+        // so callers can influence when their provider runs relative to others.
+        const orderedProviders = this.#providers.slice().sort((a, b) => a.order - b.order);
+        for (const { fn } of orderedProviders) {
+            try {
+                fn(env, ctx);
+            } catch (e) {
+                // Provider errors should not break macro evaluation
+                console.error('MacroEnvBuilder: Provider error', e);
+            }
+        }
+
+        return env;
+    }
+}
+
+instance = MacroEnvBuilder.instance;
+
+/**
+ * @param {MacroEnvRawContext} ctx
+ * @param {Object} options
+ * @param {string} [options.currentChar]
+ * @param {boolean} [options.includeMuted=false]
+ * @param {boolean} [options.filterOutChar=false]
+ * @param {string?} [options.includeUser]
+ * @returns {string}
+ */
+function getGroupValue(ctx, { currentChar, includeMuted = false, filterOutChar = false, includeUser = null }) {
+    if (typeof ctx.groupOverride === 'string') {
+        return ctx.groupOverride;
+    }
+
+    if (!selected_group) return filterOutChar ? (includeUser || '') : currentChar;
+
+    const groupEntry = Array.isArray(groups) ? groups.find(x => x && x.id === selected_group) : null;
+    const members = /** @type {string[]} */ (groupEntry?.members ?? []);
+    const disabledMembers = /** @type {string[]} */ (groupEntry?.disabled_members ?? []);
+
+    const names = Array.isArray(members)
+        ? members
+            .filter(((id) => includeMuted ? true : !disabledMembers.includes(id)))
+            .map(m => Array.isArray(characters) ? characters.find(c => c && c.avatar === m) : null)
+            .filter(c => !!c && typeof c.name === 'string')
+            .filter(c => !filterOutChar || c.name !== currentChar)
+            .map(c => c.name)
+            .join(', ')
+        : '';
+
+    return names;
+}

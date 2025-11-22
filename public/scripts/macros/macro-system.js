@@ -12,6 +12,7 @@ import { MacroRegistry } from './engine/MacroRegistry.js';
 import { MacroLexer } from './engine/MacroLexer.js';
 import { MacroParser } from './engine/MacroParser.js';
 import { MacroCstWalker } from './engine/MacroCstWalker.js';
+import { MacroEnvBuilder } from './engine/MacroEnvBuilder.js';
 
 // Macro definition groups
 import { registerCoreMacros } from './definitions/core-macros.js';
@@ -22,10 +23,12 @@ import { registerTimeMacros } from './definitions/time-macros.js';
 import { registerVariableMacros } from './definitions/variable-macros.js';
 import { registerInstructMacros } from './definitions/instruct-macros.js';
 
+
 export const macros = {
     // engine singletons
     engine: MacroEngine,
     registry: MacroRegistry,
+    envBuilder: MacroEnvBuilder,
     lexer: MacroLexer,
     parser: MacroParser,
     cstWalker: MacroCstWalker,

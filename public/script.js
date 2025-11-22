@@ -6489,7 +6489,7 @@ export function getGeneratingApi() {
     }
 }
 
-function getGeneratingModel(mes) {
+export function getGeneratingModel(mes) {
     let model = '';
     switch (main_api) {
         case 'kobold':
