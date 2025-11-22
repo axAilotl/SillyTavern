@@ -1,7 +1,7 @@
-import { moment } from '../../lib.js';
-import { chat } from '../../script.js';
-import { timestampToMoment } from '../utils.js';
-import { MacroRegistry } from './MacroRegistry.js';
+import { moment } from '../../../lib.js';
+import { chat } from '../../../script.js';
+import { timestampToMoment } from '../../utils.js';
+import { MacroRegistry } from '../engine/MacroRegistry.js';
 
 /**
  * Registers time/date related macros and utilities.

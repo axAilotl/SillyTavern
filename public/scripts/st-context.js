@@ -75,9 +75,6 @@ import { groups, openGroupChat, selected_group, unshallowGroupMembers } from './
 import { addLocaleData, getCurrentLocale, t, translate } from './i18n.js';
 import { hideLoader, showLoader } from './loader.js';
 import { MacrosParser } from './macros.js';
-import { MacroEngine } from './macros/MacroEngine.js';
-import { MacroLexer } from './macros/MacroLexer.js';
-import { MacroParser } from './macros/MacroParser.js';
 import { getChatCompletionModel, oai_settings } from './openai.js';
 import { callGenericPopup, Popup, POPUP_RESULT, POPUP_TYPE } from './popup.js';
 import { power_user, registerDebugFunction } from './power-user.js';
@@ -100,6 +97,7 @@ import { ChatCompletionService, TextCompletionService } from './custom-request.j
 import { ConnectionManagerRequestService } from './extensions/shared.js';
 import { updateReasoningUI, parseReasoningFromString } from './reasoning.js';
 import { IGNORE_SYMBOL } from './constants.js';
+import { macros } from './macros/macro-system.js';
 
 export function getContext() {
     return {
@@ -218,11 +216,7 @@ export function getContext() {
         ensureMessageMediaIsArray,
         getMediaDisplay,
         getMediaIndex,
-        macros: {
-            MacroLexer,
-            MacroParser,
-            MacroEngine,
-        },
+        macros,
         swipe: {
             left: swipe_left,
             right: swipe_right,

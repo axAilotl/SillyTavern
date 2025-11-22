@@ -1,29 +1,19 @@
-import { MacroRegistry } from './MacroRegistry.js';
-import {
-    getLocalVariable,
-    setLocalVariable,
-    getGlobalVariable,
-    setGlobalVariable,
-    addLocalVariable,
-    addGlobalVariable,
-    incrementLocalVariable,
-    incrementGlobalVariable,
-    decrementLocalVariable,
-    decrementGlobalVariable,
-} from '../variables.js';
+import { MacroRegistry } from '../engine/MacroRegistry.js';
 
 /**
  * Registers variable-related {{...}} macros that operate on local and global
  * variables (e.g. {{setvar}}, {{getvar}}, {{incvar}}, etc.).
  */
 export function registerVariableMacros() {
+    const ctx = SillyTavern.getContext();
+
     // {{setvar::name::value}} -> '' (side-effect on local variable)
     MacroRegistry.registerMacro('setvar', {
         requiredArgs: 2,
         description: 'Sets a local variable to the given value.',
         returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
-            setLocalVariable(name, value);
+            ctx.variables.local.set(name, value);
             return '';
         },
     });
@@ -34,7 +24,7 @@ export function registerVariableMacros() {
         description: 'Adds a value to an existing local variable (numeric or string append). If the variable does not exist, it will be created.',
         returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
-            addLocalVariable(name, value);
+            ctx.variables.local.add(name, value);
             return '';
         },
     });
@@ -44,7 +34,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Increments a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = incrementLocalVariable(name);
+            const result = ctx.variables.local.inc(name);
             return normalize(result);
         },
     });
@@ -54,7 +44,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Decrements a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = decrementLocalVariable(name);
+            const result = ctx.variables.local.dec(name);
             return normalize(result);
         },
     });
@@ -64,7 +54,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Gets the value of a local variable.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = getLocalVariable(name);
+            const result = ctx.variables.local.get(name);
             return normalize(result);
         },
     });
@@ -75,7 +65,7 @@ export function registerVariableMacros() {
         description: 'Sets a global variable to the given value.',
         returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
-            setGlobalVariable(name, value);
+            ctx.variables.global.set(name, value);
             return '';
         },
     });
@@ -86,7 +76,7 @@ export function registerVariableMacros() {
         description: 'Adds a value to an existing global variable (numeric or string append). If the variable does not exist, it will be created.',
         returns: '',
         handler: ({ requiredArgs: [name, value] }) => {
-            addGlobalVariable(name, value);
+            ctx.variables.global.add(name, value);
             return '';
         },
     });
@@ -96,7 +86,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Increments a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = incrementGlobalVariable(name);
+            const result = ctx.variables.global.inc(name);
             return normalize(result);
         },
     });
@@ -106,7 +96,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Decrements a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = decrementGlobalVariable(name);
+            const result = ctx.variables.global.dec(name);
             return normalize(result);
         },
     });
@@ -116,7 +106,7 @@ export function registerVariableMacros() {
         requiredArgs: 1,
         description: 'Gets the value of a global variable.',
         handler: ({ requiredArgs: [name], normalize }) => {
-            const result = getGlobalVariable(name);
+            const result = ctx.variables.global.get(name);
             return normalize(result);
         },
     });

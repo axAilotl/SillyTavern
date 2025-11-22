@@ -1,5 +1,5 @@
-import { MacroRegistry } from './MacroRegistry.js';
-import { isMobile } from '../RossAscends-mods.js';
+import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { isMobile } from '../../RossAscends-mods.js';
 
 /**
  * Registers macros that mostly act as simple accessors to MacroEnv fields

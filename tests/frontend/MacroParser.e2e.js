@@ -634,8 +634,8 @@ async function runParser(page, input, options = {}) {
 async function runParserAndGetErrors(page, input, options = {}) {
     const params = { input, options };
     const { modifiedInput, result } = await page.evaluate(async ({ input, options }) => {
-        /** @type {import('../../public/scripts/macros/MacroParser.js')} */
-        const { MacroParser } = await import('./scripts/macros/MacroParser.js');
+        /** @type {import('../../public/scripts/macros/engine/MacroParser.js')} */
+        const { MacroParser } = await import('./scripts/macros/engine/MacroParser.js');
 
         if (options.runPreProcessFix) {
             input = MacroParser.preProcessFixLegacyMacros(input);

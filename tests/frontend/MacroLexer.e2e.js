@@ -1110,8 +1110,8 @@ async function runLexerGetTokens(page, input) {
  */
 async function runLexerGetTokensAndErrors(page, input) {
     const result = await page.evaluate(async (input) => {
-        /** @type {import('../../public/scripts/macros/MacroLexer.js')} */
-        const { MacroLexer } = await import('./scripts/macros/MacroLexer.js');
+        /** @type {import('../../public/scripts/macros/engine/MacroLexer.js')} */
+        const { MacroLexer } = await import('./scripts/macros/engine/MacroLexer.js');
 
         const result = MacroLexer.tokenize(input);
         return result;

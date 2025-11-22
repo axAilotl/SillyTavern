@@ -11,8 +11,8 @@ test.describe('MacroRegistry', () => {
     test.describe('valid', () => {
         test('should register a macro with valid options', async ({ page }) => {
             const result = await page.evaluate(async () => {
-                /** @type {import('../../public/scripts/macros/MacroRegistry.js')} */
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
 
                 MacroRegistry.unregisterMacro('test-valid');
                 MacroRegistry.registerMacro('test-valid', {
@@ -46,7 +46,8 @@ test.describe('MacroRegistry', () => {
     test.describe('reject', () => {
         test('should reject invalid macro name', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // Empty name
                 MacroRegistry.registerMacro('   ', {
                     handler: () => '',
@@ -56,7 +57,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid options object', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // Options must be object
                 // @ts-expect-error intentionally wrong
                 MacroRegistry.registerMacro('invalid-options', null);
@@ -65,7 +67,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid handler', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // Handler must be function
                 // @ts-expect-error intentionally wrong
                 MacroRegistry.registerMacro('no-handler', { handler: null });
@@ -74,7 +77,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid requiredArgs', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // requiredArgs must be non-negative integer
                 MacroRegistry.registerMacro('bad-required', {
                     // @ts-expect-error intentionally wrong
@@ -86,7 +90,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid strictArgs', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // strictArgs must be boolean
                 MacroRegistry.registerMacro('bad-strict', {
                     // @ts-expect-error intentionally wrong
@@ -98,7 +103,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid list configuration', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // list must be boolean or object
                 MacroRegistry.registerMacro('bad-list-type', {
                     // @ts-expect-error intentionally wrong
@@ -110,7 +116,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid list.min', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // list.min must be non-negative
                 MacroRegistry.registerMacro('bad-list-min', {
                     list: { min: -1 },
@@ -121,7 +128,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid list.max', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // list.max must be >= min
                 MacroRegistry.registerMacro('bad-list-max', {
                     list: { min: 2, max: 1 },
@@ -132,7 +140,8 @@ test.describe('MacroRegistry', () => {
 
         test('should reject invalid description', async ({ page }) => {
             await expect(page.evaluate(async () => {
-                const { MacroRegistry } = await import('./scripts/macros/MacroRegistry.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
                 // description must be string
                 MacroRegistry.registerMacro('bad-desc', {
                     // @ts-expect-error intentionally wrong

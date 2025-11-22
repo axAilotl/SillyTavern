@@ -1,5 +1,5 @@
-import { MacroRegistry } from './MacroRegistry.js';
-import { power_user } from '../power-user.js';
+import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { power_user } from '../../power-user.js';
 
 /**
  * Registers instruct-mode related {{...}} macros (instruct* and system

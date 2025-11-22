@@ -1,15 +1,9 @@
-import { seedrandom, droll } from '../../lib.js';
-import { chat_metadata, main_api, getMaxContextSize, extension_prompts, getCurrentChatId } from '../../script.js';
-import { getStringHash } from '../utils.js';
-import { textgenerationwebui_banned_in_macros } from '../textgen-settings.js';
-import { inject_ids } from '../constants.js';
-import { MacroRegistry } from './MacroRegistry.js';
-import { registerVariableMacros } from './variable-macros.js';
-import { registerInstructMacros } from './instruct-macros.js';
-import { registerEnvMacros } from './env-macros.js';
-import { registerStateMacros } from './state-macros.js';
-import { registerChatMacros } from './chat-macros.js';
-import { registerTimeMacros } from './time-macros.js';
+import { seedrandom, droll } from '../../../lib.js';
+import { chat_metadata, main_api, getMaxContextSize, extension_prompts, getCurrentChatId } from '../../../script.js';
+import { getStringHash } from '../../utils.js';
+import { textgenerationwebui_banned_in_macros } from '../../textgen-settings.js';
+import { inject_ids } from '../../constants.js';
+import { MacroRegistry } from '../engine/MacroRegistry.js';
 
 /**
  * Registers SillyTavern's core built-in macros in the MacroRegistry.
@@ -44,13 +38,6 @@ export function registerCoreMacros() {
         handler: () => String(getMaxContextSize()),
     });
 
-    // Macros that primarily read from MacroEnv or lightweight runtime state
-    registerEnvMacros();
-    registerStateMacros();
-
-    // Chat inspection macros
-    registerChatMacros();
-
     // String utilities
     MacroRegistry.registerMacro('reverse', {
         requiredArgs: 1,
@@ -67,8 +54,6 @@ export function registerCoreMacros() {
     });
 
     // Time and date macros
-    registerTimeMacros();
-
     // Dice roll macro: {{roll 1d6}} or {{roll: 1d6}}
     MacroRegistry.registerMacro('roll', {
         requiredArgs: 1,
@@ -173,12 +158,6 @@ export function registerCoreMacros() {
             return value || '';
         },
     });
-
-    // Variable macros (setvar/getvar/etc.)
-    registerVariableMacros();
-
-    // Instruct macros (instruct*, systemPrompt, chatSeparator/chatStart)
-    registerInstructMacros();
 }
 
 function getChatIdHashCore() {

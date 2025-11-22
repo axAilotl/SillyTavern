@@ -1,5 +1,6 @@
-import { chevrotain } from '../../lib.js';
+import { chevrotain } from '../../../lib.js';
 import { MacroLexer } from './MacroLexer.js';
+
 const { CstParser } = chevrotain;
 
 /** @typedef {import('chevrotain').TokenType} TokenType */

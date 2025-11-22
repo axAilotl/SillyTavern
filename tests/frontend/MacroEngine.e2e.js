@@ -146,8 +146,8 @@ async function evaluateWithEngine(page, input) {
     await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
     await page.waitForTimeout(1000);
     const result = await page.evaluate(async (input) => {
-        /** @type {import('../../public/scripts/macros/MacroEngine.js')} */
-        const { MacroEngine } = await import('./scripts/macros/MacroEngine.js');
+        /** @type {import('../../public/scripts/macros/engine/MacroEngine.js')} */
+        const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
         const output = await MacroEngine.evaluate(input, {});
         return output;
     }, input);

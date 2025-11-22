@@ -1,4 +1,4 @@
-import { chevrotain } from '../../lib.js';
+import { chevrotain } from '../../../lib.js';
 const { createToken, Lexer } = chevrotain;
 
 /** @typedef {import('chevrotain').TokenType} TokenType */
