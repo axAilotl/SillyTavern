@@ -4,6 +4,7 @@ import { MacroCstWalker } from './MacroCstWalker.js';
 import { MacroRegistry } from './MacroRegistry.js';
 
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
+/** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
 
 /**
  * The singleton instance of the MacroEngine.
@@ -23,7 +24,7 @@ class MacroEngine {
      * Evaluates a string containing macros and resolves them.
      *
      * @param {string} input - The input string to evaluate.
-     * @param {any} env - The environment to pass to the macro handler.
+     * @param {MacroEnv} [env] - The environment to pass to the macro handler.
      * @returns {Promise<string>} The resolved string.
      */
     async evaluate(input, env) {

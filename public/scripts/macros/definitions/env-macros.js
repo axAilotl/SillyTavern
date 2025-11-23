@@ -1,6 +1,8 @@
 import { MacroRegistry } from '../engine/MacroRegistry.js';
 import { isMobile } from '../../RossAscends-mods.js';
 
+/** @typedef {import('../engine/MacroEnv.types.js').MacroEnv} MacroEnv */
+
 /**
  * Registers macros that mostly act as simple accessors to MacroEnv fields
  * (names, character card fields, system metadata, extras) or basic

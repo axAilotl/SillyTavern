@@ -1,47 +1,7 @@
 /** @typedef {import('chevrotain').CstNode} CstNode */
+/** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
 
 import { MacroEngine } from './MacroEngine.js';
-
-/**
- * Structured environment object passed into macro handlers.
- * This is the canonical shape going forward for macros that need
- * access to prompt context, names, character card fields, etc.
- */
-/**
- * @typedef {Object} MacroEnvNames
- * @property {string} [user]
- * @property {string} [char]
- * @property {string} [group]
- * @property {string} [groupNotMuted]
- * @property {string} [notChar]
- */
-
-/**
- * @typedef {Object} MacroEnvCharacter
- * @property {string} [description]
- * @property {string} [personality]
- * @property {string} [scenario]
- * @property {string} [persona]
- * @property {string} [charPrompt]
- * @property {string} [charInstruction]
- * @property {string} [mesExamplesRaw]
- * @property {string} [charDepthPrompt]
- * @property {string} [creatorNotes]
- * @property {string} [version]
- */
-
-/**
- * @typedef {Object} MacroEnvSystem
- * @property {string} [model]
- */
-
-/**
- * @typedef {Object} MacroEnv
- * @property {MacroEnvNames} [names]
- * @property {MacroEnvCharacter} [character]
- * @property {MacroEnvSystem} [system]
- * @property {Record<string, unknown>} [extra]
- */
 
 /**
  * @typedef {Object} MacroExecutionContext

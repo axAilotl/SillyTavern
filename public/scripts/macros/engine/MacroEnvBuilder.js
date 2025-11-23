@@ -10,7 +10,7 @@ import { groups, selected_group } from '../../../scripts/group-chats.js';
  * environment-building block in substituteParams.
  */
 
-/** @typedef {import('./MacroRegistry.js').MacroEnv} MacroEnv */
+/** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
 
 /**
  * @typedef {Object} MacroEnvRawContext
