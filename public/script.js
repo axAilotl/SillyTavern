@@ -2750,7 +2750,7 @@ export function substituteParams(content, _name1, _name2, _original, _group, _re
  * This will replace all registered macros and dynamic additional macros as environment context.
  *
  * @param {string} content - The string to substitute parameters in.
- * @param {Object} options - Options for the substitution.
+ * @param {Object} [options={}] - Options for the substitution.
  * @param {string} [options.name1Override] - The name of the user. Uses global name1 if not provided.
  * @param {string} [options.name2Override] - The name of the character. Uses global name2 if not provided.
  * @param {string} [options.original] - The original message for {{original}} substitution.

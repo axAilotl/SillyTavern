@@ -5,6 +5,7 @@ import { MacroRegistry } from './MacroRegistry.js';
 
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
+/** @typedef {import('./MacroRegistry.js').MacroDefinition} MacroDefinition */
 
 /**
  * The singleton instance of the MacroEngine.
@@ -24,7 +25,7 @@ class MacroEngine {
      * Evaluates a string containing macros and resolves them.
      *
      * @param {string} input - The input string to evaluate.
-     * @param {MacroEnv} [env] - The environment to pass to the macro handler.
+     * @param {MacroEnv} env - The environment to pass to the macro handler.
      * @returns {Promise<string>} The resolved string.
      */
     async evaluate(input, env) {
@@ -54,7 +55,7 @@ class MacroEngine {
         // Freeze the environment to avoid accidental mutations inside
         // macro handlers while still allowing the caller to pass in a
         // plain, mutable object.
-        const safeEnv = env && typeof env === 'object' ? Object.freeze({ ...env }) : undefined;
+        const safeEnv = Object.freeze({ ...env });
 
         const result = await MacroCstWalker.evaluateDocument({
             text: preProcessed,
@@ -72,13 +73,30 @@ class MacroEngine {
      * @returns {Promise<string>} The resolved macro
      */
     async #resolveMacro(call) {
-        const { name } = call;
+        const { name, env } = call;
 
         if (!name) {
             return call.rawWithBraces || '';
         }
 
-        if (!MacroRegistry.hasMacro(name)) {
+        // First check if this is a dynamic macro to use. If so, we will create a temporary macro definition for it and use that over any registered macro.
+        /** @type {MacroDefinition?} */
+        let defOverride = null;
+        if (Object.hasOwn(env.dynamicMacros, name)) {
+            const impl = env.dynamicMacros[name];
+            defOverride = {
+                name,
+                description: 'Dynamic macro',
+                requiredArgs: 0,
+                list: null,
+                strictArgs: true, // Fail dynamic macros if they are called with arguments
+                returns: null,
+                handler: typeof impl === 'function' ? impl : () => impl,
+            };
+        }
+
+        // If not, check if the macro exists and is registered
+        if (!defOverride && !MacroRegistry.hasMacro(name)) {
             return `{{${call.rawInner}}}`; // Unknown macro: keep macro syntax, but nested macros inside rawInner are already resolved.
         }
 
@@ -90,8 +108,16 @@ class MacroEngine {
             cstNode: call.cstNode,
             range: call.range,
             normalize: this.normalizeMacroResult.bind(this),
+        }, {
+            defOverride,
         });
-        return result;
+
+        try {
+            return call.env.functions.postProcess(result);
+        } catch (error) {
+            console.error('MacroEngine: postProcess function failed', error);
+            return result;
+        }
     }
     /**
     * Normalizes macro results into a string.

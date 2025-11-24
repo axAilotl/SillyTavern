@@ -77,12 +77,15 @@ class MacroEnvBuilder {
      * @returns {MacroEnv}
      */
     buildFromRawEnv(ctx) {
+        // Create the env first, we will populate it step by step.
+        // Some fields are marked as required, so we have to fill them with dummy fields here
         /** @type {MacroEnv} */
         const env = {
-            names: {},
+            names: { user: '', char: '' },
             character: {},
-            system: {},
-            functions: {},
+            system: { model: '' },
+            functions: { original: () => '', postProcess: (x) => x },
+            dynamicMacros: {},
             extra: {},
         };
 
@@ -124,10 +127,9 @@ class MacroEnvBuilder {
         }
         env.functions.postProcess = typeof ctx.postProcessFn === 'function' ? ctx.postProcessFn : (x) => x;
 
-        // TODO: Let's see how we actually handle dynamicMacros in the future
-        // Additional macros with direct values, passed in from old context
+        // Dynamic, per-call macros that should be visible only for this evaluation run.
         if (ctx.dynamicMacros && typeof ctx.dynamicMacros === 'object') {
-            Object.assign(env.extra, ctx.dynamicMacros);
+            env.dynamicMacros = { ...ctx.dynamicMacros };
         }
 
         // Let providers augment the env, if any are registered. Apply them in order,

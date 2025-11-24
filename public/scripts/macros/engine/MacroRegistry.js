@@ -201,10 +201,12 @@ class MacroRegistry {
      *
      * @param {string} name - Macro name (identifier).
      * @param {MacroExecutionContext} [context] - Execution context.
+     * @param {Object} [options] - Additional options.
+     * @param {MacroDefinition} [options.defOverride] - Override the macro definition.
      * @returns {Promise<string>}
      */
-    async executeMacro(name, context) {
-        const def = this.getMacro(name);
+    async executeMacro(name, context, { defOverride } = {}) {
+        const def = defOverride || this.getMacro(name);
         if (!def) {
             throw new Error(`Macro "${name}" is not registered`);
         }

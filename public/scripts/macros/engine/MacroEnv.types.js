@@ -6,10 +6,12 @@
  * without creating runtime dependencies.
  */
 
+/** @typedef {import('./MacroRegistry.js').MacroHandler} MacroHandler */
+
 /**
  * @typedef {Object} MacroEnvNames
- * @property {string} [user]
- * @property {string} [char]
+ * @property {string} user
+ * @property {string} char
  * @property {string} [group]
  * @property {string} [groupNotMuted]
  * @property {string} [notChar]
@@ -31,22 +33,23 @@
 
 /**
  * @typedef {Object} MacroEnvSystem
- * @property {string} [model]
+ * @property {string} model
  */
 
 /**
  * @typedef {Object} MacroEnvFunctions
- * @property {() => string} [original]
- * @property {(text: string) => string} [postProcess]
+ * @property {() => string} original
+ * @property {(text: string) => string} postProcess
  */
 
 /**
  * @typedef {Object} MacroEnv
- * @property {MacroEnvNames} [names]
- * @property {MacroEnvCharacter} [character]
- * @property {MacroEnvSystem} [system]
- * @property {MacroEnvFunctions} [functions]
- * @property {Record<string, unknown>} [extra]
+ * @property {MacroEnvNames} names
+ * @property {MacroEnvCharacter} character
+ * @property {MacroEnvSystem} system
+ * @property {MacroEnvFunctions} functions
+ * @property {Object<string, string|MacroHandler>} dynamicMacros
+ * @property {Record<string, unknown>} extra
  */
 
 export {};

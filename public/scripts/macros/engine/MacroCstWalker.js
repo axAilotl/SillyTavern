@@ -1,21 +1,22 @@
 /** @typedef {import('chevrotain').CstNode} CstNode */
 /** @typedef {import('chevrotain').IToken} IToken */
+/** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
 
 /**
  * @typedef {Object} MacroCall
  * @property {string} name
  * @property {string[]} args
+ * @property {MacroEnv} env
  * @property {string} [rawInner]
  * @property {string} [rawWithBraces]
  * @property {{ startOffset: number, endOffset: number }} [range]
  * @property {CstNode} [cstNode]
- * @property {any} [env]
  */
 
 /**
  * @typedef {Object} EvaluationContext
  * @property {string} text
- * @property {any} [env]
+ * @property {MacroEnv} env
  * @property {(call: MacroCall) => (string|Promise<string>)} resolveMacro
  */
 
