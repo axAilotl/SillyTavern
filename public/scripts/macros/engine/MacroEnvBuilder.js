@@ -20,7 +20,8 @@ import { groups, selected_group } from '../../../scripts/group-chats.js';
  * @property {string|undefined} original
  * @property {string|undefined} groupOverride
  * @property {boolean} replaceCharacterCard
- * @property {Record<string, any>|undefined} additionalMacro
+ * @property {Record<string, any>|undefined} dynamicMacros
+ * @property {(value: string) => string} postProcessFn
  */
 
 /**
@@ -81,6 +82,7 @@ class MacroEnvBuilder {
             names: {},
             character: {},
             system: {},
+            functions: {},
             extra: {},
         };
 
@@ -110,19 +112,22 @@ class MacroEnvBuilder {
         // System
         env.system.model = getGeneratingModel();
 
-        // Extras: original (one-shot) and arbitrary additional values
+        // Functions
+        // original (one-shot) and arbitrary additional values
         if (typeof ctx.original === 'string') {
             let originalSubstituted = false;
-            env.extra.original = () => {
+            env.functions.original = () => {
                 if (originalSubstituted) return '';
                 originalSubstituted = true;
                 return ctx.original;
             };
         }
+        env.functions.postProcess = typeof ctx.postProcessFn === 'function' ? ctx.postProcessFn : (x) => x;
 
+        // TODO: Let's see how we actually handle dynamicMacros in the future
         // Additional macros with direct values, passed in from old context
-        if (ctx.additionalMacro && typeof ctx.additionalMacro === 'object') {
-            Object.assign(env.extra, ctx.additionalMacro);
+        if (ctx.dynamicMacros && typeof ctx.dynamicMacros === 'object') {
+            Object.assign(env.extra, ctx.dynamicMacros);
         }
 
         // Let providers augment the env, if any are registered. Apply them in order,

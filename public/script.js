@@ -2742,6 +2742,50 @@ export function substituteParams(content, _name1, _name2, _original, _group, _re
     return evaluateMacros(content, environment, postProcessFn);
 }
 
+/** @typedef {import('./scripts/macros/engine/MacroRegistry.js').MacroHandler} MacroHandler */
+
+/**
+ * Asynchronously substitutes {{macros}} in a string.
+ *
+ * This will replace all registered macros and dynamic additional macros as environment context.
+ *
+ * @param {string} content - The string to substitute parameters in.
+ * @param {Object} options - Options for the substitution.
+ * @param {string} [options.name1Override] - The name of the user. Uses global name1 if not provided.
+ * @param {string} [options.name2Override] - The name of the character. Uses global name2 if not provided.
+ * @param {string} [options.original] - The original message for {{original}} substitution.
+ * @param {string} [options.groupOverride] - The group members list for {{group}} substitution.
+ * @param {boolean} [options.replaceCharacterCard=true] - Whether to replace character card macros.
+ * @param {Record<string,string|MacroHandler>} [options.dynamicMacros={}] - Additional environment variables as dynamic macros for substitution. Registered as macro functions.
+ * @param {(x: string) => string} [options.postProcessFn=(x) => x] - Post-processing function for each substituted macro.
+ * @returns {Promise<string>} The string with substituted parameters.
+ */
+export async function substituteParamsAsync(content, { name1Override, name2Override, original, groupOverride, replaceCharacterCard = true, dynamicMacros = {}, postProcessFn = (x) => x } = {}) {
+    if (!content) return '';
+
+    if (!power_user?.experimental_macro_engine) {
+        return substituteParams(content, name1Override, name2Override, original, groupOverride, replaceCharacterCard, dynamicMacros, postProcessFn);
+    }
+
+    const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
+    const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
+
+    const ctx = /** @type {import('./scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */ ({
+        content,
+        name1Override,
+        name2Override,
+        original,
+        groupOverride,
+        replaceCharacterCard,
+        dynamicMacros,
+        postProcessFn,
+    });
+
+    const env = MacroEnvBuilder.buildFromRawEnv(ctx);
+    const result = await MacroEngine.evaluate(content, env);
+    return result;
+}
+
 
 /**
  * Gets stopping sequences for the prompt.

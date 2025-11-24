@@ -35,10 +35,17 @@
  */
 
 /**
+ * @typedef {Object} MacroEnvFunctions
+ * @property {() => string} [original]
+ * @property {(text: string) => string} [postProcess]
+ */
+
+/**
  * @typedef {Object} MacroEnv
  * @property {MacroEnvNames} [names]
  * @property {MacroEnvCharacter} [character]
  * @property {MacroEnvSystem} [system]
+ * @property {MacroEnvFunctions} [functions]
  * @property {Record<string, unknown>} [extra]
  */
 

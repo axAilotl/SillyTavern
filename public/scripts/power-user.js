@@ -205,6 +205,7 @@ export const power_user = {
     expand_message_actions: false,
     enableZenSliders: false,
     enableLabMode: false,
+    experimental_macro_engine: false,
     prefer_character_prompt: true,
     prefer_character_jailbreak: true,
     quick_continue: false,

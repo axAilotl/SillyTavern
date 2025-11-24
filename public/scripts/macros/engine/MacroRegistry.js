@@ -24,13 +24,19 @@ import { MacroEngine } from './MacroEngine.js';
  */
 
 /**
+ * @typedef {Function} MacroHandler
+ * @param {MacroExecutionContext} context
+ * @returns {string|Promise<string>}
+ */
+
+/**
  * @typedef {Object} MacroDefinitionOptions
  * @property {number?} [requiredArgs=0] - Specifies the macro requires this many arguments. (defaults to 0)
  * @property {boolean|MacroListSpec?} [list=null] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
  * @property {boolean?} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string?} [description=''] - Add a description of what the macro does.
  * @property {string?} [returns=null] - Add a specific description of what the macro returns, if it is not obvious from the description.
- * @property {(context: MacroExecutionContext) => (string|Promise<string>)!} handler - The handler function for the macro.
+ * @property {MacroHandler} handler - The handler function for the macro.
  */
 
 /**
@@ -41,7 +47,7 @@ import { MacroEngine } from './MacroEngine.js';
  * @property {boolean} strictArgs
  * @property {string} description
  * @property {string?} returns
- * @property {(context: MacroExecutionContext) => (string|Promise<string>)} handler
+ * @property {MacroHandler} handler
  */
 
 /**
