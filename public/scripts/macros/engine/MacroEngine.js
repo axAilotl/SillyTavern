@@ -100,10 +100,7 @@ class MacroEngine {
             return `{{${call.rawInner}}}`; // Unknown macro: keep macro syntax, but nested macros inside rawInner are already resolved.
         }
 
-        const result = await MacroRegistry.executeMacro(call, {
-            defOverride,
-            normalize: this.normalizeMacroResult.bind(this),
-        });
+        const result = await MacroRegistry.executeMacro(call, { defOverride });
 
         try {
             return call.env.functions.postProcess(result);

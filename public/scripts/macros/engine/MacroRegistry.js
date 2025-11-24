@@ -201,10 +201,9 @@ class MacroRegistry {
      * @param {MacroCall} call - Macro call information.
      * @param {Object} [options] - Additional options.
      * @param {MacroDefinition} [options.defOverride] - Override the macro definition.
-     * @param {(value: any) => string} [options.normalize] - Override the normalization function.
      * @returns {Promise<string>}
      */
-    async executeMacro(call, { defOverride, normalize } = {}) {
+    async executeMacro(call, { defOverride } = {}) {
         const name = call.name;
         const def = defOverride || this.getMacro(name);
         if (!def) {
@@ -246,7 +245,7 @@ class MacroRegistry {
             env: call.env,
             cstNode: call.cstNode,
             range: call.range,
-            normalize: normalize || MacroEngine.normalizeMacroResult.bind(MacroEngine),
+            normalize: MacroEngine.normalizeMacroResult.bind(MacroEngine),
         };
 
         // Resolve promise, catch any errors, and normalize result

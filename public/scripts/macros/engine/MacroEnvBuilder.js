@@ -81,7 +81,7 @@ class MacroEnvBuilder {
         // Some fields are marked as required, so we have to fill them with dummy fields here
         /** @type {MacroEnv} */
         const env = {
-            names: { user: '', char: '' },
+            names: { user: '', char: '', group: '', groupNotMuted: '', notChar: '' },
             character: {},
             system: { model: '' },
             functions: { original: () => '', postProcess: (x) => x },
