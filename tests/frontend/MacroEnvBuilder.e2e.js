@@ -13,14 +13,11 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: 'ignored',
                 name1Override: 'UserOverride',
                 name2Override: 'CharOverride',
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -42,14 +39,9 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: undefined,
-                name2Override: undefined,
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -70,14 +62,10 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
-                original: undefined,
-                groupOverride: undefined,
                 replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -92,14 +80,10 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: undefined,
-                name2Override: undefined,
-                original: undefined,
-                groupOverride: undefined,
                 replaceCharacterCard: true,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -126,20 +110,16 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
                 original: 'ORIGINAL_VALUE',
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
-            const hasFn = typeof env.extra?.original === 'function';
-            const first = hasFn ? env.extra.original() : null;
-            const second = hasFn ? env.extra.original() : null;
+            const hasFn = typeof env.functions?.original === 'function';
+            const first = hasFn ? env.functions.original() : null;
+            const second = hasFn ? env.functions.original() : null;
 
             return { hasFn, first, second };
         });
@@ -156,18 +136,14 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
                 original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
-            return typeof env.extra?.original === 'function';
+            return typeof env.functions?.original === 'function';
         });
 
         expect(hasFn).toBe(false);
@@ -178,14 +154,10 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
-                original: undefined,
                 groupOverride: 'Group One, Group Two',
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -214,14 +186,12 @@ test.describe('MacroEnvBuilder', () => {
                 groupChats.resetSelectedGroup();
             }
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
                 name1Override: 'UserSolo',
                 name2Override: 'CharSolo',
-                original: undefined,
                 groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -239,19 +209,15 @@ test.describe('MacroEnvBuilder', () => {
         });
     });
 
-    test('merges additionalMacro properties into env.extra', async ({ page }) => {
-        const extra = await page.evaluate(async () => {
+    test('merges dynamicMacros properties into env.dynamicMacros', async ({ page }) => {
+        const dynamicMacros = await page.evaluate(async () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: {
+                dynamicMacros: {
                     simple: 'value',
                     number: 42,
                     nested: { foo: 'bar' },
@@ -259,42 +225,12 @@ test.describe('MacroEnvBuilder', () => {
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
-            return env.extra;
+            return env.dynamicMacros;
         });
 
-        expect(extra.simple).toBe('value');
-        expect(extra.number).toBe(42);
-        expect(extra.nested).toEqual({ foo: 'bar' });
-    });
-
-    test('allows additionalMacro to override original helper when keys collide', async ({ page }) => {
-        const result = await page.evaluate(async () => {
-            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
-            const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
-
-            const ctx = {
-                content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
-                original: 'ORIGINAL_VALUE',
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: {
-                    original: 'OVERRIDE_VALUE',
-                },
-            };
-
-            const env = MacroEnvBuilder.buildFromRawEnv(ctx);
-            return {
-                type: typeof env.extra?.original,
-                value: env.extra?.original,
-            };
-        });
-
-        expect(result).toEqual({
-            type: 'string',
-            value: 'OVERRIDE_VALUE',
-        });
+        expect(dynamicMacros.simple).toBe('value');
+        expect(dynamicMacros.number).toBe(42);
+        expect(dynamicMacros.nested).toEqual({ foo: 'bar' });
     });
 
     test('sets system.model field from getGeneratingModel helper', async ({ page }) => {
@@ -302,14 +238,9 @@ test.describe('MacroEnvBuilder', () => {
             /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
             const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: undefined,
-                name2Override: undefined,
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -336,14 +267,9 @@ test.describe('MacroEnvBuilder', () => {
                 env.extra.order = [...(env.extra.order || []), 'NORMAL'];
             }, env_provider_order.NORMAL);
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
-                name1Override: 'User',
-                name2Override: 'Char',
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: undefined,
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
@@ -370,24 +296,21 @@ test.describe('MacroEnvBuilder', () => {
                 throw new Error('intentional test error');
             }, env_provider_order.NORMAL);
 
+            /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
             const ctx = {
                 content: '',
                 name1Override: 'User',
-                name2Override: 'Char',
-                original: undefined,
-                groupOverride: undefined,
-                replaceCharacterCard: false,
-                additionalMacro: { marker: 'value' },
+                dynamicMacros: { marker: 'value' },
             };
 
             const env = MacroEnvBuilder.buildFromRawEnv(ctx);
             return {
                 namesUser: env.names?.user,
-                hasMarker: env.extra?.marker === 'value',
+                hasDynamicMacro: env.dynamicMacros?.marker === 'value',
             };
         });
 
-        expect(result.hasMarker).toBe(true);
+        expect(result.hasDynamicMacro).toBe(true);
         expect(result.namesUser).toBe('User');
     });
 });

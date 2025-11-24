@@ -131,6 +131,64 @@ test.describe('MacroEngine', () => {
 
             expect(warnings.some(w => w.includes('Macro "reverse"') && w.includes('unnamed arguments'))).toBeTruthy();
         });
+
+        test('should not resolve reverse when called with too many arguments', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            const input = 'Result: {{reverse::a::b}}';
+            const output = await evaluateWithEngine(page, input);
+
+            // Macro text should remain unchanged when extra unnamed args are provided
+            expect(output).toBe(input);
+
+            // Should have logged an arity warning for reverse
+            expect(warnings.some(w => w.includes('Macro "reverse"') && w.includes('unnamed arguments'))).toBeTruthy();
+        });
+
+        test('should not resolve list-bounded macro when called outside list bounds', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            // Register a temporary macro with explicit list bounds: exactly 1 required + 1-2 list args
+            await page.evaluate(async () => {
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
+
+                MacroRegistry.unregisterMacro('test-list-bounds');
+                MacroRegistry.registerMacro('test-list-bounds', {
+                    requiredArgs: 1,
+                    list: { min: 1, max: 2 },
+                    description: 'Test macro for list bounds.',
+                    handler: ({ requiredArgs, list }) => {
+                        const all = [...requiredArgs, ...(list ?? [])];
+                        return all.join('|');
+                    },
+                });
+            });
+
+            // First macro: too few list args (only required arg)
+            // Second macro: too many list args (required arg + 3 list entries)
+            const input = 'A {{test-list-bounds::base}} B {{test-list-bounds::base::x::y::z}}';
+            const output = await evaluateWithEngine(page, input);
+
+            // Both macros should remain unchanged in the output
+            expect(output).toBe(input);
+
+            const testWarnings = warnings.filter(w => w.includes('Macro "test-list-bounds"') && w.includes('unnamed arguments'));
+            // We expect one warning for each invalid invocation (too few and too many list args)
+            expect(testWarnings.length).toBe(2);
+        });
     });
 });
 
@@ -143,12 +201,21 @@ test.describe('MacroEngine', () => {
  * @returns {Promise<string>}
  */
 async function evaluateWithEngine(page, input) {
-    await page.waitForFunction('document.getElementById("preloader") === null', { timeout: 0 });
-    await page.waitForTimeout(1000);
     const result = await page.evaluate(async (input) => {
         /** @type {import('../../public/scripts/macros/engine/MacroEngine.js')} */
         const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
-        const output = await MacroEngine.evaluate(input, {});
+        /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
+        const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
+
+        /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
+        const rawEnv = {
+            content: input,
+            name1Override: 'User',
+            name2Override: 'Character',
+        };
+        const env = MacroEnvBuilder.buildFromRawEnv(rawEnv);
+
+        const output = await MacroEngine.evaluate(input, env);
         return output;
     }, input);
 

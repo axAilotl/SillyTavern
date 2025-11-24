@@ -135,7 +135,7 @@ export function registerCoreMacros() {
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
         requiredArgs: 1,
-        description: 'Bans a word for textgenerationwebui backend.',
+        description: 'Bans a word for textgenerationwebui backend. (Strips quotes surrounding the banned word, if present)',
         returns: 'Empty string',
         handler: ({ requiredArgs: [bannedWord] }) => {
             // Strip quotes via regex, which were allowed in legacy syntax
