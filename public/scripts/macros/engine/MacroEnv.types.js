@@ -12,9 +12,9 @@
  * @typedef {Object} MacroEnvNames
  * @property {string} user
  * @property {string} char
- * @property {string} [group]
- * @property {string} [groupNotMuted]
- * @property {string} [notChar]
+ * @property {string} group
+ * @property {string} groupNotMuted
+ * @property {string} notChar
  */
 
 /**

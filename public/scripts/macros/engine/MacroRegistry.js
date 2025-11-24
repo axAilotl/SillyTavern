@@ -1,5 +1,6 @@
 /** @typedef {import('chevrotain').CstNode} CstNode */
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
+/** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 
 import { MacroEngine } from './MacroEngine.js';
 
@@ -7,13 +8,13 @@ import { MacroEngine } from './MacroEngine.js';
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
  * @property {string[]} args
- * @property {string[]} [requiredArgs]
- * @property {string[]|null} [list]
- * @property {{ [key: string]: string }} [namedArgs]
- * @property {string} [raw]
+ * @property {string[]} requiredArgs
+ * @property {string[]|null} list
+ * @property {{ [key: string]: string }|null} namedArgs
+ * @property {string} raw
  * @property {MacroEnv} env
- * @property {CstNode} [cstNode]
- * @property {{ startOffset: number, endOffset: number }} [range]
+ * @property {CstNode|null} cstNode
+ * @property {{ startOffset: number, endOffset: number }|null} range
  * @property {(value: any) => string} normalize - Normalize function to use on unsure macro results to make sure they return strings as expected.
  */
 
@@ -194,22 +195,23 @@ class MacroRegistry {
     }
 
     /**
-     * Executes a macro by name with the provided context.
+     * Executes a macro for a given call.
      * Handles both synchronous and asynchronous macro handlers.
      *
-     * @param {string} name - Macro name (identifier).
-     * @param {MacroExecutionContext} context - Execution context.
+     * @param {MacroCall} call - Macro call information.
      * @param {Object} [options] - Additional options.
      * @param {MacroDefinition} [options.defOverride] - Override the macro definition.
+     * @param {(value: any) => string} [options.normalize] - Override the normalization function.
      * @returns {Promise<string>}
      */
-    async executeMacro(name, context, { defOverride } = {}) {
+    async executeMacro(call, { defOverride, normalize } = {}) {
+        const name = call.name;
         const def = defOverride || this.getMacro(name);
         if (!def) {
             throw new Error(`Macro "${name}" is not registered`);
         }
 
-        const args = Array.isArray(context.args) ? context.args : [];
+        const args = Array.isArray(call.args) ? call.args : [];
 
         if (!isArgsValid(def, args)) {
             const expectedMin = def.list ? def.requiredArgs + def.list.min : def.requiredArgs;
@@ -224,16 +226,14 @@ class MacroRegistry {
             console.warn(`Macro "${def.name}" called with ${args.length} unnamed arguments but expects ${expectation}.`);
 
             if (def.strictArgs) {
-                const rawInner = context.raw;
-                if (typeof rawInner === 'string') {
-                    return `{{${rawInner}}}`;
-                }
-                return '';
+                return `{{${call.rawInner}}}`;
             }
         }
 
         const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
         const listValues = !def.list ? null : args.length > def.requiredArgs ? args.slice(def.requiredArgs) : [];
+
+        const namedArgs = null;
 
         /** @type {MacroExecutionContext} */
         const executionContext = {
@@ -241,19 +241,19 @@ class MacroRegistry {
             args,
             requiredArgs: requiredArgsValues,
             list: listValues,
-            namedArgs: context.namedArgs,
-            raw: context.raw,
-            env: context.env,
-            cstNode: context.cstNode,
-            range: context.range,
-            normalize: context.normalize || MacroEngine.normalizeMacroResult.bind(this),
+            namedArgs,
+            raw: call.rawInner,
+            env: call.env,
+            cstNode: call.cstNode,
+            range: call.range,
+            normalize: normalize || MacroEngine.normalizeMacroResult.bind(MacroEngine),
         };
 
         // Resolve promise, catch any errors, and normalize result
         const result = def.handler(executionContext);
         return Promise.resolve(result)
             .catch(() => {
-                console.error(`Macro "${def.name}" handler failed to execute`, context);
+                console.error(`Macro "${def.name}" handler failed to execute`, executionContext);
                 return '';
             })
             .then(value => executionContext.normalize(value));

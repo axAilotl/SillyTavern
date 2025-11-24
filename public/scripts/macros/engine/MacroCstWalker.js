@@ -7,10 +7,10 @@
  * @property {string} name
  * @property {string[]} args
  * @property {MacroEnv} env
- * @property {string} [rawInner]
- * @property {string} [rawWithBraces]
- * @property {{ startOffset: number, endOffset: number }} [range]
- * @property {CstNode} [cstNode]
+ * @property {string} rawInner
+ * @property {string} rawWithBraces
+ * @property {{ startOffset: number, endOffset: number }} range
+ * @property {CstNode} cstNode
  */
 
 /**
@@ -312,7 +312,7 @@ class MacroCstWalker {
      * tokens and nested macros.
      *
      * @param {CstNode} argNode
-     * @returns {TokenRange}
+     * @returns {TokenRange|null}
      */
     #getArgumentLocation(argNode) {
         const children = argNode.children || {};
