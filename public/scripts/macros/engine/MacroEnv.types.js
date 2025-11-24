@@ -38,7 +38,7 @@
 
 /**
  * @typedef {Object} MacroEnvFunctions
- * @property {() => string} original
+ * @property {() => string} [original]
  * @property {(text: string) => string} postProcess
  */
 

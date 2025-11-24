@@ -15,13 +15,13 @@ import { groups, selected_group } from '../../../scripts/group-chats.js';
 /**
  * @typedef {Object} MacroEnvRawContext
  * @property {string} content
- * @property {string|undefined} name1Override
- * @property {string|undefined} name2Override
- * @property {string|undefined} original
- * @property {string|undefined} groupOverride
- * @property {boolean} replaceCharacterCard
- * @property {Record<string, any>|undefined} dynamicMacros
- * @property {(value: string) => string} postProcessFn
+ * @property {string|null} [name1Override]
+ * @property {string|null} [name2Override]
+ * @property {string|null} [original]
+ * @property {string|null} [groupOverride]
+ * @property {boolean} [replaceCharacterCard]
+ * @property {Record<string, any>|null} [dynamicMacros]
+ * @property {(value: string) => string} [postProcessFn]
  */
 
 /**
@@ -84,7 +84,7 @@ class MacroEnvBuilder {
             names: { user: '', char: '', group: '', groupNotMuted: '', notChar: '' },
             character: {},
             system: { model: '' },
-            functions: { original: () => '', postProcess: (x) => x },
+            functions: { postProcess: (x) => x },
             dynamicMacros: {},
             extra: {},
         };
