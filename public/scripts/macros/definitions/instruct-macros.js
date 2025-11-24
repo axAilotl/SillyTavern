@@ -54,8 +54,8 @@ export function registerInstructMacros() {
             const isEnabled = !!power_user.sysprompt.enabled;
             if (!isEnabled) return '';
 
-            if (power_user.prefer_character_prompt && env?.character?.charPrompt) {
-                return env?.character?.charPrompt;
+            if (power_user.prefer_character_prompt && env.character.charPrompt) {
+                return env.character.charPrompt;
             }
             return power_user.sysprompt.content ?? '';
         },

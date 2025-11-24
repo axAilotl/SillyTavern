@@ -11,7 +11,7 @@ import { MacroEngine } from './MacroEngine.js';
  * @property {string[]|null} [list]
  * @property {{ [key: string]: string }} [namedArgs]
  * @property {string} [raw]
- * @property {MacroEnv} [env]
+ * @property {MacroEnv} env
  * @property {CstNode} [cstNode]
  * @property {{ startOffset: number, endOffset: number }} [range]
  * @property {(value: any) => string} normalize - Normalize function to use on unsure macro results to make sure they return strings as expected.
@@ -24,9 +24,7 @@ import { MacroEngine } from './MacroEngine.js';
  */
 
 /**
- * @typedef {Function} MacroHandler
- * @param {MacroExecutionContext} context
- * @returns {string|Promise<string>}
+ * @typedef {(context: MacroExecutionContext) => (string|Promise<string>)} MacroHandler
  */
 
 /**
@@ -200,7 +198,7 @@ class MacroRegistry {
      * Handles both synchronous and asynchronous macro handlers.
      *
      * @param {string} name - Macro name (identifier).
-     * @param {MacroExecutionContext} [context] - Execution context.
+     * @param {MacroExecutionContext} context - Execution context.
      * @param {Object} [options] - Additional options.
      * @param {MacroDefinition} [options.defOverride] - Override the macro definition.
      * @returns {Promise<string>}
@@ -211,7 +209,7 @@ class MacroRegistry {
             throw new Error(`Macro "${name}" is not registered`);
         }
 
-        const args = Array.isArray(context?.args) ? context.args : [];
+        const args = Array.isArray(context.args) ? context.args : [];
 
         if (!isArgsValid(def, args)) {
             const expectedMin = def.list ? def.requiredArgs + def.list.min : def.requiredArgs;
@@ -226,7 +224,7 @@ class MacroRegistry {
             console.warn(`Macro "${def.name}" called with ${args.length} unnamed arguments but expects ${expectation}.`);
 
             if (def.strictArgs) {
-                const rawInner = context?.raw;
+                const rawInner = context.raw;
                 if (typeof rawInner === 'string') {
                     return `{{${rawInner}}}`;
                 }
@@ -243,12 +241,12 @@ class MacroRegistry {
             args,
             requiredArgs: requiredArgsValues,
             list: listValues,
-            namedArgs: context?.namedArgs,
-            raw: context?.raw,
-            env: context?.env,
-            cstNode: context?.cstNode,
-            range: context?.range,
-            normalize: context?.normalize || MacroEngine.normalizeMacroResult.bind(this),
+            namedArgs: context.namedArgs,
+            raw: context.raw,
+            env: context.env,
+            cstNode: context.cstNode,
+            range: context.range,
+            normalize: context.normalize || MacroEngine.normalizeMacroResult.bind(this),
         };
 
         // Resolve promise, catch any errors, and normalize result
