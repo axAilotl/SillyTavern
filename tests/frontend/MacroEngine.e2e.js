@@ -64,6 +64,15 @@ test.describe('MacroEngine', () => {
             const output = await evaluateWithEngine(page, input);
             expect(output).toBe('Values: fed cba!');
         });
+
+        test('should support multi-line arguments for macros', async ({ page }) => {
+            const input = `Result: {{reverse::first line\nsecond line}}`; // "\n" becomes a real newline in the macro argument
+            const output = await evaluateWithEngine(page, input);
+
+            const original = 'first line\nsecond line';
+            const expectedReversed = Array.from(original).reverse().join('');
+            expect(output).toBe(`Result: ${expectedReversed}`);
+        });
     });
 
     test.describe('Nested macros', () => {
@@ -92,6 +101,32 @@ test.describe('MacroEngine', () => {
             const input = 'Test: {{unknown::my {{newline}} example}}';
             const output = await evaluateWithEngine(page, input);
             expect(output).toBe('Test: {{unknown::my \n example}}');
+        });
+    });
+
+    test.describe('Comment macro', () => {
+        test('should remove single-line comments with simple body', async ({ page }) => {
+            const input = 'Hello{{// comment}}World';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('HelloWorld');
+        });
+
+        test('should accept non-word characters immediately after //', async ({ page }) => {
+            const input = 'A{{//!@#$%^&*()_+}}B';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('AB');
+        });
+
+        test('should ignore additional // sequences inside the comment body', async ({ page }) => {
+            const input = 'X{{//comment with // extra // slashes}}Y';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('XY');
+        });
+
+        test('should support multi-line comment bodies', async ({ page }) => {
+            const input = `Start{{// line one\nline two\nline three}}End`;
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('StartEnd');
         });
     });
 
