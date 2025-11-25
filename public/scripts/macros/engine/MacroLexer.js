@@ -180,10 +180,10 @@ instance = MacroLexer.instance;
  * @param {TokenType} token - The token to modify
  * @param {string} mode - The mode to set
  * @param {object} [options={}] - Additional options
- * @param {string?} [options.andExits=null] - The modes to exit when entering this mode
+ * @param {string} [options.andExits] - The modes to exit when entering this mode
  * @returns {TokenType} The token again
  */
-function enter(token, mode, { andExits = null } = {}) {
+function enter(token, mode, { andExits = undefined } = {}) {
     if (!token) throw new Error('Token must not be undefined');
     if (enterModesMap.has(token.name) && enterModesMap.get(token.name) !== mode) {
         throw new Error(`Token ${token.name} already is set to enter mode ${enterModesMap.get(token.name)}. The token definition are global, so they cannot be used to lead to different modes.`);

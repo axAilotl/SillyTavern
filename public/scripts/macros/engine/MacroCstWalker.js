@@ -98,9 +98,9 @@ class MacroCstWalker {
         return result;
     }
 
-    /**
-     * @typedef {{ type: 'plaintext', startOffset: number, endOffset: number, token: IToken } | { type: 'macro', startOffset: number, endOffset: number, node: CstNode }} DocumentItem
-     */
+    /** @typedef {{ type: 'plaintext', startOffset: number, endOffset: number, token: IToken }} DocumentItemPlaintext */
+    /** @typedef {{ type: 'macro', startOffset: number, endOffset: number, node: CstNode }} DocumentItemMacro */
+    /** @typedef {DocumentItemPlaintext | DocumentItemMacro} DocumentItem */
 
     /**
      * Collects top-level plaintext tokens and macro nodes from the document CST.

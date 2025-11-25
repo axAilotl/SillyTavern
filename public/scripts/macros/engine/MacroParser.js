@@ -109,7 +109,7 @@ class MacroParser extends CstParser {
      * Parses a document into a CST.
      *
      * @param {string} input
-     * @returns {{ cst: CstNode?, errors: ({ message: string }|ILexingError|IRecognitionException)[] }}
+     * @returns {{ cst: CstNode|null, errors: ({ message: string }|ILexingError|IRecognitionException)[] }}
      */
     parseDocument(input) {
         if (!input) {

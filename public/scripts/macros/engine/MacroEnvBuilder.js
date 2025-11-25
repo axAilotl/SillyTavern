@@ -153,18 +153,18 @@ instance = MacroEnvBuilder.instance;
 /**
  * @param {MacroEnvRawContext} ctx
  * @param {Object} options
- * @param {string} [options.currentChar]
+ * @param {string} [options.currentChar=null]
  * @param {boolean} [options.includeMuted=false]
  * @param {boolean} [options.filterOutChar=false]
- * @param {string?} [options.includeUser]
+ * @param {string|null} [options.includeUser=null]
  * @returns {string}
  */
-function getGroupValue(ctx, { currentChar, includeMuted = false, filterOutChar = false, includeUser = null }) {
+function getGroupValue(ctx, { currentChar = null, includeMuted = false, filterOutChar = false, includeUser = null }) {
     if (typeof ctx.groupOverride === 'string') {
         return ctx.groupOverride;
     }
 
-    if (!selected_group) return filterOutChar ? (includeUser || '') : currentChar;
+    if (!selected_group) return filterOutChar ? (includeUser || '') : (currentChar ?? '');
 
     const groupEntry = Array.isArray(groups) ? groups.find(x => x && x.id === selected_group) : null;
     const members = /** @type {string[]} */ (groupEntry?.members ?? []);

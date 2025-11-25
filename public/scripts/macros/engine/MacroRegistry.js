@@ -44,10 +44,10 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
 /**
  * @typedef {Object} MacroDefinitionOptions
  * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
- * @property {boolean|MacroListSpec?} [list=null] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
- * @property {boolean?} [strictArgs=true] - Whether the macro should be strict about its arguments.
- * @property {string?} [description=''] - Add a description of what the macro does.
- * @property {string?} [returns=null] - Add a specific description of what the macro returns, if it is not obvious from the description.
+ * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
+ * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
+ * @property {string} [description=''] - Add a description of what the macro does.
+ * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
  * @property {MacroHandler} handler - The handler function for the macro.
  */
 
@@ -59,7 +59,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  * @property {{ min: number, max: (number|null) }|null} list
  * @property {boolean} strictArgs
  * @property {string} description
- * @property {string?} returns
+ * @property {string|null} returns
  * @property {MacroHandler} handler
  */
 
