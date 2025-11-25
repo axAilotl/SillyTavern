@@ -190,6 +190,114 @@ test.describe('MacroEngine', () => {
             expect(testWarnings.length).toBe(2);
         });
     });
+
+    test.describe('Type validation', () => {
+        test('should not resolve strict typed macro when argument type is invalid', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            await page.evaluate(async () => {
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
+
+                MacroRegistry.unregisterMacro('test-int-strict');
+                MacroRegistry.registerMacro('test-int-strict', {
+                    requiredArgs: [
+                        { name: 'value', type: 'integer', description: 'Must be an integer.' },
+                    ],
+                    strictArgs: true,
+                    description: 'Strict integer macro for testing type validation.',
+                    handler: ({ requiredArgs: [value] }) => `#${value}#`,
+                });
+            });
+
+            const input = 'Value: {{test-int-strict::abc}}';
+            const output = await evaluateWithEngine(page, input);
+
+            // Strict typed macro should leave the text unchanged when the argument is invalid
+            expect(output).toBe(input);
+
+            // A runtime type validation warning should be logged
+            expect(warnings.some(w => w.includes('Macro "test-int-strict"') && w.includes('expected type integer'))).toBeTruthy();
+        });
+
+        test('should resolve non-strict typed macro when argument type is invalid but still log warning', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            await page.evaluate(async () => {
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
+
+                MacroRegistry.unregisterMacro('test-int-nonstrict');
+                MacroRegistry.registerMacro('test-int-nonstrict', {
+                    requiredArgs: [
+                        { name: 'value', type: 'integer', description: 'Must be an integer.' },
+                    ],
+                    strictArgs: false,
+                    description: 'Non-strict integer macro for testing type validation.',
+                    handler: ({ requiredArgs: [value] }) => `#${value}#`,
+                });
+            });
+
+            const input = 'Value: {{test-int-nonstrict::abc}}';
+            const output = await evaluateWithEngine(page, input);
+
+            // Non-strict typed macro should still execute, even with invalid type
+            expect(output).toBe('Value: #abc#');
+
+            // A runtime type validation warning should still be logged
+            expect(warnings.some(w => w.includes('Macro "test-int-nonstrict"') && w.includes('expected type integer'))).toBeTruthy();
+        });
+    });
+
+    test.describe('Dynamic macros', () => {
+        test('should not resolve dynamic macro when called with arguments due to strict arity', async ({ page }) => {
+            /** @type {string[]} */
+            const warnings = [];
+            page.on('console', msg => {
+                if (msg.type() === 'warning') {
+                    warnings.push(msg.text());
+                }
+            });
+
+            const input = 'Dyn: {{dyn::extra}}';
+            const output = await page.evaluate(async (input) => {
+                /** @type {import('../../public/scripts/macros/engine/MacroEngine.js')} */
+                const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
+                const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
+
+                /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
+                const rawEnv = {
+                    content: input,
+                    dynamicMacros: {
+                        dyn: () => 'OK',
+                    },
+                };
+                const env = MacroEnvBuilder.buildFromRawEnv(rawEnv);
+
+                return MacroEngine.evaluate(input, env);
+            }, input);
+
+            // Dynamic macro with arguments should not resolve because the
+            // temporary definition is strictArgs: true and requiredArgs: 0.
+            expect(output).toBe(input);
+
+            // A runtime arity warning for the dynamic macro should be logged
+            expect(warnings.some(w => w.includes('Macro "dyn"') && w.includes('unnamed arguments'))).toBeTruthy();
+        });
+    });
 });
 
 /**
