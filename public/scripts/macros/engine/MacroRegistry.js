@@ -2,6 +2,7 @@
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 
+import { isFalseBoolean, isTrueBoolean } from '../../utils.js';
 import { MacroEngine } from './MacroEngine.js';
 import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
@@ -20,6 +21,17 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  */
 
 /**
+ * @typedef {'string'|'integer'|'number'|'boolean'} MacroArgType
+ */
+
+/**
+ * @typedef {Object} MacroPositionalArgDef
+ * @property {string} name
+ * @property {string} [description]
+ * @property {MacroArgType} [type='string']
+ */
+
+/**
  * @typedef {Object} MacroListSpec
  * @property {number} [min]
  * @property {number} [max]
@@ -31,7 +43,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
 
 /**
  * @typedef {Object} MacroDefinitionOptions
- * @property {number?} [requiredArgs=0] - Specifies the macro requires this many arguments. (defaults to 0)
+ * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
  * @property {boolean|MacroListSpec?} [list=null] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
  * @property {boolean?} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string?} [description=''] - Add a description of what the macro does.
@@ -43,6 +55,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  * @typedef {Object} MacroDefinition
  * @property {string} name
  * @property {number} requiredArgs
+ * @property {MacroPositionalArgDef[]} requiredArgDefs
  * @property {{ min: number, max: (number|null) }|null} list
  * @property {boolean} strictArgs
  * @property {string} description
@@ -90,11 +103,41 @@ class MacroRegistry {
         if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
 
         let requiredArgs = 0;
+        /** @type {MacroPositionalArgDef[]} */
+        let requiredArgDefs = [];
         if (rawRequiredArgs !== undefined) {
-            if (typeof rawRequiredArgs !== 'number' || !Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
-                throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
+            if (Array.isArray(rawRequiredArgs)) {
+                requiredArgs = rawRequiredArgs.length;
+                requiredArgDefs = rawRequiredArgs.map((def, index) => {
+                    if (!def || typeof def !== 'object') throw new Error(`Macro "${name}" options.requiredArgs[${index}] must be an object when using argument definitions.`);
+                    if (typeof def.name !== 'string' || !def.name.trim()) throw new Error(`Macro "${name}" options.requiredArgs[${index}].name must be a non-empty string when using argument definitions.`);
+
+                    /** @type {MacroPositionalArgDef} */
+                    const normalized = {
+                        name: def.name.trim(),
+                        description: typeof def.description === 'string' ? def.description : undefined,
+                        type: def.type ?? 'string',
+                    };
+
+                    if (normalized.type !== undefined
+                        && normalized.type !== 'string'
+                        && normalized.type !== 'integer'
+                        && normalized.type !== 'number'
+                        && normalized.type !== 'boolean') {
+                        throw new Error(`Macro "${name}" options.requiredArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
+                    }
+
+                    return normalized;
+                });
+            } else if (typeof rawRequiredArgs === 'number') {
+                if (!Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
+                    throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
+                }
+                requiredArgs = rawRequiredArgs;
+                requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `Argument ${i + 1}`, type: 'string' }));
+            } else {
+                throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer or an array of argument definitions when provided.`);
             }
-            requiredArgs = rawRequiredArgs;
         }
 
         /** @type {{ min: number, max: (number|null) }|null} */
@@ -138,6 +181,7 @@ class MacroRegistry {
         const definition = {
             name: name,
             requiredArgs,
+            requiredArgDefs,
             list,
             strictArgs,
             description,
@@ -234,6 +278,10 @@ class MacroRegistry {
         const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
         const listValues = !def.list ? null : args.length > def.requiredArgs ? args.slice(def.requiredArgs) : [];
 
+        // Perform best-effort type validation for documented positional arguments.
+        // This can throw an error if the arguments are invalid.
+        validateArgTypes(call, def, requiredArgsValues);
+
         const namedArgs = null;
 
         /** @type {MacroExecutionContext} */
@@ -278,4 +326,66 @@ function isArgsValid(def, args) {
     const argsLongerThanMax = def.list.max !== null && listCount > def.list.max;
     if (argsLongerThanMax) return false;
     return true;
+}
+
+/**
+ * Performs type validation for positional arguments using the metadata
+ * defined on the macro definition. When strictArgs is true, invalid argument
+ * types cause an error to be thrown. When strictArgs is false, only warnings
+ * are logged and execution continues.
+ *
+ * @param {MacroCall} call
+ * @param {MacroDefinition} def
+ * @param {string[]} requiredArgs
+ */
+function validateArgTypes(call, def, requiredArgs) {
+    if (def.requiredArgDefs.length === 0) return;
+
+    const defs = def.requiredArgDefs;
+    const count = Math.min(defs.length, requiredArgs.length);
+    for (let i = 0; i < count; i++) {
+        const argDef = defs[i];
+        const value = requiredArgs[i];
+        if (!argDef || !argDef.type || typeof value !== 'string') {
+            // Misconfigured macro definition: always surface as an error.
+            throw new Error(`Macro "${call.name}" (position ${i + 1}) has invalid definition or type.`);
+        }
+
+        if (!isValueOfType(value, argDef.type)) {
+            const argName = argDef.name || `Argument ${i + 1}`;
+            const message = `Macro "${call.name}" (position ${i + 1}) argument "${argName}" expected type ${argDef.type} but got value "${value}".`;
+            if (def.strictArgs) {
+                throw createMacroRuntimeError({ message, call, def: def });
+            }
+            logMacroRuntimeWarning({ message, call, def: def });
+        }
+    }
+}
+
+/**
+ * Checks whether a string value conforms to the given macro argument type.
+ *
+ * @param {string} value
+ * @param {MacroArgType} type
+ * @returns {boolean}
+ */
+function isValueOfType(value, type) {
+    const trimmed = value.trim();
+
+    if (type === 'string') {
+        return true;
+    }
+    if (type === 'integer') {
+        return /^-?\d+$/.test(trimmed);
+    }
+    if (type === 'number') {
+        const n = Number(trimmed);
+        return Number.isFinite(n);
+    }
+    if (type === 'boolean') {
+        return isTrueBoolean(trimmed) || isFalseBoolean(trimmed);
+    }
+
+    // Unknown type: treat it as invalid.
+    return false;
 }
