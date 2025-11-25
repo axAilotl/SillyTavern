@@ -1,5 +1,8 @@
 import { MacroRegistry } from '../engine/MacroRegistry.js';
 import { isMobile } from '../../RossAscends-mods.js';
+import { parseMesExamples, main_api } from '../../../script.js';
+import { power_user } from '../../power-user.js';
+import { formatInstructModeExamples } from '../../instruct-mode.js';
 
 /** @typedef {import('../engine/MacroEnv.types.js').MacroEnv} MacroEnv */
 
@@ -75,6 +78,30 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('mesExamplesRaw', {
         description: 'Unformatted dialogue examples from the character card.',
         handler: ({ env }) => env.character.mesExamplesRaw ?? '',
+    });
+
+    MacroRegistry.registerMacro('mesExamples', {
+        description: 'The character\'s dialogue examples, formatted for instruct mode when enabled.',
+        handler: ({ env }) => {
+            const raw = env.character.mesExamplesRaw ?? '';
+            if (!raw) {
+                return '';
+            }
+
+            const isInstruct = !!power_user?.instruct?.enabled && main_api !== 'openai';
+            const parsed = parseMesExamples(raw, isInstruct);
+
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                return '';
+            }
+
+            if (!isInstruct) {
+                return parsed.join('');
+            }
+
+            const formatted = formatInstructModeExamples(parsed, env.names.user, env.names.char);
+            return Array.isArray(formatted) ? formatted.join('') : '';
+        },
     });
 
     MacroRegistry.registerMacro('charDepthPrompt', {
