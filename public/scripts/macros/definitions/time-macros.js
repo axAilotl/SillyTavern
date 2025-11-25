@@ -47,7 +47,14 @@ export function registerTimeMacros() {
     });
 
     MacroRegistry.registerMacro('datetimeformat', {
-        requiredArgs: 1,
+        requiredArgs: [
+            {
+                name: 'format',
+                sampleValue: 'YYYY-MM-DD HH:mm:ss',
+                description: 'Moment.js format string.',
+                type: 'string',
+            },
+        ],
         description: 'Formats the current date/time using the given moment.js format string.',
         handler: ({ requiredArgs: [format] }) => moment().format(format),
     });
@@ -59,8 +66,21 @@ export function registerTimeMacros() {
 
     // Time difference between two values
     MacroRegistry.registerMacro('timeDiff', {
-        requiredArgs: 2,
-        description: 'Human-readable difference between two times.',
+        requiredArgs: [
+            {
+                name: 'left',
+                sampleValue: '2023-01-01 12:00:00',
+                description: 'Left time value.',
+                type: 'string',
+            },
+            {
+                name: 'right',
+                sampleValue: '2023-01-01 15:00:00',
+                description: 'Right time value.',
+                type: 'string',
+            },
+        ],
+        description: 'Human-readable difference between two times. Order of times does not matter, it will return the absolute difference.',
         handler: ({ requiredArgs: [left, right] }) => {
             const diff = moment.duration(moment(left).diff(moment(right)));
             return diff.humanize(true);

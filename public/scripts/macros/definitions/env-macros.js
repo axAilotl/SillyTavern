@@ -84,9 +84,7 @@ export function registerEnvMacros() {
         description: 'The character\'s dialogue examples, formatted for instruct mode when enabled.',
         handler: ({ env }) => {
             const raw = env.character.mesExamplesRaw ?? '';
-            if (!raw) {
-                return '';
-            }
+            if (!raw) return '';
 
             const isInstruct = !!power_user?.instruct?.enabled && main_api !== 'openai';
             const parsed = parseMesExamples(raw, isInstruct);
@@ -94,7 +92,6 @@ export function registerEnvMacros() {
             if (!Array.isArray(parsed) || parsed.length === 0) {
                 return '';
             }
-
             if (!isInstruct) {
                 return parsed.join('');
             }

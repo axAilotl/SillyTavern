@@ -56,7 +56,14 @@ export function registerCoreMacros() {
     // Time and date macros
     // Dice roll macro: {{roll 1d6}} or {{roll: 1d6}}
     MacroRegistry.registerMacro('roll', {
-        requiredArgs: 1,
+        requiredArgs: [
+            {
+                name: 'formula',
+                sampleValue: '1d20',
+                description: 'Dice roll formula using droll syntax (e.g. 1d20).',
+                type: 'string',
+            },
+        ],
         description: 'Rolls dice using droll syntax (e.g. {{roll 1d20}}).',
         handler: ({ requiredArgs: [formula] }) => {
             // If only digits were provided, treat it as `1dX`.
@@ -134,7 +141,14 @@ export function registerCoreMacros() {
 
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
-        requiredArgs: 1,
+        requiredArgs: [
+            {
+                name: 'word',
+                sampleValue: 'word',
+                description: 'Word to ban for textgenerationwebui backend.',
+                type: 'string',
+            },
+        ],
         description: 'Bans a word for textgenerationwebui backend. (Strips quotes surrounding the banned word, if present)',
         returns: 'Empty string',
         handler: ({ requiredArgs: [bannedWord] }) => {
@@ -150,7 +164,14 @@ export function registerCoreMacros() {
 
     // Outlet macro: {{outlet::key}}
     MacroRegistry.registerMacro('outlet', {
-        requiredArgs: 1,
+        requiredArgs: [
+            {
+                name: 'key',
+                sampleValue: 'my-outlet-key',
+                description: 'Outlet key.',
+                type: 'string',
+            },
+        ],
         description: 'Returns the outlet prompt for a given outlet key.',
         handler: ({ requiredArgs: [outlet] }) => {
             if (!outlet) return '';

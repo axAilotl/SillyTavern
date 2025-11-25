@@ -27,6 +27,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
 /**
  * @typedef {Object} MacroPositionalArgDef
  * @property {string} name
+ * @property {string} [sampleValue]
  * @property {string} [description]
  * @property {MacroArgType} [type='string']
  */
