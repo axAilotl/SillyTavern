@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testSetup } from './frontent-test-utils.js';
 
-// Frontend env-builder tests run in the browser context; allow some time
-// for SillyTavern to boot and scripts to load.
-test.setTimeout(10_000);
-
 test.describe('MacroEnvBuilder', () => {
     test.beforeEach(testSetup.awaitST);
 

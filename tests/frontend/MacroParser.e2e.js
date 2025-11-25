@@ -14,8 +14,6 @@ const DEFAULT_IGNORE_KEYS = [
 
 ];
 
-test.setTimeout(10_000);
-
 test.describe('MacroParser', () => {
     // Currently this test suits runs without ST context. Enable, if ever needed
     test.beforeEach(testSetup.goST);

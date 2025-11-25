@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testSetup } from './frontent-test-utils.js';
 
-// Those tests are evaluating via Playwright; they need more time to run and finish
-// For now, engine tests need a lot of setup, so we need a higher timeout
-test.setTimeout(20_000);
-
 test.describe('MacroEngine', () => {
     test.beforeEach(testSetup.awaitST);
 

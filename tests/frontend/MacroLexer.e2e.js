@@ -5,9 +5,6 @@ import { testSetup } from './frontent-test-utils.js';
 /** @typedef {import('chevrotain').ILexingError} ILexingError */
 /** @typedef {{type: string, text: string}} TestableToken */
 
-// Those tests are evaluating via playwright, the need more time to run and finish
-test.setTimeout(10_000);
-
 test.describe('MacroLexer', () => {
     // Currently this test suits runs without ST context. Enable, if ever needed
     test.beforeEach(testSetup.goST);

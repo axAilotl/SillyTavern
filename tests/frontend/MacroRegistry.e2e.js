@@ -1,9 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testSetup } from './frontent-test-utils.js';
 
-// Playwright-based frontend tests need more time
-test.setTimeout(10_000);
-
 test.describe('MacroRegistry', () => {
     // Currently this test suits runs without ST context. Enable, if ever needed
     test.beforeEach(testSetup.awaitST);
