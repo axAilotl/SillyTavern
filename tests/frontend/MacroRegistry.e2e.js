@@ -6,7 +6,7 @@ test.setTimeout(10_000);
 
 test.describe('MacroRegistry', () => {
     // Currently this test suits runs without ST context. Enable, if ever needed
-    test.beforeEach(testSetup.goST);
+    test.beforeEach(testSetup.awaitST);
 
     test.describe('valid', () => {
         test('should register a macro with valid options', async ({ page }) => {

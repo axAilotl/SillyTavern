@@ -2,6 +2,7 @@ import { MacroLexer } from './MacroLexer.js';
 import { MacroParser } from './MacroParser.js';
 import { MacroCstWalker } from './MacroCstWalker.js';
 import { MacroRegistry } from './MacroRegistry.js';
+import { logMacroInternalError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
@@ -75,9 +76,8 @@ class MacroEngine {
     async #resolveMacro(call) {
         const { name, env } = call;
 
-        if (!name) {
-            return call.rawWithBraces || '';
-        }
+        const raw = `{{${call.rawInner}}}`;
+        if (!name) return raw;
 
         // First check if this is a dynamic macro to use. If so, we will create a temporary macro definition for it and use that over any registered macro.
         /** @type {MacroDefinition?} */
@@ -88,6 +88,7 @@ class MacroEngine {
                 name,
                 description: 'Dynamic macro',
                 requiredArgs: 0,
+                requiredArgDefs: [],
                 list: null,
                 strictArgs: true, // Fail dynamic macros if they are called with arguments
                 returns: null,
@@ -97,16 +98,26 @@ class MacroEngine {
 
         // If not, check if the macro exists and is registered
         if (!defOverride && !MacroRegistry.hasMacro(name)) {
-            return `{{${call.rawInner}}}`; // Unknown macro: keep macro syntax, but nested macros inside rawInner are already resolved.
+            return raw; // Unknown macro: keep macro syntax, but nested macros inside rawInner are already resolved.
         }
 
-        const result = await MacroRegistry.executeMacro(call, { defOverride });
-
         try {
-            return call.env.functions.postProcess(result);
+            const result = await MacroRegistry.executeMacro(call, { defOverride });
+
+            try {
+                return call.env.functions.postProcess(result);
+            } catch (error) {
+                logMacroInternalError({ message: `Macro "${name}" postProcess function failed.`, call, error });
+                return result;
+            }
         } catch (error) {
-            console.error('MacroEngine: postProcess function failed', error);
-            return result;
+            const isRuntimeError = !!(error && (error.name === 'MacroRuntimeError' || error.isMacroRuntimeError));
+            if (isRuntimeError) {
+                logMacroRuntimeWarning({ message: (error.message || `Macro "${name}" execution failed.`), call, error });
+            } else {
+                logMacroInternalError({ message: `Macro "${name}" internal execution error.`, call, error });
+            }
+            return raw;
         }
     }
     /**

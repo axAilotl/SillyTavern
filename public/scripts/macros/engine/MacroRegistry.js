@@ -3,6 +3,7 @@
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 
 import { MacroEngine } from './MacroEngine.js';
+import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
 /**
  * @typedef {Object} MacroExecutionContext
@@ -222,11 +223,12 @@ class MacroRegistry {
                 if (expectedMax !== null && expectedMax === expectedMin) return `${expectedMin}`;
                 return `at least ${expectedMin}`;
             })();
-            console.warn(`Macro "${def.name}" called with ${args.length} unnamed arguments but expects ${expectation}.`);
 
+            const message = `Macro "${def.name}" called with ${args.length} unnamed arguments but expects ${expectation}.`;
             if (def.strictArgs) {
-                return `{{${call.rawInner}}}`;
+                throw createMacroRuntimeError({ message, call, def });
             }
+            logMacroRuntimeWarning({ message, call, def });
         }
 
         const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
@@ -248,13 +250,10 @@ class MacroRegistry {
             normalize: MacroEngine.normalizeMacroResult.bind(MacroEngine),
         };
 
-        // Resolve promise, catch any errors, and normalize result
+        // Resolve promise and normalize result. Any errors are propagated to the
+        // caller (MacroEngine), which is responsible for unified error handling.
         const result = def.handler(executionContext);
         return Promise.resolve(result)
-            .catch(() => {
-                console.error(`Macro "${def.name}" handler failed to execute`, executionContext);
-                return '';
-            })
             .then(value => executionContext.normalize(value));
     }
 }
