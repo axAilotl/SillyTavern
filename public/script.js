@@ -2618,14 +2618,13 @@ export function scrollChatToBottom() {
 }
 
 /**
+ * @deprecated Function is not needed anymore, as the new signature of substituteParams is more flexible.
+ *
  * Substitutes {{macro}} parameters in a string.
- * @param {string} content - The string to substitute parameters in.
- * @param {Record<string,any>} additionalMacro - Additional environment variables for substitution.
- * @param {(x: string) => string} [postProcessFn] - Post-processing function for each substituted macro.
  * @returns {string} The string with substituted parameters.
  */
 export function substituteParamsExtended(content, additionalMacro = {}, postProcessFn = (x) => x) {
-    return substituteParams(content, undefined, undefined, undefined, undefined, true, additionalMacro, postProcessFn);
+    return substituteParams(content, { dynamicMacros: additionalMacro, postProcessFn });
 }
 
 /**
@@ -2640,9 +2639,22 @@ export function substituteParamsExtended(content, additionalMacro = {}, postProc
  * @param {(x: string) => string} [postProcessFn] - Post-processing function for each substituted macro.
  * @returns {string} The string with substituted parameters.
  */
-export function substituteParams(content, _name1, _name2, _original, _group, _replaceCharacterCard = true, additionalMacro = {}, postProcessFn = (x) => x) {
+export function substituteParamsLegacy(content, _name1, _name2, _original, _group, _replaceCharacterCard = true, additionalMacro = {}, postProcessFn = (x) => x) {
     if (!content) {
         return '';
+    }
+
+    // If experimental macro engine is enabled, use it. This code will be cleaned up in the future.
+    if (power_user?.experimental_macro_engine) {
+        return substituteParams(content, {
+            name1Override: _name1,
+            name2Override: _name2,
+            original: _original,
+            groupOverride: _group,
+            replaceCharacterCard: _replaceCharacterCard ?? true,
+            dynamicMacros: additionalMacro ?? {},
+            postProcessFn: postProcessFn ?? ((x) => x),
+        });
     }
 
     const environment = {};
@@ -2762,22 +2774,30 @@ export function substituteParams(content, _name1, _name2, _original, _group, _re
  * @param {(x: string) => string} [options.postProcessFn=(x) => x] - Post-processing function for each substituted macro.
  * @returns {string} The string with substituted parameters.
  */
-export function substituteParamsNew(content, { name1Override, name2Override, original, groupOverride, replaceCharacterCard = true, dynamicMacros = {}, postProcessFn = (x) => x } = {}) {
+export function substituteParams(content, options = {}) {
     if (!content) return '';
 
+    // Handle legacy signature calls to substituteParams
+    // We'll simply re-route them to a temporary legacy function. In the future, we'll remove this and cleanly build the options object ourselves.
+    const isOptionsObject = options && typeof options === 'object' && !Array.isArray(options);
+    if (!isOptionsObject) {
+        return substituteParamsLegacy.call(this, ...arguments);
+    }
+
+    // Keep the new macro engine behind a feature switch for now
     if (!power_user?.experimental_macro_engine) {
-        return substituteParams(content, name1Override, name2Override, original, groupOverride, replaceCharacterCard, dynamicMacros, postProcessFn);
+        return substituteParamsLegacy(content, options.name1Override, options.name2Override, options.original, options.groupOverride, options.replaceCharacterCard, options.dynamicMacros, options.postProcessFn);
     }
 
     const ctx = /** @type {import('./scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */ ({
         content,
-        name1Override,
-        name2Override,
-        original,
-        groupOverride,
-        replaceCharacterCard,
-        dynamicMacros,
-        postProcessFn,
+        name1Override: options.name1Override,
+        name2Override: options.name2Override,
+        original: options.original,
+        groupOverride: options.groupOverride,
+        replaceCharacterCard: options.replaceCharacterCard ?? true,
+        dynamicMacros: options.dynamicMacros ?? {},
+        postProcessFn: options.postProcessFn ?? ((x) => x),
     });
 
     const env = MacroEnvBuilder.buildFromRawEnv(ctx);
