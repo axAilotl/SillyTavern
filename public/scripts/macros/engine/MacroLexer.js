@@ -15,8 +15,8 @@ const modes = {
 
 /** @readonly */
 const Tokens = {
-    // General capture-all plaintext without macros
-    Plaintext: createToken({ name: 'Plaintext', pattern: /(.+?)(?=\{\{)|(.+)/, line_breaks: true }), // Match everything up till opening brackets. Or to the end.
+    // General capture-all plaintext without macros: consume anything that is not the start of a macro '{{'.
+    Plaintext: createToken({ name: 'Plaintext', pattern: /(?:[^{]|\{(?!\{))+/u, line_breaks: true }),
 
     // General macro capture
     Macro: {
