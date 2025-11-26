@@ -109,15 +109,14 @@ class MacroParser extends CstParser {
      * Parses a document into a CST.
      *
      * @param {string} input
-     * @returns {{ cst: CstNode|null, errors: ({ message: string }|ILexingError|IRecognitionException)[] }}
+     * @returns {{ cst: CstNode|null, errors: ({ message: string }|ILexingError|IRecognitionException)[] , lexingErrors: ILexingError[], parserErrors: IRecognitionException[] }}
      */
     parseDocument(input) {
         if (!input) {
-            return { cst: null, errors: [{ message: 'Input is empty' }] };
+            return { cst: null, errors: [{ message: 'Input is empty' }], lexingErrors: [], parserErrors: [] };
         }
 
-        const preProcessed = this.preProcessFixLegacyMacros(input);
-        const lexingResult = MacroLexer.tokenize(preProcessed);
+        const lexingResult = MacroLexer.tokenize(input);
 
         this.input = lexingResult.tokens;
         const cst = this.document();
@@ -127,7 +126,7 @@ class MacroParser extends CstParser {
             ...this.errors,
         ];
 
-        return { cst, errors };
+        return { cst, errors, lexingErrors: lexingResult.errors, parserErrors: this.errors };
     }
 
     test(input) {
@@ -141,22 +140,6 @@ class MacroParser extends CstParser {
         const errors = this.errors.map(x => ({ message: x.message, ...x, stack: x.stack }));
 
         return { cst, errors: errors };
-    }
-
-    /**
-     * Replaces legacy macros with the new macro format.
-     * @param {string} content - The string to replace legacy macros in.
-     * @returns {string} The string with legacy macros replaced.
-     */
-    preProcessFixLegacyMacros(content) {
-
-        // This legacy macro will not be supported by the new macro parser, but rather regex-replaced beforehand
-        // {{time_UTC-10}}   =>   {{time::UTC-10}}
-        content = content.replace(/{{time_(UTC[+-]\d+)}}/gi, (match, offset) => {
-            return `{{time::${offset}}}`;
-        });
-
-        return content;
     }
 }
 

@@ -126,6 +126,40 @@ test.describe('MacroEngine', () => {
         });
     });
 
+    test.describe('Legacy compatibility', () => {
+        test('should strip trim macro and surrounding newlines (legacy behavior)', async ({ page }) => {
+            const input = 'foo\n\n{{trim}}\n\nbar';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('foobar');
+        });
+
+        test('should handle multiple trim macros in a single string', async ({ page }) => {
+            const input = 'A\n\n{{trim}}\n\nB\n\n{{trim}}\n\nC';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('ABC');
+        });
+
+        test('should support legacy time macro with positive offset via pre-processing', async ({ page }) => {
+            const input = 'Time: {{time_UTC+2}}';
+            const output = await evaluateWithEngine(page, input);
+
+            // After pre-processing, this should behave like {{time::UTC+2}} and be resolved by the time macro.
+            // We only assert that the placeholder was consumed and some non-empty value was produced.
+            expect(output).not.toBe(input);
+            expect(output.startsWith('Time: ')).toBeTruthy();
+            expect(output.length).toBeGreaterThan('Time: '.length);
+        });
+
+        test('should support legacy time macro with negative offset via pre-processing', async ({ page }) => {
+            const input = 'Time: {{time_UTC-10}}';
+            const output = await evaluateWithEngine(page, input);
+
+            expect(output).not.toBe(input);
+            expect(output.startsWith('Time: ')).toBeTruthy();
+            expect(output.length).toBeGreaterThan('Time: '.length);
+        });
+    });
+
     test.describe('Arity errors', () => {
         test('should not resolve newline when called with arguments', async ({ page }) => {
             /** @type {string[]} */

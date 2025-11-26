@@ -340,43 +340,8 @@ test.describe('MacroParser', () => {
             });
         });
 
-        // {{time_UTC+2}}   =>   {{time::UTC+2}}   (This legacy macro will not be supported in the old way, but rather regex-replaced beforehand)
-        test('should parse legacy time macro with positive offset', async ({ page }) => {
-            const input = '{{time_UTC+2}}';
-            const macroCst = await runParser(page, input, {
-                flattenKeys: ['arguments.argument'],
-                runPreProcessFix: true,
-            });
-
-            expect(macroCst).toEqual({
-                'Macro.Start': '{{',
-                'Macro.identifier': 'time',
-                'arguments': {
-                    'separator': '::',
-                    'argument': 'UTC+2',
-                },
-                'Macro.End': '}}',
-            });
-        });
-
-        // {{time_UTC-10}}   =>   {{time::UTC-10}}   (This legacy macro will not be supported in the old way, but rather regex-replaced beforehand)
-        test('should parse legacy time macro with negative offset', async ({ page }) => {
-            const input = '{{time_UTC-10}}';
-            const macroCst = await runParser(page, input, {
-                flattenKeys: ['arguments.argument'],
-                runPreProcessFix: true,
-            });
-
-            expect(macroCst).toEqual({
-                'Macro.Start': '{{',
-                'Macro.identifier': 'time',
-                'arguments': {
-                    'separator': '::',
-                    'argument': 'UTC-10',
-                },
-                'Macro.End': '}}',
-            });
-        });
+        // Note: Legacy time macros like {{time_UTC+2}} are now handled by the MacroEngine
+        // pre-processing pipeline instead of the parser. See MacroEngine.e2e tests for coverage.
 
         // {{banned "abannedword"}}
         test('should parse legacy banned macro with quoted argument', async ({ page }) => {
@@ -601,7 +566,6 @@ This is the second line
  * @param {Object} [options={}] Optional arguments
  * @param {string[]} [options.flattenKeys=[]] Optional array of dot-separated keys to flatten
  * @param {string[]} [options.ignoreKeys=[]] Optional array of dot-separated keys to ignore
- * @param {boolean} [options.runPreProcessFix=false] Optional flag to run the pre-process fix on the input string.
  * @returns {Promise<TestableCstNode>} A promise that resolves to the result of the MacroParser.
  */
 async function runParser(page, input, options = {}) {
@@ -626,24 +590,16 @@ async function runParser(page, input, options = {}) {
  * @param {Object} [options={}] Optional arguments
  * @param {string[]} [options.flattenKeys=[]] Optional array of dot-separated keys to flatten
  * @param {string[]} [options.ignoreKeys=[]] Optional array of dot-separated keys to ignore
- * @param {boolean} [options.runPreProcessFix=false] Optional flag to run the pre-process fix on the input string.
  * @returns {Promise<{cst: TestableCstNode, errors: TestableRecognitionException[]}>} A promise that resolves to the result of the MacroParser and error list.
  */
 async function runParserAndGetErrors(page, input, options = {}) {
     const params = { input, options };
-    const { modifiedInput, result } = await page.evaluate(async ({ input, options }) => {
+    const { result } = await page.evaluate(async ({ input, options }) => {
         /** @type {import('../../public/scripts/macros/engine/MacroParser.js')} */
         const { MacroParser } = await import('./scripts/macros/engine/MacroParser.js');
-
-        if (options.runPreProcessFix) {
-            input = MacroParser.preProcessFixLegacyMacros(input);
-        }
-
         const result = MacroParser.test(input);
-        return { modifiedInput: input, result };
+        return { result };
     }, params);
-    input = modifiedInput;
-
     return { cst: simplifyCstNode(result.cst, input, options), errors: simplifyErrors(result.errors) };
 }
 

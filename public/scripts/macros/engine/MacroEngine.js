@@ -1,4 +1,3 @@
-import { MacroLexer } from './MacroLexer.js';
 import { MacroParser } from './MacroParser.js';
 import { MacroCstWalker } from './MacroCstWalker.js';
 import { MacroRegistry } from './MacroRegistry.js';
@@ -33,37 +32,29 @@ class MacroEngine {
         if (!input) {
             return '';
         }
-
-        // Step 1: Pre-process the input to handle legacy regex macros that still need to run
-        const preProcessed = MacroParser.preProcessFixLegacyMacros(input);
-
-        // Step 2: Tokenize via lexer, so we can walk the tokens with the parsers
-        const lexingResult = MacroLexer.tokenize(preProcessed);
-        if (lexingResult.errors && lexingResult.errors.length > 0) {
-            // For now, we log and still try to process what we can.
-            console.warn('Macro lexing errors detected:', lexingResult.errors);
-        }
-
-        // Step 3: Parse the tokens into a CST structure via the parser
-        MacroParser.input = lexingResult.tokens;
-        const cst = MacroParser.document();
-
-        if (MacroParser.errors && MacroParser.errors.length > 0) {
-            console.warn('Macro parsing errors detected:', MacroParser.errors);
-        }
-
-        // Step 4: Evaluate the CST structure and resolve any macros.
-        // Freeze the environment to avoid accidental mutations inside
-        // macro handlers while still allowing the caller to pass in a
-        // plain, mutable object.
         const safeEnv = Object.freeze({ ...env });
 
-        const result = MacroCstWalker.evaluateDocument({
+        const preProcessed = this.#runPreProcessors(input, safeEnv);
+
+        const { cst, lexingErrors, parserErrors } = MacroParser.parseDocument(preProcessed);
+
+        // For now, we log and still try to process what we can.
+        if (lexingErrors && lexingErrors.length > 0) {
+            logMacroRuntimeWarning({ message: 'Lexing errors detected:', call: null, error: lexingErrors });
+        }
+        if (parserErrors && parserErrors.length > 0) {
+            logMacroRuntimeWarning({ message: 'Parsing errors detected:', call: null, error: parserErrors });
+        }
+
+        const evaluated = MacroCstWalker.evaluateDocument({
             text: preProcessed,
             cst,
             env: safeEnv,
             resolveMacro: this.#resolveMacro.bind(this),
         });
+
+        const result = this.#runPostProcessors(evaluated, safeEnv);
+
         return result;
     }
 
@@ -120,6 +111,44 @@ class MacroEngine {
             return raw;
         }
     }
+
+    /**
+     * Runs pre-processors on the input text, before the engine processes the input.
+     *
+     * @param {string} text - The input text to process.
+     * @param {MacroEnv} env - The environment to pass to the macro handler.
+     * @returns {string} The processed text.
+     */
+    #runPreProcessors(text, env) {
+        let result = text;
+
+        // This legacy macro will not be supported by the new macro parser, but rather regex-replaced beforehand
+        // {{time_UTC-10}}   =>   {{time::UTC-10}}
+        result = result.replace(/{{time_(UTC[+-]\d+)}}/gi, (_match, utcOffset) => {
+            return `{{time::${utcOffset}}}`;
+        });
+
+        return result;
+    }
+
+    /**
+     * Runs post-processors on the input text, after the engine finished processing the input.
+     *
+     * @param {string} text - The input text to process.
+     * @param {MacroEnv} env - The environment to pass to the macro handler.
+     * @returns {string} The processed text.
+     */
+    #runPostProcessors(text, env) {
+        let result = text;
+
+        // The original trim macro is reaching over the boundaries of the defined macro. This is not something the engine supports.
+        // To treat {{trim}} as it was before, we won't process it by the engine itself,
+        // but doing a regex replace on {{trim}} and the surrounding area, after all other macros have been processed.
+        result = result.replace(/(?:\r?\n)*{{trim}}(?:\r?\n)*/gi, '');
+
+        return result;
+    }
+
     /**
     * Normalizes macro results into a string.
     * This mirrors the behavior of the legacy macro system in a simplified way.
