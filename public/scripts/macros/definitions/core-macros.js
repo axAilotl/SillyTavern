@@ -26,6 +26,12 @@ export function registerCoreMacros() {
         handler: () => '',
     });
 
+    // {{trim}} -> macro will currently replace itself with itself. Trimming is handled in post-processing.
+    MacroRegistry.registerMacro('trim', {
+        description: 'Trims whitespace from the argument provided.',
+        handler: () => '{{trim}}',
+    });
+
     // {{input}} -> current textarea content
     MacroRegistry.registerMacro('input', {
         description: 'Current text from the send textarea.',
