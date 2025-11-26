@@ -1,7 +1,7 @@
 import { MacroParser } from './MacroParser.js';
 import { MacroCstWalker } from './MacroCstWalker.js';
 import { MacroRegistry } from './MacroRegistry.js';
-import { logMacroInternalError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
+import { logMacroInternalError, logMacroRuntimeWarning, logMacroSyntaxWarning } from './MacroDiagnostics.js';
 
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
@@ -40,10 +40,10 @@ class MacroEngine {
 
         // For now, we log and still try to process what we can.
         if (lexingErrors && lexingErrors.length > 0) {
-            logMacroRuntimeWarning({ message: 'Lexing errors detected:', call: null, error: lexingErrors });
+            logMacroSyntaxWarning({ phase: 'lexing', input, errors: lexingErrors });
         }
         if (parserErrors && parserErrors.length > 0) {
-            logMacroRuntimeWarning({ message: 'Parsing errors detected:', call: null, error: parserErrors });
+            logMacroSyntaxWarning({ phase: 'parsing', input, errors: parserErrors });
         }
 
         const evaluated = MacroCstWalker.evaluateDocument({

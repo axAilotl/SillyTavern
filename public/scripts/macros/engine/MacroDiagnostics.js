@@ -1,5 +1,7 @@
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 /** @typedef {import('./MacroRegistry.js').MacroDefinition} MacroDefinition */
+/** @typedef {import('chevrotain').ILexingError} ILexingError */
+/** @typedef {import('chevrotain').IRecognitionException} IRecognitionException */
 
 /**
  * @typedef {Object} MacroErrorContext
@@ -69,6 +71,56 @@ export function logMacroRuntimeWarning({ message, call, def, macroName, error })
 export function logMacroInternalError({ message, call, macroName, error }) {
     const payload = buildMacroPayload({ call, def: undefined, macroName, error });
     console.error('[Macro] Error:', message, payload);
+}
+
+/**
+ * Logs lexer/parser syntax warnings for the macro engine with a compact,
+ * human-readable payload.
+ *
+ * @param {{ phase: 'lexing', input: string, errors: ILexingError[] }|{ phase: 'parsing', input: string, errors: IRecognitionException[] }} options
+ */
+export function logMacroSyntaxWarning({ phase, input, errors }) {
+    if (!errors || errors.length === 0) {
+        return;
+    }
+
+    /** @type {{ message: string, line: number|null, column: number|null, length: number|null }[]} */
+    const issues = errors.map((err) => {
+        const hasOwnLine = typeof err.line === 'number';
+        const hasOwnColumn = typeof err.column === 'number';
+
+        const token = /** @type {{ startLine?: number, startColumn?: number, startOffset?: number, endOffset?: number }|undefined} */ (err.token);
+
+        const line = hasOwnLine ? err.line : (token && typeof token.startLine === 'number' ? token.startLine : null);
+        const column = hasOwnColumn ? err.column : (token && typeof token.startColumn === 'number' ? token.startColumn : null);
+
+        /** @type {number|null} */
+        let length = null;
+        if (typeof err.length === 'number') {
+            length = err.length;
+        } else if (token && typeof token.startOffset === 'number' && typeof token.endOffset === 'number') {
+            length = token.endOffset - token.startOffset + 1;
+        }
+
+        return {
+            message: err.message,
+            line,
+            column,
+            length,
+        };
+    });
+
+    const label = phase === 'lexing' ? 'Lexing' : 'Parsing';
+
+    /** @type {Record<string, any>} */
+    const payload = {
+        phase,
+        count: issues.length,
+        issues,
+        input,
+    };
+
+    console.warn('[Macro] Warning:', `${label} errors detected`, payload);
 }
 
 /**
