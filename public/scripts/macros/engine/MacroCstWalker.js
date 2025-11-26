@@ -109,7 +109,10 @@ class MacroCstWalker {
      * @returns {Array<DocumentItem>}
      */
     #collectDocumentItems(cst) {
-        const plaintextTokens = /** @type {IToken[]} */ (cst.children.Plaintext || []);
+        const plaintextTokens = /** @type {IToken[]} */ ([
+            ...(cst.children.Plaintext || []),
+            ...(cst.children['Plaintext.OpenBrace'] || []),
+        ]);
         const macroNodes = /** @type {CstNode[]} */ (cst.children.macro || []);
 
         /** @type {Array<DocumentItem>} */

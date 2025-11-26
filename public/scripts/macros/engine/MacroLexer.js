@@ -15,8 +15,10 @@ const modes = {
 
 /** @readonly */
 const Tokens = {
-    // General capture-all plaintext without macros: consume anything that is not the start of a macro '{{'.
+    // General capture-all plaintext without macros. Consumes any character that is not the first '{' of a macro opener '{{'.
     Plaintext: createToken({ name: 'Plaintext', pattern: /(?:[^{]|\{(?!\{))+/u, line_breaks: true }),
+    // Single literal '{' that appears immediately before a macro opener '{{'.
+    PlaintextOpenBrace: createToken({ name: 'Plaintext.OpenBrace', pattern: /\{(?=\{\{)/ }),
 
     // General macro capture
     Macro: {
@@ -70,8 +72,9 @@ const enterModesMap = new Map();
 const Def = {
     modes: {
         [modes.plaintext]: [
-            enter(Tokens.Macro.Start, modes.macro_def),
             using(Tokens.Plaintext),
+            using(Tokens.PlaintextOpenBrace),
+            enter(Tokens.Macro.Start, modes.macro_def),
         ],
         [modes.macro_def]: [
             exits(Tokens.Macro.End, modes.macro_def),

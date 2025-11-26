@@ -35,6 +35,7 @@ class MacroParser extends CstParser {
             $.MANY(() => {
                 $.OR([
                     { ALT: () => $.CONSUME(Tokens.Plaintext) },
+                    { ALT: () => $.CONSUME(Tokens.PlaintextOpenBrace) },
                     { ALT: () => $.SUBRULE($.macro) },
                 ]);
             });
