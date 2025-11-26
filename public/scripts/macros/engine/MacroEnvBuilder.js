@@ -90,7 +90,7 @@ class MacroEnvBuilder {
         };
 
         if (ctx.replaceCharacterCard) {
-            const fields = getCharacterCardFields();
+            const fields = getCharacterCardFields({ returnRaw: true });
             if (fields) {
                 env.character.charPrompt = fields.system || '';
                 env.character.charInstruction = fields.jailbreak || '';

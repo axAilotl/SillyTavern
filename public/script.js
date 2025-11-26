@@ -3155,8 +3155,9 @@ export function baseChatReplace(value, name1, name2) {
 
 /**
  * Returns the character card fields for the current character.
- * @param {object} [options]
+ * @param {object} [options={}]
  * @param {number} [options.chid] Optional character index
+ * @param {boolean} [options.returnRaw=false] Whether to return raw values without processing macros
  *
  * @typedef {object} CharacterCardFields
  * @property {string} system System prompt
@@ -3171,8 +3172,11 @@ export function baseChatReplace(value, name1, name2) {
  * @property {string} creatorNotes Character creator notes
  * @returns {CharacterCardFields} Character card fields
  */
-export function getCharacterCardFields({ chid = null } = {}) {
+export function getCharacterCardFields({ chid = undefined, returnRaw = false } = {}) {
     const currentChid = chid ?? this_chid;
+
+    // Build transform function on the field value, depending on what is asked to be transformed
+    const transform = !returnRaw ? baseChatReplace : power_user.collapse_newlines ? collapseNewlines : (x) => x;
 
     const result = {
         system: '',
@@ -3186,7 +3190,7 @@ export function getCharacterCardFields({ chid = null } = {}) {
         charDepthPrompt: '',
         creatorNotes: '',
     };
-    result.persona = baseChatReplace(power_user.persona_description?.trim(), name1, name2);
+    result.persona = transform(power_user.persona_description?.trim(), name1, name2);
 
     const character = characters[currentChid];
 
@@ -3198,15 +3202,15 @@ export function getCharacterCardFields({ chid = null } = {}) {
     const exampleDialog = chat_metadata['mes_example'] || character.mes_example || '';
     const systemPrompt = chat_metadata['system_prompt'] || character.data?.system_prompt || '';
 
-    result.description = baseChatReplace(character.description?.trim(), name1, name2);
-    result.personality = baseChatReplace(character.personality?.trim(), name1, name2);
-    result.scenario = baseChatReplace(scenarioText.trim(), name1, name2);
-    result.mesExamples = baseChatReplace(exampleDialog.trim(), name1, name2);
-    result.system = power_user.prefer_character_prompt ? baseChatReplace(systemPrompt.trim(), name1, name2) : '';
-    result.jailbreak = power_user.prefer_character_jailbreak ? baseChatReplace(character.data?.post_history_instructions?.trim(), name1, name2) : '';
+    result.description = transform(character.description?.trim(), name1, name2);
+    result.personality = transform(character.personality?.trim(), name1, name2);
+    result.scenario = transform(scenarioText.trim(), name1, name2);
+    result.mesExamples = transform(exampleDialog.trim(), name1, name2);
+    result.system = power_user.prefer_character_prompt ? transform(systemPrompt.trim(), name1, name2) : '';
+    result.jailbreak = power_user.prefer_character_jailbreak ? transform(character.data?.post_history_instructions?.trim(), name1, name2) : '';
     result.version = character.data?.character_version ?? '';
-    result.charDepthPrompt = baseChatReplace(character.data?.extensions?.depth_prompt?.prompt?.trim(), name1, name2);
-    result.creatorNotes = baseChatReplace(character.data?.creator_notes?.trim(), name1, name2);
+    result.charDepthPrompt = transform(character.data?.extensions?.depth_prompt?.prompt?.trim(), name1, name2);
+    result.creatorNotes = transform(character.data?.creator_notes?.trim(), name1, name2);
 
     if (selected_group) {
         const groupCards = getGroupCharacterCards(selected_group, Number(currentChid));

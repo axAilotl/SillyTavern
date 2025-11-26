@@ -21,7 +21,7 @@ import {
     humanFileSize,
 } from './utils.js';
 import { RA_CountCharTokens, humanizedDateTime, dragElement, favsToHotswap, getMessageTimeStamp } from './RossAscends-mods.js';
-import { power_user, loadMovingUIState, sortEntitiesList } from './power-user.js';
+import { power_user, loadMovingUIState, sortEntitiesList, collapseNewlines } from './power-user.js';
 import { debounce_timeout } from './constants.js';
 
 import {
@@ -474,24 +474,29 @@ export function getGroupDepthPrompts(groupId, characterId) {
  * Combines group members cards into a single string. Only for groups with generation mode set to APPEND or APPEND_DISABLED.
  * @param {string} groupId Group ID
  * @param {number} characterId Current Character ID
+ * @param {Object} [options={}] Options object
+ * @param {boolean} [options.returnRaw=false] Whether to return raw values without processing macros
  * @returns {{description: string, personality: string, scenario: string, mesExamples: string}} Group character cards combined
  */
-export function getGroupCharacterCards(groupId, characterId) {
+export function getGroupCharacterCards(groupId, characterId, { returnRaw = false } = {}) {
     const group = groups.find(x => x.id === groupId);
 
     if (!group || !group?.generation_mode || !Array.isArray(group.members) || !group.members.length) {
         return null;
     }
 
+    // Build transform function on the field value, depending on what is asked to be transformed
+    const transform = !returnRaw ? baseChatReplace : power_user.collapse_newlines ? collapseNewlines : (x) => x;
+
     /**
-     * Runs the macro engine on a text, with custom <FIELDNAME> replace
+     * Runs the transform (macro engine if not raw) on a text, with custom <FIELDNAME> replace
      * @param {string} value Value to replace
      * @param {string} fieldName Name of the field
      * @param {string} characterName Name of the character
      * @param {boolean} trim Whether to trim the value
      * @returns {string} Replaced text
      * */
-    function customBaseChatReplace(value, fieldName, characterName, trim) {
+    function customTransform(value, fieldName, characterName, trim) {
         if (!value) {
             return '';
         }
@@ -499,7 +504,7 @@ export function getGroupCharacterCards(groupId, characterId) {
         // We should do the custom field name replacement first, and then run it through the normal macro engine with provided names
         value = value.replace(/<FIELDNAME>/gi, fieldName);
         value = trim ? value.trim() : value;
-        return baseChatReplace(value, name1, characterName);
+        return transform(value, name1, characterName);
     }
 
     /**
@@ -522,10 +527,10 @@ export function getGroupCharacterCards(groupId, characterId) {
         }
 
         // Prepare and replace prefixes
-        const prefix = customBaseChatReplace(group.generation_mode_join_prefix, fieldName, characterName, false);
-        const suffix = customBaseChatReplace(group.generation_mode_join_suffix, fieldName, characterName, false);
+        const prefix = customTransform(group.generation_mode_join_prefix, fieldName, characterName, false);
+        const suffix = customTransform(group.generation_mode_join_suffix, fieldName, characterName, false);
         // Also run the macro replacement on the actual content
-        value = customBaseChatReplace(value, fieldName, characterName, true);
+        value = customTransform(value, fieldName, characterName, true);
 
         return `${prefix}${value}${suffix}`;
     }
@@ -559,8 +564,8 @@ export function getGroupCharacterCards(groupId, characterId) {
 
     const description = descriptions.filter(x => x.length).join('\n');
     const personality = personalities.filter(x => x.length).join('\n');
-    const scenario = baseChatReplace(scenarioOverride?.trim(), name1, name2) || scenarios.filter(x => x.length).join('\n');
-    const mesExamples = baseChatReplace(mesExamplesOverride?.trim(), name1, name2) || mesExamplesArray.filter(x => x.length).join('\n');
+    const scenario = transform(scenarioOverride?.trim(), name1, name2) || scenarios.filter(x => x.length).join('\n');
+    const mesExamples = transform(mesExamplesOverride?.trim(), name1, name2) || mesExamplesArray.filter(x => x.length).join('\n');
 
     return { description, personality, scenario, mesExamples };
 }
