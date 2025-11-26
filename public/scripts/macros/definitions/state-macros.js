@@ -1,5 +1,5 @@
 import { MacroRegistry } from '../engine/MacroRegistry.js';
-import { eventSource, event_types } from '../../../script.js';
+import { eventSource, event_types } from '../../events.js';
 
 let lastGenerationTypeValue = '';
 let lastGenerationTypeTrackingInitialized = false;

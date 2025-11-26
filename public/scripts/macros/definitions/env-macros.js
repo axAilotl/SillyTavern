@@ -143,7 +143,7 @@ export function registerEnvMacros() {
     });
 
     MacroRegistry.registerMacro('original', {
-        description: 'Original message content for {{original}} substitution in Advanced Definitions.',
+        description: 'Original message content for {{original}} substitution in in character prompt overrides.',
         handler: ({ env }) => {
             const value = env.functions.original();
             return value;

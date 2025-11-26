@@ -35,15 +35,15 @@ export function registerInstructMacros() {
     registerSimple(['instructSystemPrefix'], () => power_user.instruct.system_sequence, instEnabled, 'Instruct system prefix sequence.');
     registerSimple(['instructSystemSuffix'], () => power_user.instruct.system_suffix, instEnabled, 'Instruct system suffix sequence.');
 
-    registerSimple(['instructFirstOutput', 'instructFirstAssistantPrefix'], () => power_user.instruct.first_output_sequence || power_user.instruct.output_sequence, instEnabled, 'Instruct first assistant output prefix sequence.');
-    registerSimple(['instructLastOutput', 'instructLastAssistantPrefix'], () => power_user.instruct.last_output_sequence || power_user.instruct.output_sequence, instEnabled, 'Instruct last assistant output prefix sequence.');
+    registerSimple(['instructFirstOutput', 'instructFirstAssistantPrefix'], () => power_user.instruct.first_output_sequence || power_user.instruct.output_sequence, instEnabled, 'Instruct first assistant / output prefix sequence');
+    registerSimple(['instructLastOutput', 'instructLastAssistantPrefix'], () => power_user.instruct.last_output_sequence || power_user.instruct.output_sequence, instEnabled, 'Instruct last assistant / output prefix sequence.');
 
     registerSimple(['instructStop'], () => power_user.instruct.stop_sequence, instEnabled, 'Instruct stop sequence.');
     registerSimple(['instructUserFiller'], () => power_user.instruct.user_alignment_message, instEnabled, 'Instruct user alignment filler.');
     registerSimple(['instructSystemInstructionPrefix'], () => power_user.instruct.last_system_sequence, instEnabled, 'Instruct system instruction prefix sequence.');
 
-    registerSimple(['instructFirstInput', 'instructFirstUserPrefix'], () => power_user.instruct.first_input_sequence || power_user.instruct.input_sequence, instEnabled, 'Instruct first user input prefix sequence.');
-    registerSimple(['instructLastInput', 'instructLastUserPrefix'], () => power_user.instruct.last_input_sequence || power_user.instruct.input_sequence, instEnabled, 'Instruct last user input prefix sequence.');
+    registerSimple(['instructFirstInput', 'instructFirstUserPrefix'], () => power_user.instruct.first_input_sequence || power_user.instruct.input_sequence, instEnabled, 'Instruct first user / input prefix sequence.');
+    registerSimple(['instructLastInput', 'instructLastUserPrefix'], () => power_user.instruct.last_input_sequence || power_user.instruct.input_sequence, instEnabled, 'Instruct last user / input prefix sequence.');
 
     // System prompt macros
     registerSimple(['defaultSystemPrompt', 'instructSystem', 'instructSystemPrompt'], () => power_user.sysprompt.content, sysEnabled, 'Alias for the default system prompt.');
@@ -62,6 +62,6 @@ export function registerInstructMacros() {
     });
 
     // Context template macros
-    registerSimple(['chatSeparator', 'exampleSeparator'], () => power_user.context.example_separator, () => true, 'Separator used between example chat blocks in instruct mode.');
-    registerSimple(['chatStart'], () => power_user.context.chat_start, () => true, 'Chat start marker used in instruct mode.');
+    registerSimple(['chatSeparator', 'exampleSeparator'], () => power_user.context.example_separator, () => true, 'Separator used between example chat blocks in text completion prompts.');
+    registerSimple(['chatStart'], () => power_user.context.chat_start, () => true, 'Chat start marker used in text completion prompts.');
 }
