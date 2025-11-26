@@ -39,7 +39,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  */
 
 /**
- * @typedef {(context: MacroExecutionContext) => (string|Promise<string>)} MacroHandler
+ * @typedef {(context: MacroExecutionContext) => string} MacroHandler
  */
 
 /**
@@ -242,14 +242,13 @@ class MacroRegistry {
 
     /**
      * Executes a macro for a given call.
-     * Handles both synchronous and asynchronous macro handlers.
      *
      * @param {MacroCall} call - Macro call information.
      * @param {Object} [options] - Additional options.
      * @param {MacroDefinition} [options.defOverride] - Override the macro definition.
-     * @returns {Promise<string>}
+     * @returns {string}
      */
-    async executeMacro(call, { defOverride } = {}) {
+    executeMacro(call, { defOverride } = {}) {
         const name = call.name;
         const def = defOverride || this.getMacro(name);
         if (!def) {
@@ -299,11 +298,8 @@ class MacroRegistry {
             normalize: MacroEngine.normalizeMacroResult.bind(MacroEngine),
         };
 
-        // Resolve promise and normalize result. Any errors are propagated to the
-        // caller (MacroEngine), which is responsible for unified error handling.
         const result = def.handler(executionContext);
-        return Promise.resolve(result)
-            .then(value => executionContext.normalize(value));
+        return executionContext.normalize(result);
     }
 }
 

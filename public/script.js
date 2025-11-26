@@ -278,6 +278,8 @@ import { applyStreamFadeIn } from './scripts/util/stream-fadein.js';
 import { initDomHandlers } from './scripts/dom-handlers.js';
 import { SimpleMutex } from './scripts/util/SimpleMutex.js';
 import { AudioPlayer } from './scripts/audio-player.js';
+import { MacroEnvBuilder } from './scripts/macros/engine/MacroEnvBuilder.js';
+import { MacroEngine } from './scripts/macros/engine/MacroEngine.js';
 
 // API OBJECT FOR EXTERNAL WIRING
 globalThis.SillyTavern = {
@@ -2745,7 +2747,7 @@ export function substituteParams(content, _name1, _name2, _original, _group, _re
 /** @typedef {import('./scripts/macros/engine/MacroRegistry.js').MacroHandler} MacroHandler */
 
 /**
- * Asynchronously substitutes {{macros}} in a string.
+ * Substitutes {{macros}} in a string using the new macro engine.
  *
  * This will replace all registered macros and dynamic additional macros as environment context.
  *
@@ -2758,17 +2760,14 @@ export function substituteParams(content, _name1, _name2, _original, _group, _re
  * @param {boolean} [options.replaceCharacterCard=true] - Whether to replace character card macros.
  * @param {Record<string,string|MacroHandler>} [options.dynamicMacros={}] - Additional environment variables as dynamic macros for substitution. Registered as macro functions.
  * @param {(x: string) => string} [options.postProcessFn=(x) => x] - Post-processing function for each substituted macro.
- * @returns {Promise<string>} The string with substituted parameters.
+ * @returns {string} The string with substituted parameters.
  */
-export async function substituteParamsAsync(content, { name1Override, name2Override, original, groupOverride, replaceCharacterCard = true, dynamicMacros = {}, postProcessFn = (x) => x } = {}) {
+export function substituteParamsNew(content, { name1Override, name2Override, original, groupOverride, replaceCharacterCard = true, dynamicMacros = {}, postProcessFn = (x) => x } = {}) {
     if (!content) return '';
 
     if (!power_user?.experimental_macro_engine) {
         return substituteParams(content, name1Override, name2Override, original, groupOverride, replaceCharacterCard, dynamicMacros, postProcessFn);
     }
-
-    const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
-    const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
 
     const ctx = /** @type {import('./scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */ ({
         content,
@@ -2782,7 +2781,7 @@ export async function substituteParamsAsync(content, { name1Override, name2Overr
     });
 
     const env = MacroEnvBuilder.buildFromRawEnv(ctx);
-    const result = await MacroEngine.evaluate(content, env);
+    const result = MacroEngine.evaluate(content, env);
     return result;
 }
 

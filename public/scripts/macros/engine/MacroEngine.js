@@ -27,9 +27,9 @@ class MacroEngine {
      *
      * @param {string} input - The input string to evaluate.
      * @param {MacroEnv} env - The environment to pass to the macro handler.
-     * @returns {Promise<string>} The resolved string.
+     * @returns {string} The resolved string.
      */
-    async evaluate(input, env) {
+    evaluate(input, env) {
         if (!input) {
             return '';
         }
@@ -58,7 +58,7 @@ class MacroEngine {
         // plain, mutable object.
         const safeEnv = Object.freeze({ ...env });
 
-        const result = await MacroCstWalker.evaluateDocument({
+        const result = MacroCstWalker.evaluateDocument({
             text: preProcessed,
             cst,
             env: safeEnv,
@@ -71,9 +71,9 @@ class MacroEngine {
      * Resolves a macro call.
      *
      * @param {MacroCall} call - The macro call to resolve.
-     * @returns {Promise<string>} The resolved macro
+     * @returns {string} The resolved macro.
      */
-    async #resolveMacro(call) {
+    #resolveMacro(call) {
         const { name, env } = call;
 
         const raw = `{{${call.rawInner}}}`;
@@ -102,7 +102,7 @@ class MacroEngine {
         }
 
         try {
-            const result = await MacroRegistry.executeMacro(call, { defOverride });
+            const result = MacroRegistry.executeMacro(call, { defOverride });
 
             try {
                 return call.env.functions.postProcess(result);

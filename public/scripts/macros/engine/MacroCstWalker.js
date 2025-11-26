@@ -17,7 +17,7 @@
  * @typedef {Object} EvaluationContext
  * @property {string} text
  * @property {MacroEnv} env
- * @property {(call: MacroCall) => (string|Promise<string>)} resolveMacro
+ * @property {(call: MacroCall) => string} resolveMacro
  */
 
 /**
@@ -49,9 +49,9 @@ class MacroCstWalker {
      * Evaluates a full document CST into a resolved string.
      *
      * @param {EvaluationContext & { cst: CstNode }} options
-     * @returns {Promise<string>}
+     * @returns {string}
      */
-    async evaluateDocument(options) {
+    evaluateDocument(options) {
         const { text, cst, env, resolveMacro } = options;
 
         if (typeof text !== 'string') {
@@ -85,7 +85,7 @@ class MacroCstWalker {
             if (item.type === 'plaintext') {
                 result += text.slice(item.startOffset, item.endOffset + 1);
             } else {
-                result += await this.#evaluateMacroNode(item.node, context);
+                result += this.#evaluateMacroNode(item.node, context);
             }
 
             cursor = item.endOffset + 1;
@@ -153,9 +153,9 @@ class MacroCstWalker {
      *
      * @param {CstNode} macroNode
      * @param {EvaluationContext} context
-     * @returns {Promise<string>}
+     * @returns {string}
      */
-    async #evaluateMacroNode(macroNode, context) {
+    #evaluateMacroNode(macroNode, context) {
         if (this.#macroCache.has(macroNode)) {
             return this.#macroCache.get(macroNode) || '';
         }
@@ -183,7 +183,7 @@ class MacroCstWalker {
         const evaluatedArguments = [];
 
         for (const argNode of argumentNodes) {
-            const argValue = await this.#evaluateArgumentNode(argNode, context);
+            const argValue = this.#evaluateArgumentNode(argNode, context);
             args.push(argValue);
 
             const location = this.#getArgumentLocation(argNode);
@@ -229,7 +229,7 @@ class MacroCstWalker {
             env,
         };
 
-        const value = await resolveMacro(call);
+        const value = resolveMacro(call);
         const stringValue = typeof value === 'string' ? value : String(value ?? '');
 
         this.#macroCache.set(macroNode, stringValue);
@@ -242,9 +242,9 @@ class MacroCstWalker {
      *
      * @param {CstNode} argNode
      * @param {EvaluationContext} context
-     * @returns {Promise<string>}
+     * @returns {string}
      */
-    async #evaluateArgumentNode(argNode, context) {
+    #evaluateArgumentNode(argNode, context) {
         const location = this.#getArgumentLocation(argNode);
         if (!location) {
             return '';
@@ -276,7 +276,7 @@ class MacroCstWalker {
             }
 
             result += text.slice(cursor, entry.range.startOffset);
-            result += await this.#evaluateMacroNode(entry.node, context);
+            result += this.#evaluateMacroNode(entry.node, context);
             cursor = entry.range.endOffset + 1;
         }
 
