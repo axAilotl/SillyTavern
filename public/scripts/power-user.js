@@ -205,7 +205,6 @@ export const power_user = {
     expand_message_actions: false,
     enableZenSliders: false,
     enableLabMode: false,
-    experimental_macro_engine: false,
     prefer_character_prompt: true,
     prefer_character_jailbreak: true,
     quick_continue: false,
@@ -305,6 +304,7 @@ export const power_user = {
     custom_stopping_strings_macro: true,
     fuzzy_search: false,
     encode_tags: false,
+    experimental_macro_engine: false,
     servers: [],
     bogus_folders: false,
     zoomed_avatar_magnification: false,
@@ -1664,6 +1664,7 @@ export async function loadPowerUserSettings(settings, data) {
     $('#persona_allow_multi_connections').prop('checked', power_user.persona_allow_multi_connections);
     $('#persona_auto_lock').prop('checked', power_user.persona_auto_lock);
     $('#encode_tags').prop('checked', power_user.encode_tags);
+    $('#experimental_macro_engine').prop('checked', power_user.experimental_macro_engine);
     $('#example_messages_behavior').val(getExampleMessagesBehavior());
     $(`#example_messages_behavior option[value="${getExampleMessagesBehavior()}"]`).prop('selected', true);
     $('#instruct_derived').parent().find('i').toggleClass('toggleEnabled', !!power_user.instruct_derived);
@@ -4000,6 +4001,11 @@ jQuery(() => {
     $('#encode_tags').on('input', async function () {
         power_user.encode_tags = !!$(this).prop('checked');
         await reloadCurrentChat();
+        saveSettingsDebounced();
+    });
+
+    $('#experimental_macro_engine').on('input', function () {
+        power_user.experimental_macro_engine = !!$(this).prop('checked');
         saveSettingsDebounced();
     });
 
