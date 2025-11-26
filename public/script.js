@@ -65,7 +65,6 @@ import {
     renameGroupMember,
     createNewGroupChat,
     getGroupAvatar,
-    editGroup,
     deleteGroupChat,
     renameGroupChat,
     importGroupChat,
@@ -185,8 +184,8 @@ import {
 } from './scripts/utils.js';
 import { debounce_timeout, GENERATION_TYPE_TRIGGERS, IGNORE_SYMBOL, inject_ids, MEDIA_DISPLAY, MEDIA_SOURCE, MEDIA_TYPE, SCROLL_BEHAVIOR, SWIPE_DIRECTION } from './scripts/constants.js';
 
-import { cancelDebouncedMetadataSave, doDailyExtensionUpdatesCheck, extension_settings, initExtensions, loadExtensionSettings, runGenerationInterceptors, saveMetadataDebounced } from './scripts/extensions.js';
-import { COMMENT_NAME_DEFAULT, CONNECT_API_MAP, executeSlashCommandsOnChatInput, initDefaultSlashCommands, initSlashCommandAutoComplete, isExecutingCommandsFromChatInput, pauseScriptExecution, stopScriptExecution, UNIQUE_APIS } from './scripts/slash-commands.js';
+import { cancelDebouncedMetadataSave, doDailyExtensionUpdatesCheck, extension_settings, initExtensions, loadExtensionSettings, runGenerationInterceptors } from './scripts/extensions.js';
+import { COMMENT_NAME_DEFAULT, CONNECT_API_MAP, executeSlashCommandsOnChatInput, initDefaultSlashCommands, isExecutingCommandsFromChatInput, pauseScriptExecution, stopScriptExecution, UNIQUE_APIS } from './scripts/slash-commands.js';
 import {
     tag_map,
     tags,
@@ -379,14 +378,13 @@ export let isSwipingAllowed = true; //false when a swipe is in progress, or swip
 let chatSaveTimeout;
 let importFlashTimeout;
 export let isChatSaving = false;
-let chat_create_date = '';
 let firstRun = false;
 let settingsReady = false;
 let currentVersion = '0.0.0';
 export let displayVersion = 'SillyTavern';
 
 let generation_started = new Date();
-/** @type {import('./scripts/char-data.js').v1CharData[]} */
+/** @type {Character[]} */
 export let characters = [];
 /**
  * Stringified index of a currently chosen entity in the characters array.
@@ -413,6 +411,7 @@ export const chatElement = $('#chat');
 
 let dialogueResolve = null;
 let dialogueCloseStop = false;
+/** @type {ChatMetadata} */
 export let chat_metadata = {};
 /** @type {StreamingProcessor} */
 export let streamingProcessor = null;
@@ -1298,7 +1297,7 @@ export async function deleteCharacterChatByName(characterId, fileName) {
     // Make sure all the data is loaded.
     await unshallowCharacter(characterId);
 
-    /** @type {import('./scripts/char-data.js').v1CharData} */
+    /** @type {Character} */
     const character = characters[characterId];
     if (!character) {
         console.warn(`Character with ID ${characterId} not found.`);
@@ -1419,7 +1418,7 @@ export async function printMessages() {
     chatElement.find('.mes').last().addClass('last_mes');
     refreshSwipeButtons();
     applyStylePins();
-    scrollChatToBottom();
+    scrollChatToBottom({ waitForFrame: true });
     delay(debounce_timeout.short).then(() => scrollOnMediaLoad());
 }
 
@@ -1454,7 +1453,7 @@ function scrollOnMediaLoad() {
         }
         mediaLoaded++;
         if (mediaLoaded === media.length) {
-            scrollChatToBottom();
+            scrollChatToBottom({ waitForFrame: true });
         }
     }
 }
@@ -2535,7 +2534,7 @@ export function addOneMessage(mes, { type = 'normal', insertAfter = null, scroll
 
     // Don't scroll if not inserting last
     if (!insertAfter && !insertBefore && scroll) {
-        scrollChatToBottom();
+        scrollChatToBottom({ waitForFrame: true });
     }
 
     applyCharacterTagsToMessageDivs({ mesIds: newMessageId });
@@ -2601,8 +2600,19 @@ function formatGenerationTimer(gen_started, gen_finished, tokenCount, reasoningD
     return { timerValue, timerTitle };
 }
 
-export function scrollChatToBottom() {
-    if (power_user.auto_scroll_chat_to_bottom) {
+let requestId = null;
+
+/**
+ * Scrolls the chat to the bottom if configured to do so.
+ * @param {object} [options] Options
+ * @param {boolean} [options.waitForFrame] If true, waits for the animation frame before scrolling
+ */
+export function scrollChatToBottom({ waitForFrame } = {}) {
+    if (!power_user.auto_scroll_chat_to_bottom) {
+        return;
+    }
+
+    const doScroll = () => {
         let position = chatElement[0].scrollHeight;
 
         if (power_user.waifuMode) {
@@ -2614,7 +2624,23 @@ export function scrollChatToBottom() {
         }
 
         chatElement.scrollTop(position);
+        requestId = null;
+    };
+
+    // Do not check truthiness. requestId can loop to zero.
+    if (requestId !== null) {
+        cancelAnimationFrame(requestId);
     }
+
+    if (!waitForFrame) {
+        doScroll();
+        return;
+    }
+
+    // This prevents layout thrashing.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame#return_value
+    // https://gist.github.com/paulirish/5d52fb081b3570c81e3a#file-what-forces-layout-md
+    requestId = requestAnimationFrame(() => doScroll());
 }
 
 /**
@@ -3337,7 +3363,7 @@ class StreamingProcessor {
             this.markUIGenStarted();
         }
         hideSwipeButtons({ hideCounters: true });
-        scrollChatToBottom();
+        scrollChatToBottom({ waitForFrame: true });
         return messageId;
     }
 
@@ -3440,7 +3466,7 @@ class StreamingProcessor {
         }
 
         if (!scrollLock) {
-            scrollChatToBottom();
+            scrollChatToBottom({ waitForFrame: true });
         }
     }
 
@@ -5809,7 +5835,7 @@ function extractImagesFromData(data, { mainApi = null, chatCompletionSource = nu
             switch (chatCompletionSource ?? oai_settings.chat_completion_source) {
                 case chat_completion_sources.VERTEXAI:
                 case chat_completion_sources.MAKERSUITE: {
-                    const inlineData = data?.responseContent?.parts?.filter(x => x.inlineData)?.map(x => x.inlineData);
+                    const inlineData = data?.responseContent?.parts?.filter(x => x.inlineData && !x.thought)?.map(x => x.inlineData);
                     if (Array.isArray(inlineData) && inlineData.length > 0) {
                         return inlineData.map(x => `data:${x.mimeType};base64,${x.data}`).filter(isDataURL);
                     }
@@ -6181,7 +6207,7 @@ async function processImageAttachment(message, { imageUrls }) {
         return;
     }
 
-    for (const [index, imageUrl] of imageUrls.entries()) {
+    for (const [index, imageUrl] of imageUrls.filter(onlyUnique).entries()) {
         if (!imageUrl) {
             continue;
         }
@@ -6768,7 +6794,7 @@ export async function renameCharacter(name = null, { silent = false, renameChats
                 }
 
                 // Also rename as a group member
-                await renameGroupMember(oldAvatar, newAvatar, newValue);
+                await renameGroupMember(oldAvatar, newAvatar, newValue.toString());
                 const renamePastChatsConfirm = renameChats !== null
                     ? renameChats
                     : silent
@@ -6897,6 +6923,11 @@ export function saveChatDebounced() {
  * @returns {Promise<void>}
  */
 export async function saveChat({ chatName, withMetadata, mesId, force = false } = {}) {
+    if (selected_group) {
+        toastr.error(t`Operation was aborted to prevent data corruption.`, t`saveChat called for a group chat`);
+        throw new Error('saveChat called for a group chat');
+    }
+
     if (arguments.length > 0 && typeof arguments[0] !== 'object') {
         console.trace('saveChat called with positional arguments. Please use an object instead.');
         [chatName, withMetadata, mesId, force] = arguments;
@@ -6916,26 +6947,15 @@ export async function saveChat({ chatName, withMetadata, mesId, force = false } 
     }
 
     characters[this_chid]['date_last_chat'] = Date.now();
-    chat.forEach(function (item, i) {
-        if (item['is_group']) {
-            toastr.error(t`Trying to save group chat with regular saveChat function. Aborting to prevent corruption.`);
-            throw new Error('Group chat saved from saveChat');
-        }
-    });
 
     const trimmedChat = (mesId !== undefined && mesId >= 0 && mesId < chat.length)
         ? chat.slice(0, Number(mesId) + 1)
         : chat.slice();
 
-    const chatToSave = [
-        {
-            user_name: name1,
-            character_name: name2,
-            create_date: chat_create_date,
-            chat_metadata: metadata,
-        },
-        ...trimmedChat,
-    ];
+    /** @type {ChatHeader} */
+    const chatHeader = {
+        chat_metadata: metadata,
+    };
 
     try {
         const result = await fetch('/api/chats/save', {
@@ -6945,7 +6965,7 @@ export async function saveChat({ chatName, withMetadata, mesId, force = false } 
             body: JSON.stringify({
                 ch_name: characters[this_chid].name,
                 file_name: fileName,
-                chat: chatToSave,
+                chat: [chatHeader, ...trimmedChat],
                 avatar_url: characters[this_chid].avatar,
                 force: force,
             }),
@@ -7119,7 +7139,7 @@ export async function unshallowCharacter(characterId) {
         return;
     }
 
-    /** @type {import('./scripts/char-data.js').v1CharData} */
+    /** @type {Character} */
     const character = characters[characterId];
     if (!character) {
         console.debug('Character not found:', characterId);
@@ -7158,13 +7178,10 @@ export async function getChat() {
         });
         if (response[0] !== undefined) {
             chat.splice(0, chat.length, ...response);
-            chat_create_date = chat[0]['create_date'];
             chat_metadata = chat[0]['chat_metadata'] ?? {};
 
             chat.shift();
             chat.forEach(ensureMessageMediaIsArray);
-        } else {
-            chat_create_date = humanizedDateTime();
         }
         if (!chat_metadata['integrity']) {
             chat_metadata['integrity'] = uuidv4();
@@ -7459,7 +7476,7 @@ export async function getSettings() {
         loadNovelSettings(data, settings.nai_settings ?? settings);
 
         // TextGen
-        loadTextGenSettings(data, settings);
+        await loadTextGenSettings(data, settings);
 
         // OpenAI
         loadOpenAISettings(data, settings.oai_settings ?? settings);
@@ -8540,7 +8557,7 @@ export async function setCharacterSettingsOverrides() {
     chat_metadata['scenario'] = pendingChanges.scenario;
     chat_metadata['mes_example'] = pendingChanges.examples;
     chat_metadata['system_prompt'] = pendingChanges.system_prompt;
-    saveMetadataDebounced();
+    await saveMetadata();
 }
 
 /**
@@ -8757,12 +8774,7 @@ export async function deleteSwipe(swipeId = null, messageId = chat.length - 1) {
 }
 
 export async function saveMetadata() {
-    if (selected_group) {
-        await editGroup(selected_group, true, false);
-    }
-    else {
-        await saveChatConditional();
-    }
+    return await saveChatConditional();
 }
 
 export async function saveChatConditional() {
@@ -9362,7 +9374,7 @@ export async function swipe(_event, direction, { source, repeated, message = cha
         if (chat[mesId]['swipe_id'] !== clampedId) {
             chat[mesId]['swipe_id'] = clampedId;
             syncSwipeToMes(mesId);
-            addOneMessage(chat[mesId], { type: 'swipe', forceId: mesId, scroll: false });
+            addOneMessage(chat[mesId], { type: 'swipe', forceId: mesId, scroll: true });
         }
 
         await updateSwipeCounter(mesId);
@@ -10393,7 +10405,7 @@ jQuery(async function () {
     });
     $('#rm_button_selected_ch').on('click', function () {
         if (selected_group) {
-            select_group_chats(selected_group);
+            select_group_chats(selected_group, false);
         } else {
             selected_button = 'character_edit';
             select_selected_character(this_chid);
@@ -11195,7 +11207,7 @@ jQuery(async function () {
         const message = chat[this_edit_mes_id];
         const selectedSwipe = message['swipe_id'] ?? undefined;
         const swipesArray = Array.isArray(message['swipes']) ? message['swipes'] : [];
-        const canDeleteSwipe = !fromSlashCommand && !message.is_user && swipesArray.length > 1 && this_edit_mes_id === chat.length - 1 && selectedSwipe !== undefined;
+        const canDeleteSwipe = power_user.confirm_message_delete && !fromSlashCommand && !message.is_user && swipesArray.length > 1 && this_edit_mes_id === chat.length - 1 && selectedSwipe !== undefined;
         await deleteMessage(Number(this_edit_mes_id), canDeleteSwipe ? selectedSwipe : undefined, power_user.confirm_message_delete && fromSlashCommand !== true);
     });
 
@@ -11326,7 +11338,7 @@ jQuery(async function () {
 
     $('#rm_button_group_chats').on('click', function () {
         selected_button = 'group_chats';
-        select_group_chats();
+        select_group_chats(null, false);
     });
 
     $('#rm_button_back_from_group').on('click', function () {
@@ -11796,7 +11808,7 @@ jQuery(async function () {
     await firstLoadInit();
 
     window.addEventListener('beforeunload', (e) => {
-        if (isChatSaving) {
+        if (isChatSaving || this_edit_mes_id >= 0) {
             e.preventDefault();
             e.returnValue = true;
         }

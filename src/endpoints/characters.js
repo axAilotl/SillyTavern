@@ -1133,9 +1133,50 @@ router.post('/edit', validateAvatarUrlMiddleware, async function (request, respo
         return response.sendStatus(200);
     } catch (err) {
         console.error('An error occurred, character edit invalidated.', err);
+        return response.sendStatus(500);
     }
 });
 
+router.post('/edit-avatar', validateAvatarUrlMiddleware, async function (request, response) {
+    try {
+        if (!request.file) {
+            return response.status(400).send('Error: no file uploaded');
+        }
+
+        if (!request.body || !request.body.avatar_url) {
+            return response.status(400).send('Error: no avatar_url in request body');
+        }
+
+        const uploadPath = path.join(request.file.destination, request.file.filename);
+        if (!fs.existsSync(uploadPath)) {
+            return response.status(400).send('Error: uploaded file does not exist');
+        }
+        const characterPath = path.join(request.user.directories.characters, request.body.avatar_url);
+        if (!fs.existsSync(characterPath)) {
+            return response.status(400).send('Error: character file does not exist');
+        }
+        const data = await readCharacterData(characterPath);
+        if (!data) {
+            return response.status(400).send('Error: failed to read character data');
+        }
+
+        const crop = tryParse(request.query.crop);
+        const fileName = request.body.avatar_url.replace('.png', '');
+        await writeCharacterData(uploadPath, data, fileName, request, crop);
+
+        // Remove uploaded temp file
+        fs.unlinkSync(uploadPath);
+
+        // Reset images caches
+        cacheBuster.bust(request, response);
+        invalidateThumbnail(request.user.directories, 'avatar', request.body.avatar_url);
+
+        return response.sendStatus(200);
+    } catch (err) {
+        console.error('An error occurred while editing avatar', err);
+        return response.sendStatus(500);
+    }
+});
 
 /**
  * Handle a POST request to edit a character attribute.
@@ -1184,6 +1225,7 @@ router.post('/edit-attribute', validateAvatarUrlMiddleware, async function (requ
         return response.sendStatus(200);
     } catch (err) {
         console.error('An error occurred, character edit invalidated.', err);
+        return response.sendStatus(500);
     }
 });
 
@@ -1327,21 +1369,21 @@ router.post('/chats', validateAvatarUrlMiddleware, async function (request, resp
             return response.send({ error: true });
         }
 
-        const files = fs.readdirSync(chatsDirectory);
-        const jsonFiles = files.filter(file => path.extname(file) === '.jsonl');
+        const files = fs.readdirSync(chatsDirectory, { withFileTypes: true });
+        const jsonFiles = files.filter(file => file.isFile() && path.extname(file.name) === '.jsonl').map(file => file.name);
 
         if (jsonFiles.length === 0) {
-            response.send({ error: true });
-            return;
+            return response.send([]);
         }
 
         if (request.body.simple) {
-            return response.send(jsonFiles.map(file => ({ file_name: file })));
+            return response.send(jsonFiles.map(file => ({ file_name: file, file_id: path.parse(file).name })));
         }
 
         const jsonFilesPromise = jsonFiles.map((file) => {
+            const withMetadata = !!request.body.metadata;
             const pathToFile = path.join(request.user.directories.chats, characterDirectory, file);
-            return getChatInfo(pathToFile);
+            return getChatInfo(pathToFile, {}, withMetadata);
         });
 
         const chatData = (await Promise.allSettled(jsonFilesPromise)).filter(x => x.status === 'fulfilled').map(x => x.value);

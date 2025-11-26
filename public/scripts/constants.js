@@ -88,6 +88,15 @@ export const MEDIA_DISPLAY = {
 };
 
 /**
+ * @enum {string}
+ * @readonly
+ */
+export const IMAGE_OVERSWIPE = {
+    GENERATE: 'generate',
+    ROLLOVER: 'rollover',
+};
+
+/**
  * @readonly
  */
 export const MEDIA_TYPE = {
@@ -106,6 +115,17 @@ export const MEDIA_TYPE = {
     IMAGE: 'image',
     VIDEO: 'video',
     AUDIO: 'audio',
+};
+
+/**
+ * Bitwise flag-style media request types.
+ * @enum {number}
+ * @readonly
+ */
+export const MEDIA_REQUEST_TYPE = {
+    IMAGE: 0b001,
+    VIDEO: 0b010,
+    AUDIO: 0b100,
 };
 
 /**
