@@ -8,46 +8,46 @@ import { chat, chat_metadata } from '../../../script.js';
 export function registerChatMacros() {
     MacroRegistry.registerMacro('lastMessage', {
         description: 'Last message in the chat.',
-        handler: () => String(getLastMessageCore() ?? ''),
+        handler: () => String(getLastMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastMessageId', {
         description: 'Index of the last message in the chat.',
-        handler: () => String(getLastMessageIdCore() ?? ''),
+        handler: () => String(getLastMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastUserMessage', {
         description: 'Last user message in the chat.',
-        handler: () => String(getLastUserMessageCore() ?? ''),
+        handler: () => String(getLastUserMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastCharMessage', {
         description: 'Last character/bot message in the chat.',
-        handler: () => String(getLastCharMessageCore() ?? ''),
+        handler: () => String(getLastCharMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstIncludedMessageId', {
         description: 'Index of the first message included in the current context.',
-        handler: () => String(getFirstIncludedMessageIdCore() ?? ''),
+        handler: () => String(getFirstIncludedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstDisplayedMessageId', {
         description: 'Index of the first displayed message in the chat.',
-        handler: () => String(getFirstDisplayedMessageIdCore() ?? ''),
+        handler: () => String(getFirstDisplayedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastSwipeId', {
         description: '1-based index of the last swipe for the last message.',
-        handler: () => String(getLastSwipeIdCore() ?? ''),
+        handler: () => String(getLastSwipeId() ?? ''),
     });
 
     MacroRegistry.registerMacro('currentSwipeId', {
         description: '1-based index of the current swipe.',
-        handler: () => String(getCurrentSwipeIdCore() ?? ''),
+        handler: () => String(getCurrentSwipeId() ?? ''),
     });
 }
 
-function getLastMessageIdCore({ exclude_swipe_in_propress = true, filter = null } = {}) {
+function getLastMessageId({ exclude_swipe_in_propress = true, filter = null } = {}) {
     if (!Array.isArray(chat) || chat.length === 0) {
         return null;
     }
@@ -67,27 +67,27 @@ function getLastMessageIdCore({ exclude_swipe_in_propress = true, filter = null 
     return null;
 }
 
-function getLastMessageCore() {
-    const mid = getLastMessageIdCore();
+function getLastMessage() {
+    const mid = getLastMessageId();
     return typeof mid === 'number' ? (chat[mid]?.mes ?? '') : '';
 }
 
-function getLastUserMessageCore() {
-    const mid = getLastMessageIdCore({ filter: m => m.is_user && !m.is_system });
+function getLastUserMessage() {
+    const mid = getLastMessageId({ filter: m => m.is_user && !m.is_system });
     return typeof mid === 'number' ? (chat[mid]?.mes ?? '') : '';
 }
 
-function getLastCharMessageCore() {
-    const mid = getLastMessageIdCore({ filter: m => !m.is_user && !m.is_system });
+function getLastCharMessage() {
+    const mid = getLastMessageId({ filter: m => !m.is_user && !m.is_system });
     return typeof mid === 'number' ? (chat[mid]?.mes ?? '') : '';
 }
 
-function getFirstIncludedMessageIdCore() {
+function getFirstIncludedMessageId() {
     const value = chat_metadata['lastInContextMessageId'];
     return typeof value === 'number' ? value : null;
 }
 
-function getFirstDisplayedMessageIdCore() {
+function getFirstDisplayedMessageId() {
     const mesElement = document.querySelector('#chat .mes');
     const mesId = Number(mesElement?.getAttribute('mesid'));
     if (!Number.isNaN(mesId) && mesId >= 0) {
@@ -96,8 +96,8 @@ function getFirstDisplayedMessageIdCore() {
     return null;
 }
 
-function getLastSwipeIdCore() {
-    const mid = getLastMessageIdCore({ exclude_swipe_in_propress: false });
+function getLastSwipeId() {
+    const mid = getLastMessageId({ exclude_swipe_in_propress: false });
     if (typeof mid !== 'number') {
         return null;
     }
@@ -105,8 +105,8 @@ function getLastSwipeIdCore() {
     return Array.isArray(swipes) ? swipes.length : null;
 }
 
-function getCurrentSwipeIdCore() {
-    const mid = getLastMessageIdCore({ exclude_swipe_in_propress: false });
+function getCurrentSwipeId() {
+    const mid = getLastMessageId({ exclude_swipe_in_propress: false });
     if (typeof mid !== 'number') {
         return null;
     }
