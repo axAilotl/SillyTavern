@@ -158,6 +158,30 @@ test.describe('MacroEngine', () => {
             expect(output.startsWith('Time: ')).toBeTruthy();
             expect(output.length).toBeGreaterThan('Time: '.length);
         });
+
+        test('should support legacy <USER> marker via pre-processing', async ({ page }) => {
+            const input = 'Hello <USER>!';
+            const output = await evaluateWithEngine(page, input);
+
+            // In the default test env, name1Override is "User".
+            expect(output).toBe('Hello User!');
+        });
+
+        test('should support legacy <BOT> and <CHAR> markers via pre-processing', async ({ page }) => {
+            const input = 'Bot: <BOT>, Char: <CHAR>.';
+            const output = await evaluateWithEngine(page, input);
+
+            // In the default test env, name2Override is "Character".
+            expect(output).toBe('Bot: Character, Char: Character.');
+        });
+
+        test('should support legacy <GROUP> and <CHARIFNOTGROUP> markers via pre-processing (non-group fallback)', async ({ page }) => {
+            const input = 'Group: <GROUP>, CharIfNotGroup: <CHARIFNOTGROUP>.';
+            const output = await evaluateWithEngine(page, input);
+
+            // Without an active group, both markers fall back to the current character name.
+            expect(output).toBe('Group: Character, CharIfNotGroup: Character.');
+        });
     });
 
     test.describe('Arity errors', () => {

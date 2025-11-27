@@ -128,6 +128,14 @@ class MacroEngine {
             return `{{time::${utcOffset}}}`;
         });
 
+        // Legacy non-curly markers like <USER>, <BOT>, <GROUP>, etc.
+        // These are rewritten into their equivalent macro forms so they go through the normal engine pipeline.
+        result = result.replace(/<USER>/gi, '{{user}}');
+        result = result.replace(/<BOT>/gi, '{{char}}');
+        result = result.replace(/<CHAR>/gi, '{{char}}');
+        result = result.replace(/<GROUP>/gi, '{{group}}');
+        result = result.replace(/<CHARIFNOTGROUP>/gi, '{{charIfNotGroup}}');
+
         return result;
     }
 
