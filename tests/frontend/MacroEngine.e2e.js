@@ -350,6 +350,79 @@ test.describe('MacroEngine', () => {
         });
     });
 
+    test.describe('Environment', () => {
+        test('should expose original content as env.content to macro handlers', async ({ page }) => {
+            const input = '{{env-content}}';
+            const originalContent = 'This is the full original input string.';
+
+            const output = await page.evaluate(async ({ input, originalContent }) => {
+                /** @type {import('../../public/scripts/macros/engine/MacroEngine.js')} */
+                const { MacroEngine } = await import('./scripts/macros/engine/MacroEngine.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js')} */
+                const { MacroEnvBuilder } = await import('./scripts/macros/engine/MacroEnvBuilder.js');
+                /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
+                const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
+
+                MacroRegistry.unregisterMacro('env-content');
+                MacroRegistry.registerMacro('env-content', {
+                    description: 'Test macro that returns env.content.',
+                    handler: ({ env }) => env.content,
+                });
+
+                /** @type {import('../../public/scripts/macros/engine/MacroEnvBuilder.js').MacroEnvRawContext} */
+                const rawEnv = {
+                    content: originalContent,
+                };
+                const env = MacroEnvBuilder.buildFromRawEnv(rawEnv);
+
+                return MacroEngine.evaluate(input, env);
+            }, { input, originalContent });
+
+            expect(output).toBe(originalContent);
+        });
+    });
+
+    test.describe('Deterministic pick macro', () => {
+        test('should return stable results for the same chat and content', async ({ page }) => {
+            // Simulate a consistent chat id hash
+            let originalHash;
+            await page.evaluate(async () => {
+                /** @type {import('../../public/script.js')} */
+                const { chat_metadata } = await import('./script.js');
+                originalHash = chat_metadata['chat_id_hash'];
+                chat_metadata['chat_id_hash'] = 123456;
+            });
+
+            const input = 'Choices: {{pick::red::green::blue}}, {{pick::red::green::blue}}.';
+
+            const output1 = await evaluateWithEngine(page, input);
+            const output2 = await evaluateWithEngine(page, input);
+
+            // Deterministic: same chat and same content should yield identical output.
+            expect(output1).toBe(output2);
+
+            // Sanity check: both picks should resolve to one of the provided options.
+            const match = output1.match(/Choices: ([^,]+), ([^.]+)\./);
+            expect(match).not.toBeNull();
+
+            if (!match) return;
+
+            const first = match[1].trim();
+            const second = match[2].trim();
+            const options = ['red', 'green', 'blue'];
+
+            expect(options.includes(first)).toBeTruthy();
+            expect(options.includes(second)).toBeTruthy();
+
+            // Restore original hash
+            await page.evaluate(async () => {
+                /** @type {import('../../public/script.js')} */
+                const { chat_metadata } = await import('./script.js');
+                chat_metadata['chat_id_hash'] = originalHash;
+            });
+        });
+    });
+
     test.describe('Dynamic macros', () => {
         test('should not resolve dynamic macro when called with arguments due to strict arity', async ({ page }) => {
             /** @type {string[]} */

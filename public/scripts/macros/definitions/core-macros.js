@@ -133,7 +133,7 @@ export function registerCoreMacros() {
                 return '';
             }
 
-            const chatIdHash = getChatIdHashCore();
+            const chatIdHash = getChatIdHash();
 
             // Use the full original input string for deterministic behavior
             const rawContentHash = getStringHash(env.content);
@@ -190,7 +190,7 @@ export function registerCoreMacros() {
     });
 }
 
-function getChatIdHashCore() {
+function getChatIdHash() {
     const cachedIdHash = chat_metadata['chat_id_hash'];
     if (typeof cachedIdHash === 'number') {
         return cachedIdHash;
