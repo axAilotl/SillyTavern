@@ -3,7 +3,7 @@ import path from 'node:path';
 import _ from 'lodash';
 import sanitize from 'sanitize-filename';
 import { sync as writeFileAtomicSync } from 'write-file-atomic';
-import { extractFileFromZipBuffer, extractFilesFromZipBuffer, normalizeZipEntryPath } from './util.js';
+import { extractFileFromZipBuffer, extractFilesFromZipBuffer, normalizeZipEntryPath, ensureDirectory } from './util.js';
 import { DEFAULT_AVATAR_PATH } from './constants.js';
 import { invalidateThumbnail } from './endpoints/thumbnails.js';
 
@@ -30,6 +30,25 @@ function findZipStart(buffer) {
     return buf;
 }
 
+/**
+ * @typedef {Object} CharXAsset
+ * @property {string} type - Asset type (emotion, expression, background, etc.)
+ * @property {string} name - Asset name from metadata
+ * @property {string} ext - File extension (lowercase, no dot)
+ * @property {string} zipPath - Normalized path within the ZIP archive
+ * @property {number} order - Original index in assets array
+ * @property {string} [storageCategory] - 'sprite' | 'background' | 'misc' (set by mapCharXAssetsForStorage)
+ * @property {string} [baseName] - Normalized filename base (set by mapCharXAssetsForStorage)
+ */
+
+/**
+ * @typedef {Object} CharXParseResult
+ * @property {Object} card - Parsed card.json (CCv2 or CCv3 spec)
+ * @property {string|Buffer} avatar - Avatar image buffer or DEFAULT_AVATAR_PATH
+ * @property {CharXAsset[]} auxiliaryAssets - Assets mapped for storage
+ * @property {Map<string, Buffer>} extractedBuffers - Map of zipPath to extracted buffer
+ */
+
 export class CharXParser {
     #data;
 
@@ -41,6 +60,10 @@ export class CharXParser {
         this.#data = findZipStart(Buffer.isBuffer(data) ? data : Buffer.from(data));
     }
 
+    /**
+     * Parse the CharX archive and extract card data and assets.
+     * @returns {Promise<CharXParseResult>}
+     */
     async parse() {
         console.info('Importing from CharX');
         const cardBuffer = await extractFileFromZipBuffer(this.#data, 'card.json');
@@ -243,21 +266,14 @@ export class CharXParser {
     }
 }
 
-function ensureFolder(dirPath) {
-    try {
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        } else if (!fs.statSync(dirPath).isDirectory()) {
-            console.warn(`CharX: Path ${dirPath} exists and is not a directory.`);
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error(`CharX: Failed to prepare directory ${dirPath}`, error);
-        return false;
-    }
-}
-
+/**
+ * Gets a unique file path by appending a numeric suffix if needed.
+ * Uses underscore separator for compatibility with ST's sprite naming.
+ * @param {string} dirPath - Directory path
+ * @param {string} baseName - Base filename without extension
+ * @param {string} ext - File extension without dot
+ * @returns {string} Full unique file path
+ */
 function getUniqueAssetPath(dirPath, baseName, ext) {
     const safeExt = ext || 'png';
     let suffix = 0;
@@ -295,7 +311,7 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
             return spritesPath;
         }
         const candidate = path.join(directories.characters, characterFolder);
-        if (!ensureFolder(candidate)) {
+        if (!ensureDirectory(candidate)) {
             return null;
         }
         spritesPath = candidate;
@@ -308,7 +324,7 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
         }
         // Use the image gallery path: user/images/{characterName}/
         const candidate = path.join(directories.userImages, characterFolder);
-        if (!ensureFolder(candidate)) {
+        if (!ensureDirectory(candidate)) {
             return null;
         }
         miscPath = candidate;
@@ -338,7 +354,7 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
         }
 
         if (asset.storageCategory === 'background') {
-            if (!ensureFolder(directories.backgrounds)) {
+            if (!ensureDirectory(directories.backgrounds)) {
                 continue;
             }
             const backgroundBaseName = `${characterFolder}_${asset.baseName}`;

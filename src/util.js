@@ -404,6 +404,26 @@ export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
 }
 
 /**
+ * Ensures a directory exists, creating it if necessary.
+ * @param {string} dirPath Path to the directory
+ * @returns {boolean} True if the directory exists or was created, false on error
+ */
+export function ensureDirectory(dirPath) {
+    try {
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        } else if (!fs.statSync(dirPath).isDirectory()) {
+            console.warn(`ensureDirectory: Path ${dirPath} exists and is not a directory.`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error(`ensureDirectory: Failed to prepare directory ${dirPath}`, error);
+        return false;
+    }
+}
+
+/**
  * Extracts all images from a ZIP archive.
  * @param {string} zipFilePath Path to the ZIP archive
  * @returns {Promise<[string, Buffer][]>} Array of image buffers
