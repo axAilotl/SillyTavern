@@ -81,6 +81,7 @@ class MacroEnvBuilder {
         // Some fields are marked as required, so we have to fill them with dummy fields here
         /** @type {MacroEnv} */
         const env = {
+            content: ctx.content,
             names: { user: '', char: '', group: '', groupNotMuted: '', notChar: '' },
             character: {},
             system: { model: '' },

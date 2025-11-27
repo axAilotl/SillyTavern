@@ -117,7 +117,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('pick', {
         list: true,
         description: 'Picks a random item from a list, but keeps the choice stable for a given chat and macro position.',
-        handler: ({ list, raw: rawListString, range }) => {
+        handler: ({ list, raw: rawListString, range, env }) => {
             /** @type {string[]} */
             let items = Array.isArray(list) ? [...list] : [];
 
@@ -134,10 +134,13 @@ export function registerCoreMacros() {
             }
 
             const chatIdHash = getChatIdHashCore();
-            const listHash = getStringHash(typeof rawListString === 'string' ? rawListString : items.join('::'));
+
+            // Use the full original input string for deterministic behavior
+            const rawContentHash = getStringHash(env.content);
+
             const offset = typeof range?.startOffset === 'number' ? range.startOffset : 0;
 
-            const combinedSeedString = `${chatIdHash}-${listHash}-${offset}`;
+            const combinedSeedString = `${chatIdHash}-${rawContentHash}-${offset}`;
             const finalSeed = getStringHash(combinedSeedString);
             const rng = seedrandom(String(finalSeed));
             const randomIndex = Math.floor(rng() * items.length);

@@ -44,6 +44,7 @@
 
 /**
  * @typedef {Object} MacroEnv
+ * @property {string} content - The full original input string that is being processed by the macro engine. This is the same value as substituteParams "content" and is provided so macros can build deterministic behavior based on the whole prompt when needed.
  * @property {MacroEnvNames} names
  * @property {MacroEnvCharacter} character
  * @property {MacroEnvSystem} system
