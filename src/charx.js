@@ -86,7 +86,7 @@ export class CharXParser {
         }
 
         /** @type {string|Buffer} */
-        let avatar = fs.readFileSync(DEFAULT_AVATAR_PATH);
+        let avatar = DEFAULT_AVATAR_PATH;
         if (iconAsset?.zipPath) {
             const iconBuffer = extractedBuffers.get(iconAsset.zipPath);
             if (iconBuffer) {
@@ -118,9 +118,19 @@ export class CharXParser {
         return null;
     }
 
+    /**
+     * Normalize extension string: lowercase, strip leading dot.
+     * @param {string} ext
+     * @returns {string}
+     */
+    normalizeExtString(ext) {
+        if (typeof ext !== 'string') return '';
+        return ext.trim().toLowerCase().replace(/^\./, '');
+    }
+
     deriveCharXAssetExtension(assetExt, zipPath) {
-        const metaExt = typeof assetExt === 'string' ? assetExt.trim().toLowerCase() : '';
-        const pathExt = path.extname(zipPath || '').replace('.', '').toLowerCase();
+        const metaExt = this.normalizeExtString(assetExt);
+        const pathExt = this.normalizeExtString(path.extname(zipPath || ''));
         return metaExt || pathExt;
     }
 
@@ -178,18 +188,11 @@ export class CharXParser {
         }
 
         const separator = useHyphens ? '-' : '_';
-        // Convert to lowercase, replace spaces/special chars with separator
-        let base = cleaned
+        // Convert to lowercase, collapse non-alphanumeric runs to separator, trim edges
+        const base = cleaned
             .toLowerCase()
-            .replace(/\s+/g, separator)
-            .replace(/[^a-z0-9_.-]/g, separator)
-            .replace(new RegExp(`${separator}+`, 'g'), separator)
-            .replace(new RegExp(`^${separator}+|${separator}+$`, 'g'), '');
-
-        // For sprites using hyphens, also convert any remaining underscores to hyphens
-        if (useHyphens) {
-            base = base.replace(/_/g, '-');
-        }
+            .replace(/[^a-z0-9]+/g, separator)
+            .replace(new RegExp(`^${separator}|${separator}$`, 'g'), '');
 
         if (!base) {
             return fallback.toLowerCase();
@@ -268,6 +271,15 @@ function getUniqueAssetPath(dirPath, baseName, ext) {
     return path.join(dirPath, candidate);
 }
 
+/**
+ * Persist extracted CharX assets to appropriate ST directories.
+ * Note: Uses sync writes consistent with ST's existing file handling.
+ * @param {Array} assets - Mapped assets from CharXParser
+ * @param {Map<string, Buffer>} bufferMap - Extracted file buffers
+ * @param {Object} directories - User directories object
+ * @param {string} characterFolder - Character folder name (sanitized)
+ * @returns {{sprites: number, backgrounds: number, misc: number}}
+ */
 export function persistCharXAssets(assets, bufferMap, directories, characterFolder) {
     /** @type {{sprites: number, backgrounds: number, misc: number}} */
     const summary = { sprites: 0, backgrounds: 0, misc: 0 };
