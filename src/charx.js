@@ -298,7 +298,7 @@ export class CharXParser {
  */
 function deleteExistingByBaseName(dirPath, baseName) {
     try {
-        const files = fs.readdirSync(dirPath);
+        const files = fs.readdirSync(dirPath, { withFileTypes: true }).filter(f => f.isFile()).map(f => f.name);
         for (const file of files) {
             if (path.parse(file).name === baseName) {
                 fs.unlinkSync(path.join(dirPath, file));

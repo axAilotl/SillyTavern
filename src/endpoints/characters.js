@@ -779,7 +779,7 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
     // Apply standard character transformations
     let processedCard = readFromV2(card);
     unsetPrivateFields(processedCard);
-    processedCard['create_date'] = humanizedDateTime();
+    processedCard['create_date'] = new Date().toISOString();
     processedCard.name = sanitize(processedCard.name);
 
     const fileName = preservedFileName || getPngName(processedCard.name, request.user.directories);
