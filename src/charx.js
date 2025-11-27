@@ -7,6 +7,7 @@ import { extractFileFromZipBuffer, extractFilesFromZipBuffer, normalizeZipEntryP
 import { DEFAULT_AVATAR_PATH } from './constants.js';
 import { invalidateThumbnail } from './endpoints/thumbnails.js';
 
+// 'embeded://' is intentional - RisuAI exports use this misspelling
 const CHARX_EMBEDDED_URI_PREFIXES = ['embeded://', 'embedded://', '__asset:'];
 const CHARX_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng', 'avif', 'bmp', 'jfif']);
 const CHARX_SPRITE_TYPES = new Set(['emotion', 'expression']);
@@ -151,6 +152,29 @@ export class CharXParser {
         return ext.trim().toLowerCase().replace(/^\./, '');
     }
 
+    /**
+     * Strip trailing image extension from asset name if present.
+     * Handles cases like "image.png" with ext "png" → "image" (avoids "image.png.png")
+     * @param {string} name - Asset name that may contain extension
+     * @param {string} expectedExt - The expected extension (lowercase, no dot)
+     * @returns {string} Name with trailing extension stripped if it matched
+     */
+    stripTrailingImageExtension(name, expectedExt) {
+        if (!name || !expectedExt) return name;
+        const lower = name.toLowerCase();
+        // Check if name ends with the expected extension
+        if (lower.endsWith(`.${expectedExt}`)) {
+            return name.slice(0, -(expectedExt.length + 1));
+        }
+        // Also check for any known image extension at the end
+        for (const ext of CHARX_IMAGE_EXTENSIONS) {
+            if (lower.endsWith(`.${ext}`)) {
+                return name.slice(0, -(ext.length + 1));
+            }
+        }
+        return name;
+    }
+
     deriveCharXAssetExtension(assetExt, zipPath) {
         const metaExt = this.normalizeExtString(assetExt);
         const pathExt = this.normalizeExtString(path.extname(zipPath || ''));
@@ -245,8 +269,6 @@ export class CharXParser {
                 storageCategory = 'sprite';
             } else if (CHARX_BACKGROUND_TYPES.has(asset.type)) {
                 storageCategory = 'background';
-            } else if (asset.type) {
-                storageCategory = 'misc';
             } else {
                 storageCategory = 'misc';
             }
@@ -254,11 +276,13 @@ export class CharXParser {
             // Use hyphens for sprites so ST's expression label extraction works correctly
             // (sprites.js extracts label via regex that splits on dash or dot)
             const useHyphens = storageCategory === 'sprite';
+            // Strip trailing extension from name if present (e.g., "image.png" with ext "png")
+            const nameWithoutExt = this.stripTrailingImageExtension(asset.name, ext);
             acc.push({
                 ...asset,
                 ext,
                 storageCategory,
-                baseName: this.getCharXAssetBaseName(asset.name, `${storageCategory}-${asset.order ?? 0}`, useHyphens),
+                baseName: this.getCharXAssetBaseName(nameWithoutExt, `${storageCategory}-${asset.order ?? 0}`, useHyphens),
             });
 
             return acc;
@@ -267,24 +291,23 @@ export class CharXParser {
 }
 
 /**
- * Gets a unique file path by appending a numeric suffix if needed.
- * Uses underscore separator for compatibility with ST's sprite naming.
+ * Delete existing file with same base name (any extension) before overwriting.
+ * Matches ST's sprite upload behavior in sprites.js.
  * @param {string} dirPath - Directory path
  * @param {string} baseName - Base filename without extension
- * @param {string} ext - File extension without dot
- * @returns {string} Full unique file path
  */
-function getUniqueAssetPath(dirPath, baseName, ext) {
-    const safeExt = ext || 'png';
-    let suffix = 0;
-    let candidate = `${baseName}.${safeExt}`;
-
-    while (fs.existsSync(path.join(dirPath, candidate))) {
-        suffix++;
-        candidate = `${baseName}_${suffix}.${safeExt}`;
+function deleteExistingByBaseName(dirPath, baseName) {
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            if (path.parse(file).name === baseName) {
+                fs.unlinkSync(path.join(dirPath, file));
+                console.debug(`CharX: Overwriting existing ${file}`);
+            }
+        }
+    } catch {
+        // Directory doesn't exist yet or other error, that's fine
     }
-
-    return path.join(dirPath, candidate);
 }
 
 /**
@@ -341,40 +364,50 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
             continue;
         }
 
-        if (asset.storageCategory === 'sprite') {
-            const targetDir = ensureSpritesPath();
-            if (!targetDir) {
+        try {
+            if (asset.storageCategory === 'sprite') {
+                const targetDir = ensureSpritesPath();
+                if (!targetDir) {
+                    continue;
+                }
+                // Delete existing sprite with same base name (any extension) - matches sprites.js behavior
+                deleteExistingByBaseName(targetDir, asset.baseName);
+                const filePath = path.join(targetDir, `${asset.baseName}.${asset.ext || 'png'}`);
+                writeFileAtomicSync(filePath, buffer);
+                console.debug(`CharX: Saved sprite "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
+                summary.sprites += 1;
                 continue;
             }
-            const filePath = getUniqueAssetPath(targetDir, asset.baseName, asset.ext);
-            writeFileAtomicSync(filePath, buffer);
-            console.debug(`CharX: Saved sprite "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
-            summary.sprites += 1;
-            continue;
-        }
 
-        if (asset.storageCategory === 'background') {
-            if (!ensureDirectory(directories.backgrounds)) {
+            if (asset.storageCategory === 'background') {
+                if (!ensureDirectory(directories.backgrounds)) {
+                    continue;
+                }
+                const backgroundBaseName = `${characterFolder}_${asset.baseName}`;
+                // Delete existing background with same base name
+                deleteExistingByBaseName(directories.backgrounds, backgroundBaseName);
+                const fileName = `${backgroundBaseName}.${asset.ext || 'png'}`;
+                const filePath = path.join(directories.backgrounds, fileName);
+                writeFileAtomicSync(filePath, buffer);
+                invalidateThumbnail(directories, 'bg', fileName);
+                console.debug(`CharX: Saved background "${asset.name}" as ${fileName}`);
+                summary.backgrounds += 1;
                 continue;
             }
-            const backgroundBaseName = `${characterFolder}_${asset.baseName}`;
-            const filePath = getUniqueAssetPath(directories.backgrounds, backgroundBaseName, asset.ext);
-            writeFileAtomicSync(filePath, buffer);
-            invalidateThumbnail(directories, 'bg', path.basename(filePath));
-            console.debug(`CharX: Saved background "${asset.name}" as ${path.basename(filePath)}`);
-            summary.backgrounds += 1;
-            continue;
-        }
 
-        if (asset.storageCategory === 'misc') {
-            const miscDir = ensureMiscPath();
-            if (!miscDir) {
-                continue;
+            if (asset.storageCategory === 'misc') {
+                const miscDir = ensureMiscPath();
+                if (!miscDir) {
+                    continue;
+                }
+                // Overwrite existing misc asset with same name
+                const filePath = path.join(miscDir, `${asset.baseName}.${asset.ext || 'png'}`);
+                writeFileAtomicSync(filePath, buffer);
+                console.debug(`CharX: Saved misc asset "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
+                summary.misc += 1;
             }
-            const filePath = getUniqueAssetPath(miscDir, asset.baseName, asset.ext);
-            writeFileAtomicSync(filePath, buffer);
-            console.debug(`CharX: Saved misc asset "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
-            summary.misc += 1;
+        } catch (error) {
+            console.warn(`CharX: Failed to save asset "${asset.name}": ${error.message}`);
         }
     }
 

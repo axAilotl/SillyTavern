@@ -783,17 +783,20 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
     processedCard.name = sanitize(processedCard.name);
 
     const fileName = preservedFileName || getPngName(processedCard.name, request.user.directories);
+    // Use the actual character name for asset folders, not the unique filename
+    // ST's sprite system looks up by character name, not PNG filename
+    const characterFolder = processedCard.name;
     console.debug(`CharX: Saving character as ${fileName}.png`);
 
     if (auxiliaryAssets.length > 0) {
         try {
-            const summary = persistCharXAssets(auxiliaryAssets, extractedBuffers, request.user.directories, fileName);
+            const summary = persistCharXAssets(auxiliaryAssets, extractedBuffers, request.user.directories, characterFolder);
             if (summary.sprites || summary.backgrounds || summary.misc) {
-                console.info(`CharX: Imported ${summary.sprites} sprite(s), ${summary.backgrounds} background(s), ${summary.misc} misc asset(s) for ${fileName}`);
-                console.info(`CharX: Sprites → characters/${fileName}/, Backgrounds → backgrounds/${fileName}_*, Gallery → user/images/${fileName}/`);
+                console.info(`CharX: Imported ${summary.sprites} sprite(s), ${summary.backgrounds} background(s), ${summary.misc} misc asset(s) for ${characterFolder}`);
+                console.info(`CharX: Sprites → characters/${characterFolder}/, Backgrounds → backgrounds/${characterFolder}_*, Gallery → user/images/${characterFolder}/`);
             }
         } catch (error) {
-            console.warn(`CharX: Failed to persist auxiliary assets for ${fileName}`, error);
+            console.warn(`CharX: Failed to persist auxiliary assets for ${characterFolder}`, error);
         }
     }
 
