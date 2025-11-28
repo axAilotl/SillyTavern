@@ -69,7 +69,7 @@ import {
     renameGroupChat,
     importGroupChat,
     getGroupBlock,
-    getGroupCharacterCards,
+    getGroupCharacterCardsLazy,
     getGroupDepthPrompts,
 } from './scripts/group-chats.js';
 
@@ -3154,12 +3154,7 @@ export function baseChatReplace(value, name1, name2) {
 }
 
 /**
- * Returns the character card fields for the current character.
- * @param {object} [options={}]
- * @param {number} [options.chid] Optional character index
- * @param {boolean} [options.returnRaw=false] Whether to return raw values without processing macros
- *
- * @typedef {object} CharacterCardFields
+ * @typedef {Object} CharacterCardFields
  * @property {string} system System prompt
  * @property {string} mesExamples Message examples
  * @property {string} description Description
@@ -3170,60 +3165,119 @@ export function baseChatReplace(value, name1, name2) {
  * @property {string} version Character version
  * @property {string} charDepthPrompt Character depth note
  * @property {string} creatorNotes Character creator notes
- * @returns {CharacterCardFields} Character card fields
  */
-export function getCharacterCardFields({ chid = undefined, returnRaw = false } = {}) {
+
+/**
+ * Helper to create an object with lazy, memoized getters from a map of field resolvers.
+ * @param {Record<string, () => string>} resolvers Map of field names to resolver functions
+ * @returns {CharacterCardFields} Object with lazy getters
+ */
+export function createLazyFields(resolvers) {
+    const result = /** @type {CharacterCardFields} */ ({});
+    for (const [key, resolver] of Object.entries(resolvers)) {
+        let cached;
+        let resolved = false;
+        Object.defineProperty(result, key, {
+            get() {
+                if (!resolved) {
+                    cached = resolver();
+                    resolved = true;
+                }
+                return cached;
+            },
+            enumerable: true,
+            configurable: true,
+        });
+    }
+    return result;
+}
+
+/**
+ * Returns the character card fields for the current character as lazy getters.
+ * Each field is only processed (baseChatReplace) when first accessed.
+ * @param {Object} [options={}]
+ * @param {number} [options.chid] Optional character index
+ * @returns {CharacterCardFields} Character card fields with lazy evaluation
+ */
+export function getCharacterCardFieldsLazy({ chid = undefined } = {}) {
     const currentChid = chid ?? this_chid;
-
-    // Build transform function on the field value, depending on what is asked to be transformed
-    const transform = !returnRaw ? baseChatReplace : power_user.collapse_newlines ? collapseNewlines : (x) => x;
-
-    const result = {
-        system: '',
-        mesExamples: '',
-        description: '',
-        personality: '',
-        persona: '',
-        scenario: '',
-        jailbreak: '',
-        version: '',
-        charDepthPrompt: '',
-        creatorNotes: '',
-    };
-    result.persona = transform(power_user.persona_description?.trim(), name1, name2);
-
     const character = characters[currentChid];
 
-    if (!character) {
-        return result;
-    }
+    // For group chats, we need to check if group cards should be used
+    const useGroupCards = selected_group && character;
+    const groupCardsLazy = useGroupCards ? getGroupCharacterCardsLazy(selected_group, Number(currentChid)) : null;
 
-    const scenarioText = chat_metadata['scenario'] || character.scenario || '';
-    const exampleDialog = chat_metadata['mes_example'] || character.mes_example || '';
-    const systemPrompt = chat_metadata['system_prompt'] || character.data?.system_prompt || '';
+    /** @type {Record<string, () => string>} */
+    const resolvers = {
+        persona: () => baseChatReplace(power_user.persona_description?.trim(), name1, name2),
+        system: () => {
+            if (!character) return '';
+            const systemPrompt = chat_metadata['system_prompt'] || character.data?.system_prompt || '';
+            return power_user.prefer_character_prompt ? baseChatReplace(systemPrompt.trim(), name1, name2) : '';
+        },
+        jailbreak: () => {
+            if (!character) return '';
+            return power_user.prefer_character_jailbreak ? baseChatReplace(character.data?.post_history_instructions?.trim(), name1, name2) : '';
+        },
+        version: () => character?.data?.character_version ?? '',
+        charDepthPrompt: () => {
+            if (!character) return '';
+            return baseChatReplace(character.data?.extensions?.depth_prompt?.prompt?.trim(), name1, name2);
+        },
+        creatorNotes: () => {
+            if (!character) return '';
+            return baseChatReplace(character.data?.creator_notes?.trim(), name1, name2);
+        },
+        // These four fields may be overridden by group cards
+        description: () => {
+            if (groupCardsLazy) return groupCardsLazy.description;
+            if (!character) return '';
+            return baseChatReplace(character.description?.trim(), name1, name2);
+        },
+        personality: () => {
+            if (groupCardsLazy) return groupCardsLazy.personality;
+            if (!character) return '';
+            return baseChatReplace(character.personality?.trim(), name1, name2);
+        },
+        scenario: () => {
+            if (groupCardsLazy) return groupCardsLazy.scenario;
+            if (!character) return '';
+            const scenarioText = chat_metadata['scenario'] || character.scenario || '';
+            return baseChatReplace(scenarioText.trim(), name1, name2);
+        },
+        mesExamples: () => {
+            if (groupCardsLazy) return groupCardsLazy.mesExamples;
+            if (!character) return '';
+            const exampleDialog = chat_metadata['mes_example'] || character.mes_example || '';
+            return baseChatReplace(exampleDialog.trim(), name1, name2);
+        },
+    };
 
-    result.description = transform(character.description?.trim(), name1, name2);
-    result.personality = transform(character.personality?.trim(), name1, name2);
-    result.scenario = transform(scenarioText.trim(), name1, name2);
-    result.mesExamples = transform(exampleDialog.trim(), name1, name2);
-    result.system = power_user.prefer_character_prompt ? transform(systemPrompt.trim(), name1, name2) : '';
-    result.jailbreak = power_user.prefer_character_jailbreak ? transform(character.data?.post_history_instructions?.trim(), name1, name2) : '';
-    result.version = character.data?.character_version ?? '';
-    result.charDepthPrompt = transform(character.data?.extensions?.depth_prompt?.prompt?.trim(), name1, name2);
-    result.creatorNotes = transform(character.data?.creator_notes?.trim(), name1, name2);
+    return createLazyFields(resolvers);
+}
 
-    if (selected_group) {
-        const groupCards = getGroupCharacterCards(selected_group, Number(currentChid));
+/**
+ * Returns the character card fields for the current character.
+ * @param {Object} [options={}]
+ * @param {number} [options.chid] Optional character index
+ * @returns {CharacterCardFields} Character card fields
+ */
+export function getCharacterCardFields({ chid = undefined } = {}) {
+    const lazy = getCharacterCardFieldsLazy({ chid });
 
-        if (groupCards) {
-            result.description = groupCards.description;
-            result.personality = groupCards.personality;
-            result.scenario = groupCards.scenario;
-            result.mesExamples = groupCards.mesExamples;
-        }
-    }
-
-    return result;
+    // Resolve all lazy fields into a plain object
+    return {
+        system: lazy.system,
+        mesExamples: lazy.mesExamples,
+        description: lazy.description,
+        personality: lazy.personality,
+        persona: lazy.persona,
+        scenario: lazy.scenario,
+        jailbreak: lazy.jailbreak,
+        version: lazy.version,
+        charDepthPrompt: lazy.charDepthPrompt,
+        creatorNotes: lazy.creatorNotes,
+    };
 }
 
 /**

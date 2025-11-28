@@ -1,4 +1,4 @@
-import { name1, name2, characters, getCharacterCardFields, getGeneratingModel } from '../../../script.js';
+import { name1, name2, characters, getCharacterCardFieldsLazy, getGeneratingModel } from '../../../script.js';
 import { groups, selected_group } from '../../../scripts/group-chats.js';
 /**
  * MacroEnvBuilder is responsible for constructing the MacroEnv object
@@ -91,18 +91,29 @@ class MacroEnvBuilder {
         };
 
         if (ctx.replaceCharacterCard) {
-            const fields = getCharacterCardFields({ returnRaw: true });
+            // Use lazy fields - each property is only resolved when accessed
+            const fields = getCharacterCardFieldsLazy();
             if (fields) {
-                env.character.charPrompt = fields.system || '';
-                env.character.charInstruction = fields.jailbreak || '';
-                env.character.description = fields.description || '';
-                env.character.personality = fields.personality || '';
-                env.character.scenario = fields.scenario || '';
-                env.character.persona = fields.persona || '';
-                env.character.mesExamplesRaw = fields.mesExamples || '';
-                env.character.version = fields.version || '';
-                env.character.charDepthPrompt = fields.charDepthPrompt || '';
-                env.character.creatorNotes = fields.creatorNotes || '';
+                // Define lazy getters on env.character that delegate to fields
+                const fieldMappings = /** @type {const} */ ([
+                    ['charPrompt', 'system'],
+                    ['charInstruction', 'jailbreak'],
+                    ['description', 'description'],
+                    ['personality', 'personality'],
+                    ['scenario', 'scenario'],
+                    ['persona', 'persona'],
+                    ['mesExamplesRaw', 'mesExamples'],
+                    ['version', 'version'],
+                    ['charDepthPrompt', 'charDepthPrompt'],
+                    ['creatorNotes', 'creatorNotes'],
+                ]);
+                for (const [envKey, fieldKey] of fieldMappings) {
+                    Object.defineProperty(env.character, envKey, {
+                        get() { return fields[fieldKey] || ''; },
+                        enumerable: true,
+                        configurable: true,
+                    });
+                }
             }
         }
 
