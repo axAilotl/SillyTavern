@@ -488,6 +488,14 @@ test.describe('MacroEngine', () => {
             // We expect one warning for each invalid invocation (too few and too many list args)
             expect(testWarnings.length).toBe(2);
         });
+
+        test('should resolve nested macros in arguments, even though the outer macro has wrong number of arguments', async ({ page }) => {
+            // Macro {{user ....}} will fail, because it has no args, but {{char}} should still resolve
+            const input = 'Result: {{user Something {{char}}}}';
+            const output = await evaluateWithEngine(page, input);
+            expect(output).toBe('Result: {{user Something Character}}');
+        });
+
     });
 
     test.describe('Type validation', () => {
