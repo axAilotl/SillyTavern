@@ -786,23 +786,19 @@ async function importFromCharX(uploadPath, { request }, preservedFileName) {
     // Use the actual character name for asset folders, not the unique filename
     // ST's sprite system looks up by character name, not PNG filename
     const characterFolder = processedCard.name;
-    console.debug(`CharX: Saving character as ${fileName}.png`);
 
     if (auxiliaryAssets.length > 0) {
         try {
             const summary = persistCharXAssets(auxiliaryAssets, extractedBuffers, request.user.directories, characterFolder);
             if (summary.sprites || summary.backgrounds || summary.misc) {
-                console.info(`CharX: Imported ${summary.sprites} sprite(s), ${summary.backgrounds} background(s), ${summary.misc} misc asset(s) for ${characterFolder}`);
-                console.info(`CharX: Sprites → characters/${characterFolder}/, Backgrounds → characters/${characterFolder}/backgrounds/, Gallery → user/images/${characterFolder}/`);
+                console.log(`CharX: Imported ${summary.sprites} sprite(s), ${summary.backgrounds} background(s), ${summary.misc} misc asset(s) for ${characterFolder}`);
             }
         } catch (error) {
             console.warn(`CharX: Failed to persist auxiliary assets for ${characterFolder}`, error);
         }
     }
 
-    console.debug('CharX: Writing character data to PNG');
     const result = await writeCharacterData(avatar, JSON.stringify(processedCard), fileName, request);
-    console.debug(`CharX: Import ${result ? 'successful' : 'failed'} for ${fileName}`);
     return result ? fileName : '';
 }
 

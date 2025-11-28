@@ -221,7 +221,6 @@ export async function extractFileFromZipBuffer(archiveBuffer, fileExtension) {
 
                 zipfile.on('entry', (entry) => {
                     if (entry.fileName.endsWith(fileExtension) && !entry.fileName.startsWith('__MACOSX')) {
-                        console.info(`Extracting ${entry.fileName}`);
                         zipfile.openReadStream(entry, (err, readStream) => {
                             if (err) {
                                 console.warn(`Error opening read stream: ${err.message}`);
@@ -312,11 +311,8 @@ export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
     }
 
     if (targets.size === 0) {
-        console.debug('extractFilesFromZipBuffer: No targets to extract');
         return new Map();
     }
-
-    console.debug(`extractFilesFromZipBuffer: Extracting ${targets.size} files:`, [...targets.keys()]);
 
     return await new Promise((resolve) => {
         const results = new Map();
@@ -345,8 +341,6 @@ export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
                         return zipfile.readEntry();
                     }
 
-                    console.debug(`extractFilesFromZipBuffer: Found target ${normalizedEntry}`);
-
                     zipfile.openReadStream(entry, (streamErr, readStream) => {
                         if (streamErr) {
                             console.warn(`Error opening read stream: ${streamErr.message}`);
@@ -361,10 +355,8 @@ export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
                         readStream.on('end', () => {
                             results.set(normalizedEntry, Buffer.concat(chunks));
                             targets.delete(normalizedEntry);
-                            console.debug(`extractFilesFromZipBuffer: Extracted ${normalizedEntry}, ${targets.size} remaining`);
 
                             if (targets.size === 0) {
-                                console.debug('extractFilesFromZipBuffer: All targets found, finalizing');
                                 finalize();
                             } else {
                                 zipfile.readEntry();
@@ -384,15 +376,10 @@ export async function extractFilesFromZipBuffer(archiveBuffer, fileNames) {
                 });
 
                 zipfile.on('close', () => {
-                    console.debug('extractFilesFromZipBuffer: ZIP closed');
                     finalize();
                 });
 
                 zipfile.on('end', () => {
-                    console.debug('extractFilesFromZipBuffer: ZIP end reached');
-                    if (targets.size > 0) {
-                        console.warn(`extractFilesFromZipBuffer: ZIP ended but ${targets.size} targets not found:`, [...targets.keys()]);
-                    }
                     finalize();
                 });
             });
@@ -446,7 +433,6 @@ export async function getImageBuffers(zipFilePath) {
                 zipfile.on('entry', (entry) => {
                     const mimeType = mime.lookup(entry.fileName);
                     if (mimeType && mimeType.startsWith('image/') && !entry.fileName.startsWith('__MACOSX')) {
-                        console.info(`Extracting ${entry.fileName}`);
                         zipfile.openReadStream(entry, (err, readStream) => {
                             if (err) {
                                 reject(err);
