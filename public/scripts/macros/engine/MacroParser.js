@@ -25,6 +25,7 @@ class MacroParser extends CstParser {
         super(MacroLexer.def, {
             traceInitPerf: true,
             nodeLocationTracking: 'full',
+            recoveryEnabled: true,
         });
         const Tokens = MacroLexer.tokens;
 

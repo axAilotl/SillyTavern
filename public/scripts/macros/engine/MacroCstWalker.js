@@ -109,10 +109,7 @@ class MacroCstWalker {
      * @returns {Array<DocumentItem>}
      */
     #collectDocumentItems(cst) {
-        const plaintextTokens = /** @type {IToken[]} */ ([
-            ...(cst.children.Plaintext || []),
-            ...(cst.children['Plaintext.OpenBrace'] || []),
-        ]);
+        const plaintextTokens = /** @type {IToken[]} */ (cst.children.plaintext || []);
         const macroNodes = /** @type {CstNode[]} */ (cst.children.macro || []);
 
         /** @type {Array<DocumentItem>} */
@@ -132,6 +129,16 @@ class MacroCstWalker {
         }
 
         for (const macroNode of macroNodes) {
+            const children = macroNode.children || {};
+            const endToken = /** @type {IToken?} */ ((children['Macro.End'] || [])[0]);
+
+            // If the end token was inserted during error recovery, treat this macro as plaintext
+            if (this.#isRecoveryToken(endToken)) {
+                // Flatten the incomplete macro: collect its tokens as plaintext but keep nested macros
+                this.#flattenIncompleteMacro(macroNode, endToken, items);
+                continue;
+            }
+
             const range = this.#getMacroRange(macroNode);
             items.push({
                 type: 'macro',
@@ -308,6 +315,74 @@ class MacroCstWalker {
             return { startOffset: macroNode.location.startOffset, endOffset: macroNode.location.endOffset };
         }
         return { startOffset: 0, endOffset: 0 };
+    }
+
+    /**
+     * Flattens an incomplete macro node into document items.
+     * Tokens from the incomplete macro become plaintext, but nested complete macros are preserved.
+     *
+     * @param {CstNode} macroNode
+     * @param {IToken} excludeToken - The recovery-inserted token to exclude
+     * @param {Array<DocumentItem>} items - The items array to add to
+     */
+    #flattenIncompleteMacro(macroNode, excludeToken, items) {
+        const children = macroNode.children || {};
+
+        for (const key of Object.keys(children)) {
+            for (const element of children[key] || []) {
+                // Skip the recovery-inserted token
+                if (element === excludeToken) continue;
+
+                // Handle IToken - add as plaintext
+                if ('startOffset' in element && typeof element.startOffset === 'number') {
+                    items.push({
+                        type: 'plaintext',
+                        startOffset: element.startOffset,
+                        endOffset: element.endOffset ?? element.startOffset,
+                        token: element,
+                    });
+                }
+                // Handle nested CstNode (macro or argument)
+                else if ('children' in element) {
+                    const nestedChildren = element.children || {};
+                    const nestedEnd = /** @type {IToken?} */ ((nestedChildren['Macro.End'] || [])[0]);
+                    const nestedStart = /** @type {IToken?} */ ((nestedChildren['Macro.Start'] || [])[0]);
+
+                    // Check if this is a complete macro node
+                    if (nestedStart && nestedEnd) {
+                        if (!this.#isRecoveryToken(nestedEnd)) {
+                            // Complete nested macro - add as macro item
+                            const range = this.#getMacroRange(element);
+                            items.push({
+                                type: 'macro',
+                                startOffset: range.startOffset,
+                                endOffset: range.endOffset,
+                                node: element,
+                            });
+                        } else {
+                            // Another incomplete nested macro - recurse
+                            this.#flattenIncompleteMacro(element, nestedEnd, items);
+                        }
+                    } else {
+                        // Not a macro node (e.g., arguments, argument) - recurse into it
+                        this.#flattenIncompleteMacro(element, excludeToken, items);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if a token was inserted during Chevrotain's error recovery.
+     * Recovery tokens have `isInsertedInRecovery=true` or invalid offset values.
+     *
+     * @param {IToken|null|undefined} token
+     * @returns {boolean}
+     */
+    #isRecoveryToken(token) {
+        return token?.isInsertedInRecovery === true
+            || typeof token?.startOffset !== 'number'
+            || Number.isNaN(token?.startOffset);
     }
 
     /**
