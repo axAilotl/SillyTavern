@@ -16,6 +16,7 @@ module.exports = {
     },
     parserOptions: {
         ecmaVersion: 'latest',
+        sourceType: 'module',
     },
     overrides: [
     ],
@@ -44,5 +45,10 @@ module.exports = {
         // These rules should eventually be enabled.
         'no-async-promise-executor': 'off',
         'no-inner-declarations': 'off',
+    },
+    settings: {
+        jest: {
+            version: 29,
+        },
     },
 };

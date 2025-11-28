@@ -405,7 +405,7 @@ test.describe('MacroParser', () => {
                 'Macro.identifier': '//',
                 'Macro.End': '}}',
                 'arguments': {
-                    'argument': 'comment'
+                    'argument': 'comment',
                 },
             });
         });
@@ -421,7 +421,7 @@ test.describe('MacroParser', () => {
                 'Macro.identifier': '//',
                 'Macro.End': '}}',
                 'arguments': {
-                    'argument': 'comment'
+                    'argument': 'comment',
                 },
             });
         });
@@ -438,7 +438,7 @@ test.describe('MacroParser', () => {
                 'Macro.identifier': '//',
                 'Macro.End': '}}',
                 'arguments': {
-                    'argument': '!@#$%^&*()_+'
+                    'argument': '!@#$%^&*()_+',
                 },
             });
         });
@@ -455,7 +455,7 @@ test.describe('MacroParser', () => {
                 'Macro.identifier': '//',
                 'Macro.End': '}}',
                 'arguments': {
-                    'argument': '!@flags'
+                    'argument': '!@flags',
                 },
             });
         });
@@ -475,7 +475,7 @@ This is the second line
                 'Macro.identifier': '//',
                 'Macro.End': '}}',
                 'arguments': {
-                    'argument': 'This is a multiline comment.\nThis is the second line'
+                    'argument': 'This is a multiline comment.\nThis is the second line',
                 },
             });
         });

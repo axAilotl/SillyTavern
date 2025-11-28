@@ -62,7 +62,7 @@ test.describe('MacroEngine', () => {
         });
 
         test('should support multi-line arguments for macros', async ({ page }) => {
-            const input = `Result: {{reverse::first line\nsecond line}}`; // "\n" becomes a real newline in the macro argument
+            const input = 'Result: {{reverse::first line\nsecond line}}'; // "\n" becomes a real newline in the macro argument
             const output = await evaluateWithEngine(page, input);
 
             const original = 'first line\nsecond line';
@@ -120,7 +120,7 @@ test.describe('MacroEngine', () => {
         });
 
         test('should support multi-line comment bodies', async ({ page }) => {
-            const input = `Start{{// line one\nline two\nline three}}End`;
+            const input = 'Start{{// line one\nline two\nline three}}End';
             const output = await evaluateWithEngine(page, input);
             expect(output).toBe('StartEnd');
         });
@@ -386,12 +386,12 @@ test.describe('MacroEngine', () => {
         test('should return stable results for the same chat and content', async ({ page }) => {
             // Simulate a consistent chat id hash
             let originalHash;
-            await page.evaluate(async () => {
+            await page.evaluate(async ([originalHash]) => {
                 /** @type {import('../../public/script.js')} */
                 const { chat_metadata } = await import('./script.js');
                 originalHash = chat_metadata['chat_id_hash'];
                 chat_metadata['chat_id_hash'] = 123456;
-            });
+            }, [originalHash]);
 
             const input = 'Choices: {{pick::red::green::blue}}, {{pick::red::green::blue}}.';
 
@@ -415,11 +415,11 @@ test.describe('MacroEngine', () => {
             expect(options.includes(second)).toBeTruthy();
 
             // Restore original hash
-            await page.evaluate(async () => {
+            await page.evaluate(async ([originalHash]) => {
                 /** @type {import('../../public/script.js')} */
                 const { chat_metadata } = await import('./script.js');
                 chat_metadata['chat_id_hash'] = originalHash;
-            });
+            }, [originalHash]);
         });
     });
 
