@@ -6,7 +6,7 @@ import { getInstructMacros } from './instruct-mode.js';
 import { getVariableMacros } from './variables.js';
 import { isMobile } from './RossAscends-mods.js';
 import { inject_ids } from './constants.js';
-import { initRegisterMacros, macros as macroSystem } from './macros/macro-system.js';
+import { initRegisterMacros, MacroCategory, macros as macroSystem } from './macros/macro-system.js';
 import { power_user } from './power-user.js';
 
 /**
@@ -713,6 +713,7 @@ export function initMacros() {
             let lastGenerationType = '';
 
             macroSystem.register('lastGenerationType', {
+                category: MacroCategory.STATE,
                 description: 'Returns the type of the last generation (e.g., "normal", "swipe", "continue", "impersonate", "quiet").',
                 handler: () => lastGenerationType,
             });
@@ -728,6 +729,7 @@ export function initMacros() {
         }
 
         macroSystem.register('isMobile', {
+            category: MacroCategory.STATE,
             description: 'Returns "true" if the user is on a mobile device, "false" otherwise.',
             handler: () => String(isMobile()),
         });
