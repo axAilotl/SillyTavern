@@ -37,6 +37,39 @@ export const MacroCategory = Object.freeze({
 });
 
 /**
+ * @typedef {Object} MacroDefinitionOptions
+ * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
+ * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
+ * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
+ * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
+ * @property {string} [description=''] - Add a description of what the macro does.
+ * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
+ * @property {MacroHandler} handler - The handler function for the macro.
+ */
+
+/**
+ * @typedef {Object} MacroPositionalArgDef
+ * @property {string} name
+ * @property {string} [sampleValue]
+ * @property {string} [description]
+ * @property {MacroArgType} [type='string']
+ */
+
+/**
+ * @typedef {'string'|'integer'|'number'|'boolean'} MacroArgType
+ */
+
+/**
+ * @typedef {Object} MacroListSpec
+ * @property {number} [min]
+ * @property {number} [max]
+ */
+
+/**
+ * @typedef {(context: MacroExecutionContext) => string} MacroHandler
+ */
+
+/**
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
  * @property {string[]} args
@@ -51,46 +84,6 @@ export const MacroCategory = Object.freeze({
  */
 
 /**
- * @typedef {'string'|'integer'|'number'|'boolean'} MacroArgType
- */
-
-/**
- * @typedef {Object} MacroPositionalArgDef
- * @property {string} name
- * @property {string} [sampleValue]
- * @property {string} [description]
- * @property {MacroArgType} [type='string']
- */
-
-/**
- * @typedef {Object} MacroListSpec
- * @property {number} [min]
- * @property {number} [max]
- */
-
-/**
- * @typedef {Object} MacroSource
- * @property {string} name - Source identifier (extension name or script path)
- * @property {boolean} isExtension - True if registered from an extension
- * @property {boolean} isThirdParty - True if registered from a third-party extension
- */
-
-/**
- * @typedef {(context: MacroExecutionContext) => string} MacroHandler
- */
-
-/**
- * @typedef {Object} MacroDefinitionOptions
- * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
- * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
- * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
- * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
- * @property {string} [description=''] - Add a description of what the macro does.
- * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
- * @property {MacroHandler} handler - The handler function for the macro.
- */
-
-/**
  * @typedef {Object} MacroDefinition
  * @property {string} name
  * @property {MacroCategory|string} category
@@ -102,6 +95,13 @@ export const MacroCategory = Object.freeze({
  * @property {string|null} returns
  * @property {MacroHandler} handler
  * @property {MacroSource} source
+ */
+
+/**
+ * @typedef {Object} MacroSource
+ * @property {string} name - Source identifier (extension name or script path)
+ * @property {boolean} isExtension - True if registered from an extension
+ * @property {boolean} isThirdParty - True if registered from a third-party extension
  */
 
 /**
