@@ -380,16 +380,16 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
             }
 
             if (asset.storageCategory === 'background') {
-                if (!ensureDirectory(directories.backgrounds)) {
+                // Store in character-specific backgrounds folder: characters/{charName}/backgrounds/
+                const backgroundDir = path.join(directories.characters, characterFolder, 'backgrounds');
+                if (!ensureDirectory(backgroundDir)) {
                     continue;
                 }
-                const backgroundBaseName = `${characterFolder}_${asset.baseName}`;
                 // Delete existing background with same base name
-                deleteExistingByBaseName(directories.backgrounds, backgroundBaseName);
-                const fileName = `${backgroundBaseName}.${asset.ext || 'png'}`;
-                const filePath = path.join(directories.backgrounds, fileName);
+                deleteExistingByBaseName(backgroundDir, asset.baseName);
+                const fileName = `${asset.baseName}.${asset.ext || 'png'}`;
+                const filePath = path.join(backgroundDir, fileName);
                 writeFileAtomicSync(filePath, buffer);
-                invalidateThumbnail(directories, 'bg', fileName);
                 console.debug(`CharX: Saved background "${asset.name}" as ${fileName}`);
                 summary.backgrounds += 1;
                 continue;
