@@ -161,6 +161,11 @@ class MacroEngine {
     #runPostProcessors(text, env) {
         let result = text;
 
+        // Unescape braces: \{ → { and \} → }
+        // Since \{\{ doesn't match {{ (MacroStart), it passes through as plain text.
+        // We only need to remove the backslashes in post-processing.
+        result = result.replace(/\\([{}])/g, '$1');
+
         // The original trim macro is reaching over the boundaries of the defined macro. This is not something the engine supports.
         // To treat {{trim}} as it was before, we won't process it by the engine itself,
         // but doing a regex replace on {{trim}} and the surrounding area, after all other macros have been processed.
