@@ -4,7 +4,7 @@
 
 import { isFalseBoolean, isTrueBoolean } from '../../utils.js';
 import { MacroEngine } from './MacroEngine.js';
-import { createMacroRuntimeError, logMacroRegisterWarning, logMacroRuntimeWarning } from './MacroDiagnostics.js';
+import { createMacroRuntimeError, logMacroRegisterError, logMacroRegisterWarning, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
 /**
  * Enum of standard macro categories for grouping in documentation and autocomplete.
@@ -133,161 +133,174 @@ class MacroRegistry {
 
     /**
      * Registers a macro with the registry.
+     * Errors during registration are caught and logged, the macro will not be registered, and the function returns null.
      *
      * @param {string} name - Macro name (identifier).
      * @param {MacroDefinitionOptions} options - Macro registration options including handler and metadata.
-     * @returns {MacroDefinition}
+     * @returns {MacroDefinition|null} The registered definition, or null if registration failed.
      */
     registerMacro(name, options) {
-        if (typeof name !== 'string' || !name.trim()) throw new Error('Macro name must be a non-empty string');
-        name = name.trim();
-        if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
+        // Extract name early for error logging
+        const macroName = typeof name === 'string' ? name.trim() : String(name);
 
-        const {
-            category: rawCategory,
-            requiredArgs: rawRequiredArgs,
-            list: rawList,
-            strictArgs: rawStrictArgs,
-            description: rawDescription,
-            returns: rawReturns,
-            displayOverride: rawDisplayOverride,
-            exampleUsage: rawExampleUsage,
-            handler,
-        } = options;
+        try {
+            if (typeof name !== 'string' || !name.trim()) throw new Error('Macro name must be a non-empty string');
+            name = name.trim();
+            if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
-        if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
-        if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
-        const category = rawCategory.trim();
+            const {
+                category: rawCategory,
+                requiredArgs: rawRequiredArgs,
+                list: rawList,
+                strictArgs: rawStrictArgs,
+                description: rawDescription,
+                returns: rawReturns,
+                displayOverride: rawDisplayOverride,
+                exampleUsage: rawExampleUsage,
+                handler,
+            } = options;
 
-        let requiredArgs = 0;
-        /** @type {MacroPositionalArgDef[]} */
-        let requiredArgDefs = [];
-        if (rawRequiredArgs !== undefined) {
-            if (Array.isArray(rawRequiredArgs)) {
-                requiredArgs = rawRequiredArgs.length;
-                requiredArgDefs = rawRequiredArgs.map((def, index) => {
-                    if (!def || typeof def !== 'object') throw new Error(`Macro "${name}" options.requiredArgs[${index}] must be an object when using argument definitions.`);
-                    if (typeof def.name !== 'string' || !def.name.trim()) throw new Error(`Macro "${name}" options.requiredArgs[${index}].name must be a non-empty string when using argument definitions.`);
+            if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
+            if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
+            const category = rawCategory.trim();
 
-                    /** @type {MacroPositionalArgDef} */
-                    const normalized = {
-                        name: def.name.trim(),
-                        sampleValue: def.sampleValue?.trim(),
-                        description: typeof def.description === 'string' ? def.description : undefined,
-                        type: def.type ?? 'string',
-                    };
+            let requiredArgs = 0;
+            /** @type {MacroPositionalArgDef[]} */
+            let requiredArgDefs = [];
+            if (rawRequiredArgs !== undefined) {
+                if (Array.isArray(rawRequiredArgs)) {
+                    requiredArgs = rawRequiredArgs.length;
+                    requiredArgDefs = rawRequiredArgs.map((def, index) => {
+                        if (!def || typeof def !== 'object') throw new Error(`Macro "${name}" options.requiredArgs[${index}] must be an object when using argument definitions.`);
+                        if (typeof def.name !== 'string' || !def.name.trim()) throw new Error(`Macro "${name}" options.requiredArgs[${index}].name must be a non-empty string when using argument definitions.`);
 
-                    if (normalized.type !== undefined
-                        && normalized.type !== 'string'
-                        && normalized.type !== 'integer'
-                        && normalized.type !== 'number'
-                        && normalized.type !== 'boolean') {
-                        throw new Error(`Macro "${name}" options.requiredArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
+                        /** @type {MacroPositionalArgDef} */
+                        const normalized = {
+                            name: def.name.trim(),
+                            sampleValue: def.sampleValue?.trim(),
+                            description: typeof def.description === 'string' ? def.description : undefined,
+                            type: def.type ?? 'string',
+                        };
+
+                        if (normalized.type !== undefined
+                            && normalized.type !== 'string'
+                            && normalized.type !== 'integer'
+                            && normalized.type !== 'number'
+                            && normalized.type !== 'boolean') {
+                            throw new Error(`Macro "${name}" options.requiredArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
+                        }
+
+                        return normalized;
+                    });
+                } else if (typeof rawRequiredArgs === 'number') {
+                    if (!Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
+                        throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
                     }
-
-                    return normalized;
-                });
-            } else if (typeof rawRequiredArgs === 'number') {
-                if (!Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
-                    throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
+                    requiredArgs = rawRequiredArgs;
+                    requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `arg${i + 1}`, sampleValue: `arg${i + 1}`, type: 'string' }));
+                } else {
+                    throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer or an array of argument definitions when provided.`);
                 }
-                requiredArgs = rawRequiredArgs;
-                requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `arg${i + 1}`, sampleValue: `arg${i + 1}`, type: 'string' }));
-            } else {
-                throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer or an array of argument definitions when provided.`);
             }
-        }
 
-        /** @type {{ min: number, max: (number|null) }|null} */
-        let list = null;
-        if (rawList !== undefined) {
-            if (typeof rawList === 'boolean') {
-                list = rawList ? { min: 0, max: null } : null;
-            } else if (typeof rawList === 'object' && rawList !== null) {
-                if (typeof rawList.min !== 'number' || rawList.min < 0) throw new Error(`Macro "${name}" options.list.min must be a non-negative integer when provided.`);
-                if (rawList.max !== undefined && typeof rawList.max !== 'number') throw new Error(`Macro "${name}" options.list.max must be a number when provided.`);
-                if (rawList.max !== undefined && rawList.max < rawList.min) throw new Error(`Macro "${name}" options.list.max must be greater than or equal to options.list.min.`);
-                list = { min: rawList.min, max: rawList.max ?? null };
-            } else {
-                throw new Error(`Macro "${name}" options.list must be a boolean or an object with numeric min/max when provided.`);
-            }
-        }
-
-        let strictArgs = true;
-        if (rawStrictArgs !== undefined) {
-            if (typeof rawStrictArgs !== 'boolean') throw new Error(`Macro "${name}" options.strictArgs must be a boolean when provided.`);
-            strictArgs = rawStrictArgs;
-        }
-
-        let description = '<no description>';
-        if (rawDescription !== undefined) {
-            if (typeof rawDescription !== 'string') throw new Error(`Macro "${name}" options.description must be a string when provided.`);
-            description = rawDescription;
-        }
-
-        let returns = null;
-        if (rawReturns !== undefined && rawReturns !== null) {
-            if (typeof rawReturns !== 'string') throw new Error(`Macro "${name}" options.returns must be a string when provided.`);
-            returns = rawReturns || '<empty string>';
-        }
-
-        // Process displayOverride
-        let displayOverride = null;
-        if (rawDisplayOverride !== undefined && rawDisplayOverride !== null) {
-            if (typeof rawDisplayOverride !== 'string') throw new Error(`Macro "${name}" options.displayOverride must be a string when provided.`);
-            displayOverride = rawDisplayOverride.trim();
-            if (displayOverride && !displayOverride.startsWith('{{')) {
-                logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.displayOverride should include curly braces. Auto-wrapping.` });
-                displayOverride = `{{${displayOverride}}}`;
-            }
-        }
-
-        // Process exampleUsage
-        /** @type {string[]} */
-        let exampleUsage = [];
-        if (rawExampleUsage !== undefined && rawExampleUsage !== null) {
-            const examples = Array.isArray(rawExampleUsage) ? rawExampleUsage : [rawExampleUsage];
-            for (const [i, ex] of examples.entries()) {
-                if (typeof ex !== 'string') throw new Error(`Macro "${name}" options.exampleUsage[${i}] must be a string.`);
-                let trimmed = ex.trim();
-                if (trimmed && !trimmed.startsWith('{{')) {
-                    logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.exampleUsage[${i}] should include curly braces. Auto-wrapping.` });
-                    trimmed = `{{${trimmed}}}`;
+            /** @type {{ min: number, max: (number|null) }|null} */
+            let list = null;
+            if (rawList !== undefined) {
+                if (typeof rawList === 'boolean') {
+                    list = rawList ? { min: 0, max: null } : null;
+                } else if (typeof rawList === 'object' && rawList !== null) {
+                    if (typeof rawList.min !== 'number' || rawList.min < 0) throw new Error(`Macro "${name}" options.list.min must be a non-negative integer when provided.`);
+                    if (rawList.max !== undefined && typeof rawList.max !== 'number') throw new Error(`Macro "${name}" options.list.max must be a number when provided.`);
+                    if (rawList.max !== undefined && rawList.max < rawList.min) throw new Error(`Macro "${name}" options.list.max must be greater than or equal to options.list.min.`);
+                    list = { min: rawList.min, max: rawList.max ?? null };
+                } else {
+                    throw new Error(`Macro "${name}" options.list must be a boolean or an object with numeric min/max when provided.`);
                 }
-                if (trimmed) exampleUsage.push(trimmed);
             }
+
+            let strictArgs = true;
+            if (rawStrictArgs !== undefined) {
+                if (typeof rawStrictArgs !== 'boolean') throw new Error(`Macro "${name}" options.strictArgs must be a boolean when provided.`);
+                strictArgs = rawStrictArgs;
+            }
+
+            let description = '<no description>';
+            if (rawDescription !== undefined) {
+                if (typeof rawDescription !== 'string') throw new Error(`Macro "${name}" options.description must be a string when provided.`);
+                description = rawDescription;
+            }
+
+            let returns = null;
+            if (rawReturns !== undefined && rawReturns !== null) {
+                if (typeof rawReturns !== 'string') throw new Error(`Macro "${name}" options.returns must be a string when provided.`);
+                returns = rawReturns || '<empty string>';
+            }
+
+            // Process displayOverride
+            let displayOverride = null;
+            if (rawDisplayOverride !== undefined && rawDisplayOverride !== null) {
+                if (typeof rawDisplayOverride !== 'string') throw new Error(`Macro "${name}" options.displayOverride must be a string when provided.`);
+                displayOverride = rawDisplayOverride.trim();
+                if (displayOverride && !displayOverride.startsWith('{{')) {
+                    logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.displayOverride should include curly braces. Auto-wrapping.` });
+                    displayOverride = `{{${displayOverride}}}`;
+                }
+            }
+
+            // Process exampleUsage
+            /** @type {string[]} */
+            let exampleUsage = [];
+            if (rawExampleUsage !== undefined && rawExampleUsage !== null) {
+                const examples = Array.isArray(rawExampleUsage) ? rawExampleUsage : [rawExampleUsage];
+                for (const [i, ex] of examples.entries()) {
+                    if (typeof ex !== 'string') throw new Error(`Macro "${name}" options.exampleUsage[${i}] must be a string.`);
+                    let trimmed = ex.trim();
+                    if (trimmed && !trimmed.startsWith('{{')) {
+                        logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.exampleUsage[${i}] should include curly braces. Auto-wrapping.` });
+                        trimmed = `{{${trimmed}}}`;
+                    }
+                    if (trimmed) exampleUsage.push(trimmed);
+                }
+            }
+
+            if (this.#macros.has(name)) {
+                console.warn(`Macro "${name}" is already registered and will be overwritten.`);
+            }
+
+            // Detect extension/third-party status from call stack
+            const { isExtension, isThirdParty, source } = detectMacroSource();
+
+            /** @type {MacroDefinition} */
+            const definition = {
+                name: name,
+                category,
+                requiredArgs,
+                requiredArgDefs,
+                list,
+                strictArgs,
+                description,
+                returns,
+                displayOverride,
+                exampleUsage,
+                handler,
+                source: {
+                    name: source,
+                    isExtension,
+                    isThirdParty,
+                },
+            };
+
+            this.#macros.set(name, definition);
+
+            return definition;
+        } catch (error) {
+            logMacroRegisterError({
+                message: `Failed to register macro "${macroName}". The macro will not be available.`,
+                macroName,
+                error,
+            });
+            return null;
         }
-
-        if (this.#macros.has(name)) {
-            console.warn(`Macro "${name}" is already registered and will be overwritten.`);
-        }
-
-        // Detect extension/third-party status from call stack
-        const { isExtension, isThirdParty, source } = detectMacroSource();
-
-        /** @type {MacroDefinition} */
-        const definition = {
-            name: name,
-            category,
-            requiredArgs,
-            requiredArgDefs,
-            list,
-            strictArgs,
-            description,
-            returns,
-            displayOverride,
-            exampleUsage,
-            handler,
-            source: {
-                name: source,
-                isExtension,
-                isThirdParty,
-            },
-        };
-
-        this.#macros.set(name, definition);
-
-        return definition;
     }
 
     /**

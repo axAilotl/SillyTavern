@@ -73,9 +73,25 @@ export function logMacroInternalError({ message, call, macroName, error }) {
     console.error('[Macro] Error:', message, payload);
 }
 
+/**
+ * Logs a warning during macro registration.
+ *
+ * @param {{ message: string, macroName?: string, error?: any }} options
+ */
 export function logMacroRegisterWarning({ message, macroName, error = undefined }) {
     const payload = buildMacroPayload({ macroName, error });
     console.warn('[Macro] Warning:', message, payload);
+}
+
+/**
+ * Logs an error during macro registration. Used when registration fails
+ * and the macro will not be available.
+ *
+ * @param {{ message: string, macroName?: string, error?: any }} options
+ */
+export function logMacroRegisterError({ message, macroName, error = undefined }) {
+    const payload = buildMacroPayload({ macroName, error });
+    console.error('[Macro] Registration Error:', message, payload);
 }
 
 /**
