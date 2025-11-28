@@ -1,0 +1,294 @@
+/**
+ * Macro System Styles
+ * Styles for the macro browser, documentation, and related UI components.
+ */
+
+/* =============================================================================
+   MACRO BROWSER
+   Dynamic documentation browser for macros, similar to SlashCommandBrowser.
+   ============================================================================= */
+
+.macroBrowser {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+/* -----------------------------------------------------------------------------
+   Toolbar (Search + Sort)
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-toolbar {
+    display: flex;
+    gap: 1em;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.macroBrowser .macro-search-label {
+    flex: 1 1 auto;
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+    min-width: 200px;
+    white-space: nowrap;
+}
+
+.macroBrowser .macro-search-input {
+    flex: 1 1 auto;
+    min-width: 100px;
+}
+
+.macroBrowser .macro-sort-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.macroBrowser .macro-sort-btn.active {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+/* -----------------------------------------------------------------------------
+   Container (List + Details panels)
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-container {
+    display: flex;
+    gap: 1em;
+    align-items: flex-start;
+    container-type: inline-size;
+}
+
+.macroBrowser .macro-list-panel {
+    flex: 1 1 60%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.macroBrowser .macro-details-panel {
+    flex: 0 0 40%;
+    position: sticky;
+    top: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--SmartThemeBlurTintColor);
+    border-radius: 10px;
+    padding: 1em;
+}
+
+.macroBrowser .macro-details-placeholder {
+    opacity: 0.6;
+    text-align: center;
+    padding: 2em;
+}
+
+/* -----------------------------------------------------------------------------
+   Category Headers
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-category-header {
+    font-weight: bold;
+    padding: 0.75em 0.5em 0.25em;
+    margin-top: 0.5em;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 10px 10px 0 0;
+    color: var(--SmartThemeQuoteColor);
+    position: sticky;
+    top: 0;
+    background: var(--SmartThemeChatTintColor);
+    z-index: 1;
+}
+
+.macroBrowser .macro-category-header:first-child {
+    margin-top: 0;
+}
+
+.macroBrowser .macro-category-header.isFiltered {
+    display: none;
+}
+
+/* -----------------------------------------------------------------------------
+   Macro List Items
+   Layout: [signature] [description (shrinks)] [source icon]
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    min-width: 0; /* Allow children to shrink */
+}
+
+.macroBrowser .macro-item:hover {
+    background: var(--black30a);
+}
+
+.macroBrowser .macro-item.selected {
+    background: var(--SmartThemeQuoteColor);
+}
+
+.macroBrowser .macro-item.isFiltered {
+    display: none;
+}
+
+.macroBrowser .macro-signature {
+    padding: 0.2em 0;
+    font-family: var(--monoFontFamily);
+    font-size: 0.9em;
+    color: var(--SmartThemeQuoteColor);
+    flex: 0 1 auto; /* Can shrink, but prefers not to */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 3em; /* Minimum before fully hidden */
+}
+
+.macroBrowser .macro-desc-preview {
+    flex: 1 1 0; /* Shrinks first, starts at 0 basis */
+    opacity: 0.7;
+    font-size: 0.9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0; /* Allow shrinking to nothing */
+}
+
+.macroBrowser .macro-source {
+    flex: 0 0 auto; /* Never shrinks */
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+
+.macroBrowser .macro-source.isExtension.isThirdParty {
+    color: #f0a030;
+}
+
+.macroBrowser .macro-source.isExtension.isCore {
+    color: #30a0f0;
+}
+
+.macroBrowser .macro-source.isCore:not(.isExtension) {
+    color: #50c050;
+}
+
+/* -----------------------------------------------------------------------------
+   Macro Details Panel
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-details-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5em;
+    margin-bottom: 0.75em;
+}
+
+.macroBrowser .macro-details-name {
+    font-family: var(--monoFontFamily);
+    font-size: 1.1em;
+    color: var(--SmartThemeQuoteColor);
+    background: var(--black30a);
+    padding: 0.15em 0.4em 0.3em;
+    border-radius: 4px;
+    word-break: break-all;
+    display: inline-block; /* Shrink-wrap to content */
+}
+
+.macroBrowser .macro-details-header > .macro-source {
+    flex: 0 0 auto;
+    font-size: 1em;
+    margin-top: 0.15em; /* Align with name top padding */
+}
+
+.macroBrowser .macro-category-badge {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.2em 0.6em;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor) 50%, transparent);
+    color: var(--SmartThemeBodyColor);
+    margin-bottom: 0.75em;
+}
+
+.macroBrowser .macro-details-section {
+    margin-bottom: 1em;
+}
+
+.macroBrowser .macro-details-label {
+    font-weight: bold;
+    font-size: 0.85em;
+    opacity: 0.8;
+    margin-bottom: 0.25em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.macroBrowser .macro-details-text {
+    line-height: 1.4;
+}
+
+/* -----------------------------------------------------------------------------
+   Arguments List (in details panel)
+   ----------------------------------------------------------------------------- */
+
+.macroBrowser .macro-args-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.macroBrowser .macro-arg-item {
+    padding: 0.4em 0;
+    border-bottom: 1px solid var(--black30a);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5em;
+}
+
+.macroBrowser .macro-arg-item:last-child {
+    border-bottom: none;
+}
+
+.macroBrowser .macro-arg-name {
+    font-family: var(--monoFontFamily);
+    font-weight: bold;
+    color: var(--SmartThemeQuoteColor);
+}
+
+.macroBrowser .macro-arg-type {
+    font-size: 0.75em;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    background: var(--black30a);
+    color: var(--SmartThemeEmColor);
+}
+
+.macroBrowser .macro-arg-required {
+    font-size: 0.8em;
+    color: var(--warning-color, #e8a97f);
+}
+
+.macroBrowser .macro-arg-desc {
+    flex: 1 1 100%;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.macroBrowser .macro-arg-sample {
+    font-size: 0.85em;
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.macroBrowser .macro-arg-list-info {
+    font-size: 0.85em;
+    opacity: 0.8;
+}

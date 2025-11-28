@@ -158,6 +158,7 @@ class MacroRegistry {
                     /** @type {MacroPositionalArgDef} */
                     const normalized = {
                         name: def.name.trim(),
+                        sampleValue: def.sampleValue?.trim(),
                         description: typeof def.description === 'string' ? def.description : undefined,
                         type: def.type ?? 'string',
                     };
@@ -177,7 +178,7 @@ class MacroRegistry {
                     throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
                 }
                 requiredArgs = rawRequiredArgs;
-                requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `Argument ${i + 1}`, type: 'string' }));
+                requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `arg${i + 1}`, sampleValue: `arg${i + 1}`, type: 'string' }));
             } else {
                 throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer or an array of argument definitions when provided.`);
             }
@@ -204,7 +205,7 @@ class MacroRegistry {
             strictArgs = rawStrictArgs;
         }
 
-        let description = '';
+        let description = '<no description>';
         if (rawDescription !== undefined) {
             if (typeof rawDescription !== 'string') throw new Error(`Macro "${name}" options.description must be a string when provided.`);
             description = rawDescription;
@@ -213,7 +214,7 @@ class MacroRegistry {
         let returns = null;
         if (rawReturns !== undefined && rawReturns !== null) {
             if (typeof rawReturns !== 'string') throw new Error(`Macro "${name}" options.returns must be a string when provided.`);
-            returns = rawReturns;
+            returns = rawReturns || '<empty string>';
         }
 
         if (this.#macros.has(name)) {

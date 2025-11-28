@@ -170,7 +170,7 @@ export function registerCoreMacros() {
             },
         ],
         description: 'Bans a word for textgenerationwebui backend. (Strips quotes surrounding the banned word, if present)',
-        returns: 'Empty string',
+        returns: '',
         handler: ({ requiredArgs: [bannedWord] }) => {
             // Strip quotes via regex, which were allowed in legacy syntax
             bannedWord = bannedWord.replace(/^"|"$/g, '');

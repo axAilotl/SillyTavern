@@ -3,7 +3,9 @@ import { t } from './i18n.js';
 import { getMessageTimeStamp } from './RossAscends-mods.js';
 import { getSlashCommandsHelp } from './slash-commands.js';
 import { SlashCommandBrowser } from './slash-commands/SlashCommandBrowser.js';
+import { MacroBrowser, getMacrosHelp } from './macros/MacroBrowser.js';
 import { renderTemplateAsync } from './templates.js';
+import { power_user } from './power-user.js';
 
 /** @type {Record<string, ChatMessage>} */
 export const system_messages = {};
@@ -154,6 +156,10 @@ export function getSystemMessageByType(type, text, extra = {}) {
         newMessage.mes = getSlashCommandsHelp();
     }
 
+    if (type === system_message_types.MACROS && power_user.experimental_macro_engine) {
+        newMessage.mes = getMacrosHelp();
+    }
+
     if (!newMessage.extra || typeof newMessage.extra !== 'object') {
         newMessage.extra = {};
     }
@@ -181,5 +187,16 @@ export function sendSystemMessage(type, text, extra = {}) {
         spinner.remove();
         browser.renderInto(parent);
         browser.search.focus();
+    }
+
+    if (type === system_message_types.MACROS && power_user.experimental_macro_engine) {
+        const browser = new MacroBrowser();
+        const spinner = document.querySelector('#chat .last_mes .custom-macroHelp');
+        if (spinner) {
+            const parent = spinner.parentElement;
+            spinner.remove();
+            browser.renderInto(parent);
+            browser.searchInput?.focus();
+        }
     }
 }
