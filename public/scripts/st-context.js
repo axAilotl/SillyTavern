@@ -162,7 +162,9 @@ export function getContext() {
         timestampToMoment,
         /** @deprecated Handlebars for extensions are no longer supported. */
         registerHelper: () => { },
+        /** @deprecated Use `macros.register(name, { handler, description })` from scripts/macros/macro-system.js instead. */
         registerMacro: MacrosParser.registerMacro.bind(MacrosParser),
+        /** @deprecated Use `macros.registry.unregisterMacro(name)` from scripts/macros/macro-system.js instead. */
         unregisterMacro: MacrosParser.unregisterMacro.bind(MacrosParser),
         registerFunctionTool: ToolManager.registerFunctionTool.bind(ToolManager),
         unregisterFunctionTool: ToolManager.unregisterFunctionTool.bind(ToolManager),

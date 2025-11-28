@@ -134,6 +134,14 @@ export class MacrosParser {
      * @returns {IterableIterator<CustomMacro>}
      */
     static [Symbol.iterator] = function* () {
+        // When experimental macro engine is active, yield from the new registry
+        if (power_user.experimental_macro_engine) {
+            for (const def of macroSystem.registry.getAllMacros()) {
+                yield { key: def.name, description: def.description || '' };
+            }
+            return;
+        }
+
         for (const macro of MacrosParser.#macros.keys()) {
             yield { key: macro, description: MacrosParser.#descriptions.get(macro) };
         }
@@ -698,23 +706,32 @@ export function evaluateMacros(content, env, postProcessFn) {
 }
 
 export function initMacros() {
-    function initLastGenerationType() {
-        let lastGenerationType = '';
+    // Only manually register those is new macro engine is not on. In the new one, they are already registered automatically
+    if (!power_user.experimental_macro_engine) {
+        function initLastGenerationType() {
+            let lastGenerationType = '';
 
-        MacrosParser.registerMacro('lastGenerationType', () => lastGenerationType);
+            macroSystem.register('lastGenerationType', {
+                description: 'Returns the type of the last generation (e.g., "normal", "swipe", "continue", "impersonate", "quiet").',
+                handler: () => lastGenerationType,
+            });
 
-        eventSource.on(event_types.GENERATION_STARTED, (type, _params, isDryRun) => {
-            if (isDryRun) return;
-            lastGenerationType = type || 'normal';
+            eventSource.on(event_types.GENERATION_STARTED, (type, _params, isDryRun) => {
+                if (isDryRun) return;
+                lastGenerationType = type || 'normal';
+            });
+
+            eventSource.on(event_types.CHAT_CHANGED, () => {
+                lastGenerationType = '';
+            });
+        }
+
+        macroSystem.register('isMobile', {
+            description: 'Returns "true" if the user is on a mobile device, "false" otherwise.',
+            handler: () => String(isMobile()),
         });
-
-        eventSource.on(event_types.CHAT_CHANGED, () => {
-            lastGenerationType = '';
-        });
+        initLastGenerationType();
     }
-
-    MacrosParser.registerMacro('isMobile', () => String(isMobile()));
-    initLastGenerationType();
 
     // TODO: Needs to be moved once old macros are deprecated and removed
     initRegisterMacros();
