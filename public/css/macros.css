@@ -292,3 +292,20 @@
     font-size: 0.85em;
     opacity: 0.8;
 }
+
+.macroBrowser .macro-example-list {
+    list-style: disc;
+    padding-left: 1.5em;
+    margin: 0.25em 0;
+}
+
+.macroBrowser .macro-example-list li {
+    padding: 0.2em 0;
+}
+
+.macroBrowser .macro-example-list code {
+    font-family: var(--monoFontFamily);
+    background: var(--black30a);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+}

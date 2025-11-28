@@ -4,7 +4,7 @@
 
 import { isFalseBoolean, isTrueBoolean } from '../../utils.js';
 import { MacroEngine } from './MacroEngine.js';
-import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
+import { createMacroRuntimeError, logMacroRegisterWarning, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
 /**
  * Enum of standard macro categories for grouping in documentation and autocomplete.
@@ -44,6 +44,8 @@ export const MacroCategory = Object.freeze({
  * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string} [description=''] - Add a description of what the macro does.
  * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
+ * @property {string} [displayOverride] - Override the auto-generated macro signature for display (must include curly braces, e.g. "{{macro::arg}}").
+ * @property {string|string[]} [exampleUsage] - Example usage(s) shown in documentation (must include curly braces).
  * @property {MacroHandler} handler - The handler function for the macro.
  */
 
@@ -93,6 +95,8 @@ export const MacroCategory = Object.freeze({
  * @property {boolean} strictArgs
  * @property {string} description
  * @property {string|null} returns
+ * @property {string|null} displayOverride - Override for the auto-generated macro signature display.
+ * @property {string[]} exampleUsage - Example usage strings for documentation.
  * @property {MacroHandler} handler
  * @property {MacroSource} source
  */
@@ -139,7 +143,17 @@ class MacroRegistry {
         name = name.trim();
         if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
-        const { category: rawCategory, handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription, returns: rawReturns } = options;
+        const {
+            category: rawCategory,
+            requiredArgs: rawRequiredArgs,
+            list: rawList,
+            strictArgs: rawStrictArgs,
+            description: rawDescription,
+            returns: rawReturns,
+            displayOverride: rawDisplayOverride,
+            exampleUsage: rawExampleUsage,
+            handler,
+        } = options;
 
         if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
         if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
@@ -217,6 +231,33 @@ class MacroRegistry {
             returns = rawReturns || '<empty string>';
         }
 
+        // Process displayOverride
+        let displayOverride = null;
+        if (rawDisplayOverride !== undefined && rawDisplayOverride !== null) {
+            if (typeof rawDisplayOverride !== 'string') throw new Error(`Macro "${name}" options.displayOverride must be a string when provided.`);
+            displayOverride = rawDisplayOverride.trim();
+            if (displayOverride && !displayOverride.startsWith('{{')) {
+                logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.displayOverride should include curly braces. Auto-wrapping.` });
+                displayOverride = `{{${displayOverride}}}`;
+            }
+        }
+
+        // Process exampleUsage
+        /** @type {string[]} */
+        let exampleUsage = [];
+        if (rawExampleUsage !== undefined && rawExampleUsage !== null) {
+            const examples = Array.isArray(rawExampleUsage) ? rawExampleUsage : [rawExampleUsage];
+            for (const [i, ex] of examples.entries()) {
+                if (typeof ex !== 'string') throw new Error(`Macro "${name}" options.exampleUsage[${i}] must be a string.`);
+                let trimmed = ex.trim();
+                if (trimmed && !trimmed.startsWith('{{')) {
+                    logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" options.exampleUsage[${i}] should include curly braces. Auto-wrapping.` });
+                    trimmed = `{{${trimmed}}}`;
+                }
+                if (trimmed) exampleUsage.push(trimmed);
+            }
+        }
+
         if (this.#macros.has(name)) {
             console.warn(`Macro "${name}" is already registered and will be overwritten.`);
         }
@@ -234,6 +275,8 @@ class MacroRegistry {
             strictArgs,
             description,
             returns,
+            displayOverride,
+            exampleUsage,
             handler,
             source: {
                 name: source,

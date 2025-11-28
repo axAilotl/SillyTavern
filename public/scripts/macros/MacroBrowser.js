@@ -331,10 +331,16 @@ function getCategoryConfig(category) {
 
 /**
  * Formats a macro signature with its arguments.
+ * Uses displayOverride if available, otherwise auto-generates from args.
  * @param {MacroDefinition} macro
  * @returns {string}
  */
 function formatMacroSignature(macro) {
+    // Use displayOverride if provided
+    if (macro.displayOverride) {
+        return macro.displayOverride;
+    }
+
     const parts = [macro.name];
 
     // Add required args
@@ -560,6 +566,28 @@ function renderMacroDetails(macro) {
         returnsText.textContent = macro.returns;
         returnsSection.appendChild(returnsText);
         details.appendChild(returnsSection);
+    }
+
+    // Example usage section (if any)
+    if (macro.exampleUsage && macro.exampleUsage.length > 0) {
+        const exampleSection = document.createElement('div');
+        exampleSection.classList.add('macro-details-section');
+        const exampleLabel = document.createElement('div');
+        exampleLabel.classList.add('macro-details-label');
+        exampleLabel.textContent = 'Example Usage';
+        exampleSection.appendChild(exampleLabel);
+
+        const exampleList = document.createElement('ul');
+        exampleList.classList.add('macro-example-list');
+        for (const example of macro.exampleUsage) {
+            const li = document.createElement('li');
+            const code = document.createElement('code');
+            code.textContent = example;
+            li.appendChild(code);
+            exampleList.appendChild(li);
+        }
+        exampleSection.appendChild(exampleList);
+        details.appendChild(exampleSection);
     }
 
     return details;

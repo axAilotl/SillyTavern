@@ -73,6 +73,11 @@ export function logMacroInternalError({ message, call, macroName, error }) {
     console.error('[Macro] Error:', message, payload);
 }
 
+export function logMacroRegisterWarning({ message, macroName, error = undefined }) {
+    const payload = buildMacroPayload({ macroName, error });
+    console.warn('[Macro] Warning:', message, payload);
+}
+
 /**
  * Logs a macro error with a consistent schema.
  *
@@ -143,12 +148,12 @@ function buildMacroPayload({ call, def, macroName, error }) {
     /** @type {Record<string, any>} */
     const payload = {
         macroName: inferredName,
-        range: call && call.range ? call.range : null,
-        raw: call && typeof call.rawInner === 'string' ? call.rawInner : null,
     };
 
-    if (call)  payload.call = call;
-    if (def)   payload.def = def;
+    if (call && call.range) payload.range = call.range;
+    if (call && typeof call.rawInner === 'string') payload.raw = call.rawInner;
+    if (call) payload.call = call;
+    if (def) payload.def = def;
     if (error) payload.error = error;
 
     return payload;

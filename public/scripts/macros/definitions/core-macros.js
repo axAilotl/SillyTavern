@@ -63,6 +63,7 @@ export function registerCoreMacros() {
         list: true,         // We consume any arguments as if this is a list, but we'll ignore them in the handler anyway
         strictArgs: false,  // and we also always remove it, even if the parsing might say it's invalid
         description: 'Comment macro that produces an empty string. Can be used for writing into prompt definitions, without being passed to the context.',
+        displayOverride: '{{// ...}}',
         handler: () => '',
     });
 
@@ -79,6 +80,11 @@ export function registerCoreMacros() {
             },
         ],
         description: 'Rolls dice using droll syntax (e.g. {{roll 1d20}}).',
+        exampleUsage: [
+            '{{roll::1d20}}',
+            '{{roll::6}}',
+            '{{roll::3d6+4}}',
+        ],
         handler: ({ requiredArgs: [formula] }) => {
             // If only digits were provided, treat it as `1dX`.
             if (/^\d+$/.test(formula)) {
