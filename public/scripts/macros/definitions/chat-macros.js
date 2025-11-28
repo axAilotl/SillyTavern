@@ -1,4 +1,4 @@
-import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
 import { chat, chat_metadata } from '../../../script.js';
 
 /**
@@ -7,41 +7,49 @@ import { chat, chat_metadata } from '../../../script.js';
  */
 export function registerChatMacros() {
     MacroRegistry.registerMacro('lastMessage', {
+        category: MacroCategory.CHAT,
         description: 'Last message in the chat.',
         handler: () => String(getLastMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastMessageId', {
+        category: MacroCategory.CHAT,
         description: 'Index of the last message in the chat.',
         handler: () => String(getLastMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastUserMessage', {
+        category: MacroCategory.CHAT,
         description: 'Last user message in the chat.',
         handler: () => String(getLastUserMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastCharMessage', {
+        category: MacroCategory.CHAT,
         description: 'Last character/bot message in the chat.',
         handler: () => String(getLastCharMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstIncludedMessageId', {
+        category: MacroCategory.CHAT,
         description: 'Index of the first message included in the current context.',
         handler: () => String(getFirstIncludedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstDisplayedMessageId', {
+        category: MacroCategory.CHAT,
         description: 'Index of the first displayed message in the chat.',
         handler: () => String(getFirstDisplayedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastSwipeId', {
+        category: MacroCategory.CHAT,
         description: '1-based index of the last swipe for the last message.',
         handler: () => String(getLastSwipeId() ?? ''),
     });
 
     MacroRegistry.registerMacro('currentSwipeId', {
+        category: MacroCategory.CHAT,
         description: '1-based index of the current swipe.',
         handler: () => String(getCurrentSwipeId() ?? ''),
     });

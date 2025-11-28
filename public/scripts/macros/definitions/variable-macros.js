@@ -1,4 +1,4 @@
-import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
 
 /**
  * Registers variable-related {{...}} macros that operate on local and global
@@ -9,6 +9,7 @@ export function registerVariableMacros() {
 
     // {{setvar::name::value}} -> '' (side-effect on local variable)
     MacroRegistry.registerMacro('setvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 2,
         description: 'Sets a local variable to the given value.',
         returns: '',
@@ -20,6 +21,7 @@ export function registerVariableMacros() {
 
     // {{addvar::name::value}} -> '' (side-effect via addLocalVariable)
     MacroRegistry.registerMacro('addvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 2,
         description: 'Adds a value to an existing local variable (numeric or string append). If the variable does not exist, it will be created.',
         returns: '',
@@ -31,6 +33,7 @@ export function registerVariableMacros() {
 
     // {{incvar::name}} -> returns new value
     MacroRegistry.registerMacro('incvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Increments a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
@@ -41,6 +44,7 @@ export function registerVariableMacros() {
 
     // {{decvar::name}} -> returns new value
     MacroRegistry.registerMacro('decvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Decrements a local variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
@@ -51,6 +55,7 @@ export function registerVariableMacros() {
 
     // {{getvar::name}} -> returns current value
     MacroRegistry.registerMacro('getvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Gets the value of a local variable.',
         handler: ({ requiredArgs: [name], normalize }) => {
@@ -61,6 +66,7 @@ export function registerVariableMacros() {
 
     // {{setglobalvar::name::value}} -> ''
     MacroRegistry.registerMacro('setglobalvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 2,
         description: 'Sets a global variable to the given value.',
         returns: '',
@@ -72,6 +78,7 @@ export function registerVariableMacros() {
 
     // {{addglobalvar::name::value}} -> ''
     MacroRegistry.registerMacro('addglobalvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 2,
         description: 'Adds a value to an existing global variable (numeric or string append). If the variable does not exist, it will be created.',
         returns: '',
@@ -83,6 +90,7 @@ export function registerVariableMacros() {
 
     // {{incglobalvar::name}} -> returns new value
     MacroRegistry.registerMacro('incglobalvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Increments a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
@@ -93,6 +101,7 @@ export function registerVariableMacros() {
 
     // {{decglobalvar::name}} -> returns new value
     MacroRegistry.registerMacro('decglobalvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Decrements a global variable by 1 and returns the new value. If the variable does not exist, it will be created.',
         handler: ({ requiredArgs: [name], normalize }) => {
@@ -103,6 +112,7 @@ export function registerVariableMacros() {
 
     // {{getglobalvar::name}} -> returns current value
     MacroRegistry.registerMacro('getglobalvar', {
+        category: MacroCategory.VARIABLE,
         requiredArgs: 1,
         description: 'Gets the value of a global variable.',
         handler: ({ requiredArgs: [name], normalize }) => {

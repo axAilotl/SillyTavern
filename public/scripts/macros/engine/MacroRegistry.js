@@ -7,6 +7,36 @@ import { MacroEngine } from './MacroEngine.js';
 import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnostics.js';
 
 /**
+ * Enum of standard macro categories for grouping in documentation and autocomplete.
+ * Extensions may use these or define custom category strings.
+ *
+ * @readonly
+ * @enum {string}
+ */
+export const MacroCategory = Object.freeze({
+    /** Basic utilities and text manipulation (newline, noop, trim, reverse, comment) */
+    UTILITY: 'utility',
+    /** Randomization and dice rolling (random, pick, roll) */
+    RANDOM: 'random',
+    /** Participant names and name lists (user, char, group, notChar) */
+    NAMES: 'names',
+    /** Character card fields and persona (description, personality, scenario, mesExamples, persona) */
+    CHARACTER: 'character',
+    /** Chat history, messages, and swipes */
+    CHAT: 'chat',
+    /** Date, time, and duration macros */
+    TIME: 'time',
+    /** Local and global variable operations */
+    VARIABLE: 'variable',
+    /** Prompt templates for text completion (instruct sequences, system prompts, author's notes, context templates) */
+    PROMPTS: 'prompts',
+    /** Runtime application state (model, API, lastGenerationType, isMobile) */
+    STATE: 'state',
+    /** Macros that don't fit in any of the other categories, but don't really need/deserve their own */
+    MISC: 'misc',
+});
+
+/**
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
  * @property {string[]} args
@@ -39,11 +69,19 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  */
 
 /**
+ * @typedef {Object} MacroSource
+ * @property {string} name - Source identifier (extension name or script path)
+ * @property {boolean} isExtension - True if registered from an extension
+ * @property {boolean} isThirdParty - True if registered from a third-party extension
+ */
+
+/**
  * @typedef {(context: MacroExecutionContext) => string} MacroHandler
  */
 
 /**
  * @typedef {Object} MacroDefinitionOptions
+ * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
  * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
  * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
  * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
@@ -55,6 +93,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
 /**
  * @typedef {Object} MacroDefinition
  * @property {string} name
+ * @property {MacroCategory|string} category
  * @property {number} requiredArgs
  * @property {MacroPositionalArgDef[]} requiredArgDefs
  * @property {{ min: number, max: (number|null) }|null} list
@@ -62,6 +101,7 @@ import { createMacroRuntimeError, logMacroRuntimeWarning } from './MacroDiagnost
  * @property {string} description
  * @property {string|null} returns
  * @property {MacroHandler} handler
+ * @property {MacroSource} source
  */
 
 /**
@@ -99,9 +139,11 @@ class MacroRegistry {
         name = name.trim();
         if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
-        const { handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription, returns: rawReturns } = options;
+        const { category: rawCategory, handler, requiredArgs: rawRequiredArgs, list: rawList, strictArgs: rawStrictArgs, description: rawDescription, returns: rawReturns } = options;
 
         if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
+        if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
+        const category = rawCategory.trim();
 
         let requiredArgs = 0;
         /** @type {MacroPositionalArgDef[]} */
@@ -178,9 +220,13 @@ class MacroRegistry {
             console.warn(`Macro "${name}" is already registered and will be overwritten.`);
         }
 
+        // Detect extension/third-party status from call stack
+        const { isExtension, isThirdParty, source } = detectMacroSource();
+
         /** @type {MacroDefinition} */
         const definition = {
             name: name,
+            category,
             requiredArgs,
             requiredArgDefs,
             list,
@@ -188,6 +234,11 @@ class MacroRegistry {
             description,
             returns,
             handler,
+            source: {
+                name: source,
+                isExtension,
+                isThirdParty,
+            },
         };
 
         this.#macros.set(name, definition);
@@ -385,4 +436,45 @@ function isValueOfType(value, type) {
 
     // Unknown type: treat it as invalid.
     return false;
+}
+
+/**
+ * Detects the source of a macro registration from the call stack.
+ * Similar to how SlashCommandParser detects command sources.
+ *
+ * @returns {{ isExtension: boolean, isThirdParty: boolean, source: string }}
+ */
+function detectMacroSource() {
+    const stack = new Error().stack?.split('\n').map(line => line.trim()) ?? [];
+
+    const isExtension = stack.some(line => line.includes('/scripts/extensions/'));
+    const isThirdParty = stack.some(line => line.includes('/scripts/extensions/third-party/'));
+
+    let source = 'unknown';
+    if (isThirdParty) {
+        const match = stack.find(line => line.includes('/scripts/extensions/third-party/'));
+        if (match) {
+            source = match.replace(/^.*?\/scripts\/extensions\/third-party\/([^/]+)\/.*$/, '$1');
+        }
+    } else if (isExtension) {
+        const match = stack.find(line => line.includes('/scripts/extensions/'));
+        if (match) {
+            source = match.replace(/^.*?\/scripts\/extensions\/([^/]+)\/.*$/, '$1');
+        }
+    } else {
+        // Find the first meaningful caller outside MacroRegistry
+        const callerIdx = stack.findIndex(line =>
+            line.includes('registerMacro') && line.includes('MacroRegistry'),
+        );
+        if (callerIdx >= 0 && callerIdx + 1 < stack.length) {
+            const callerLine = stack[callerIdx + 1];
+            // Extract script path from stack frame
+            const scriptMatch = callerLine.match(/\/((?:scripts\/)?(?:macros\/)?[^/]+\.js)/);
+            if (scriptMatch) {
+                source = scriptMatch[1];
+            }
+        }
+    }
+
+    return { isExtension, isThirdParty, source };
 }

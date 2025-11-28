@@ -3,7 +3,7 @@ import { chat_metadata, main_api, getMaxContextSize, extension_prompts, getCurre
 import { getStringHash } from '../../utils.js';
 import { textgenerationwebui_banned_in_macros } from '../../textgen-settings.js';
 import { inject_ids } from '../../constants.js';
-import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
 
 /**
  * Registers SillyTavern's core built-in macros in the MacroRegistry.
@@ -16,36 +16,42 @@ import { MacroRegistry } from '../engine/MacroRegistry.js';
 export function registerCoreMacros() {
     // {{newline}} -> '\n'
     MacroRegistry.registerMacro('newline', {
+        category: MacroCategory.UTILITY,
         description: 'Inserts a newline character.',
         handler: () => '\n',
     });
 
     // {{noop}} -> ''
     MacroRegistry.registerMacro('noop', {
+        category: MacroCategory.UTILITY,
         description: 'Does nothing and produces an empty string.',
         handler: () => '',
     });
 
     // {{trim}} -> macro will currently replace itself with itself. Trimming is handled in post-processing.
     MacroRegistry.registerMacro('trim', {
+        category: MacroCategory.UTILITY,
         description: 'Trims whitespace from the argument provided.',
         handler: () => '{{trim}}',
     });
 
     // {{input}} -> current textarea content
     MacroRegistry.registerMacro('input', {
+        category: MacroCategory.UTILITY,
         description: 'Current text from the send textarea.',
         handler: () => (/** @type {HTMLTextAreaElement} */(document.querySelector('#send_textarea')))?.value ?? '',
     });
 
     // {{maxPrompt}} -> max context size
     MacroRegistry.registerMacro('maxPrompt', {
+        category: MacroCategory.STATE,
         description: 'Maximum prompt context size.',
         handler: () => String(getMaxContextSize()),
     });
 
     // String utilities
     MacroRegistry.registerMacro('reverse', {
+        category: MacroCategory.UTILITY,
         requiredArgs: 1,
         description: 'Reverses the characters of the argument provided.',
         handler: ({ requiredArgs: [value] }) => Array.from(value).reverse().join(''),
@@ -53,6 +59,7 @@ export function registerCoreMacros() {
 
     // Comment macro: {{// ...}} -> '' (consumes any arguments)
     MacroRegistry.registerMacro('//', {
+        category: MacroCategory.UTILITY,
         list: true,         // We consume any arguments as if this is a list, but we'll ignore them in the handler anyway
         strictArgs: false,  // and we also always remove it, even if the parsing might say it's invalid
         description: 'Comment macro that produces an empty string. Can be used for writing into prompt definitions, without being passed to the context.',
@@ -62,6 +69,7 @@ export function registerCoreMacros() {
     // Time and date macros
     // Dice roll macro: {{roll 1d6}} or {{roll: 1d6}}
     MacroRegistry.registerMacro('roll', {
+        category: MacroCategory.RANDOM,
         requiredArgs: [
             {
                 name: 'formula',
@@ -91,6 +99,7 @@ export function registerCoreMacros() {
 
     // Random choice macro: {{random::a::b}} or {{random a,b}}
     MacroRegistry.registerMacro('random', {
+        category: MacroCategory.RANDOM,
         list: true,
         description: 'Picks a random item from a list. Will be re-rolled every time macros are resolved.',
         handler: ({ list, raw: rawListString }) => {
@@ -115,6 +124,7 @@ export function registerCoreMacros() {
 
     // Deterministic choice macro: {{pick::a::b}} or {{pick a,b}}
     MacroRegistry.registerMacro('pick', {
+        category: MacroCategory.RANDOM,
         list: true,
         description: 'Picks a random item from a list, but keeps the choice stable for a given chat and macro position.',
         handler: ({ list, raw: rawListString, range, env }) => {
@@ -150,6 +160,7 @@ export function registerCoreMacros() {
 
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
+        category: MacroCategory.UTILITY,
         requiredArgs: [
             {
                 name: 'word',
@@ -173,6 +184,7 @@ export function registerCoreMacros() {
 
     // Outlet macro: {{outlet::key}}
     MacroRegistry.registerMacro('outlet', {
+        category: MacroCategory.UTILITY,
         requiredArgs: [
             {
                 name: 'key',

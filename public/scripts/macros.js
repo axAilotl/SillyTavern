@@ -6,7 +6,7 @@ import { getInstructMacros } from './instruct-mode.js';
 import { getVariableMacros } from './variables.js';
 import { isMobile } from './RossAscends-mods.js';
 import { inject_ids } from './constants.js';
-import { initRegisterMacros, macros as macroSystem } from './macros/macro-system.js';
+import { initRegisterMacros, macros as macroSystem, MacroCategory } from './macros/macro-system.js';
 import { power_user } from './power-user.js';
 
 /**
@@ -92,6 +92,7 @@ export class MacrosParser {
         macroSystem.registry.registerMacro(key, {
             // Legacy MacrosParser macros never took arguments; keep the
             // contract that only {{key}} without arguments is valid.
+            category: 'legacy',
             description: typeof description === 'string' ? description : 'Automatically registered macro from MacrosParser',
             handler: () => {
                 /** @type {string|MacroFunction|undefined} */

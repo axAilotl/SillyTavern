@@ -1,4 +1,4 @@
-import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
 import { power_user } from '../../power-user.js';
 
 /**
@@ -8,11 +8,16 @@ import { power_user } from '../../power-user.js';
 export function registerInstructMacros() {
     /**
      * Helper to register macros that just expose a value from power_user.instruct
-     * @typedef {{names: string[], getValue: () => string, isEnabled: () => boolean, description: string}}
+     * @param {string[]} names
+     * @param {() => string} getValue
+     * @param {() => boolean} isEnabled
+     * @param {string} description
+     * @param {string} [category=MacroCategory.PROMPTS]
      */
-    function registerSimple(names, getValue, isEnabled, description) {
+    function registerSimple(names, getValue, isEnabled, description, category = MacroCategory.PROMPTS) {
         for (const name of names) {
             MacroRegistry.registerMacro(name, {
+                category,
                 description,
                 handler: () => (isEnabled() ? (getValue() ?? '') : ''),
             });
@@ -49,7 +54,8 @@ export function registerInstructMacros() {
     registerSimple(['defaultSystemPrompt', 'instructSystem', 'instructSystemPrompt'], () => power_user.sysprompt.content, sysEnabled, 'Alias for the default system prompt.');
 
     MacroRegistry.registerMacro('systemPrompt', {
-        description: 'Active system prompt text (optionally overridden by character prompt).',
+        category: MacroCategory.PROMPTS,
+        description: 'Active system prompt text (optionally overridden by character prompt)',
         handler: ({ env }) => {
             const isEnabled = !!power_user.sysprompt.enabled;
             if (!isEnabled) return '';

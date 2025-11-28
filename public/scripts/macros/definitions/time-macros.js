@@ -1,7 +1,7 @@
 import { moment } from '../../../lib.js';
 import { chat } from '../../../script.js';
 import { timestampToMoment } from '../../utils.js';
-import { MacroRegistry } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
 
 /**
  * Registers time/date related macros and utilities.
@@ -9,6 +9,7 @@ import { MacroRegistry } from '../engine/MacroRegistry.js';
 export function registerTimeMacros() {
     // Time and date macros
     MacroRegistry.registerMacro('time', {
+        category: MacroCategory.TIME,
         // Optional single list argument: UTC offset, e.g. {{time::UTC+2}}
         list: { min: 0, max: 1 },
         description: 'Current local time, or UTC offset when called as {{time::UTC+1}} or {{time::UTC-7}}, etc.',
@@ -27,26 +28,31 @@ export function registerTimeMacros() {
     });
 
     MacroRegistry.registerMacro('date', {
+        category: MacroCategory.TIME,
         description: 'Current local date.',
         handler: () => moment().format('LL'),
     });
 
     MacroRegistry.registerMacro('weekday', {
+        category: MacroCategory.TIME,
         description: 'Current weekday name.',
         handler: () => moment().format('dddd'),
     });
 
     MacroRegistry.registerMacro('isotime', {
+        category: MacroCategory.TIME,
         description: 'Current time in HH:mm format.',
         handler: () => moment().format('HH:mm'),
     });
 
     MacroRegistry.registerMacro('isodate', {
+        category: MacroCategory.TIME,
         description: 'Current date in YYYY-MM-DD format.',
         handler: () => moment().format('YYYY-MM-DD'),
     });
 
     MacroRegistry.registerMacro('datetimeformat', {
+        category: MacroCategory.TIME,
         requiredArgs: [
             {
                 name: 'format',
@@ -60,12 +66,14 @@ export function registerTimeMacros() {
     });
 
     MacroRegistry.registerMacro('idle_duration', {
+        category: MacroCategory.TIME,
         description: 'Human-readable duration since the last user message.',
         handler: () => getTimeSinceLastMessageCore(),
     });
 
     // Time difference between two values
     MacroRegistry.registerMacro('timeDiff', {
+        category: MacroCategory.TIME,
         requiredArgs: [
             {
                 name: 'left',

@@ -57,7 +57,7 @@ import { SlashCommandEnumValue } from '../../slash-commands/SlashCommandEnumValu
 import { callGenericPopup, Popup, POPUP_TYPE } from '../../popup.js';
 import { commonEnumProviders } from '../../slash-commands/SlashCommandCommonEnumsProvider.js';
 import { ToolManager } from '../../tool-calling.js';
-import { macros } from '../../macros/macro-system.js';
+import { macros, MacroCategory } from '../../macros/macro-system.js';
 import { t, translate } from '../../i18n.js';
 import { oai_settings } from '../../openai.js';
 
@@ -5063,10 +5063,12 @@ jQuery(async () => {
     };
 
     macros.register('charPrefix', {
+        category: MacroCategory.PROMPTS,
         description: t`Character's positive Image Generation prompt prefix`,
         handler: () => getMacroValue({ isNegative: false }),
     });
     macros.register('charNegativePrefix', {
+        category: MacroCategory.PROMPTS,
         description: t`Character's negative Image Generation prompt prefix`,
         handler: () => getMacroValue({ isNegative: true }),
     });

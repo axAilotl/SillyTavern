@@ -26,7 +26,7 @@ import { debounce_timeout } from '../../constants.js';
 import { SlashCommandParser } from '../../slash-commands/SlashCommandParser.js';
 import { SlashCommand } from '../../slash-commands/SlashCommand.js';
 import { ARGUMENT_TYPE, SlashCommandArgument, SlashCommandNamedArgument } from '../../slash-commands/SlashCommandArgument.js';
-import { macros } from '../../macros/macro-system.js';
+import { macros, MacroCategory } from '../../macros/macro-system.js';
 import { countWebLlmTokens, generateWebLlmChatPrompt, getWebLlmContextSize, isWebLlmSupported } from '../shared.js';
 import { commonEnumProviders } from '../../slash-commands/SlashCommandCommonEnumsProvider.js';
 import { removeReasoningFromString } from '../../reasoning.js';
@@ -1095,6 +1095,7 @@ jQuery(async function () {
     }));
 
     macros.register('summary', {
+        category: MacroCategory.CHAT,
         description: 'Returns the latest memory/summary from the current chat.',
         handler: () => getLatestMemoryFromChat(getContext().chat),
     });
