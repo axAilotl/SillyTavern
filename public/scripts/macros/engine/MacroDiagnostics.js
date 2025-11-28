@@ -74,6 +74,15 @@ export function logMacroInternalError({ message, call, macroName, error }) {
 }
 
 /**
+ * Logs a macro error with a consistent schema.
+ *
+ * @param {{ message: string, error?: any }} options
+ */
+export function logMacroGeneralError({ message, error }) {
+    console.error('[Macro] Error:', message, error);
+}
+
+/**
  * Logs lexer/parser syntax warnings for the macro engine with a compact,
  * human-readable payload.
  *

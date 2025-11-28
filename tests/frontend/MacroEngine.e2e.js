@@ -184,6 +184,216 @@ test.describe('MacroEngine', () => {
         });
     });
 
+    test.describe('Bracket handling around macros', () => {
+        test('should allow single opening brace inside macro arguments', async ({ page }) => {
+            const input = 'Test§ {{reverse::my { test}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // "my { test" reversed becomes "tset { ym"
+            expect(output).toBe('Test§ tset { ym');
+
+            const EXPECT_WARNINGS = false;
+            const EXPECT_ERRORS = false;
+            expect(hasMacroWarnings).toBe(EXPECT_WARNINGS);
+            expect(hasMacroErrors).toBe(EXPECT_ERRORS);
+        });
+
+        test('should allow single closing brace inside macro arguments', async ({ page }) => {
+            const input = 'Test§ {{reverse::my } test}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // "my } test" reversed becomes "tset } ym"
+            expect(output).toBe('Test§ tset } ym');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should treat unterminated macro with identifier at end of input as plain text', async ({ page }) => {
+            const input = 'Test {{ hehe';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe(input);
+
+            expect(hasMacroWarnings).toBe(true);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should treat invalid macro start as plain text when followed by non-identifier characters', async ({ page }) => {
+            const input = 'Test {{§§ hehe';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe(input);
+
+            expect(hasMacroWarnings).toBe(false); // Doesn't even try to recognize this as a macro, doesn't look like one. No warning is fine
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should treat unterminated macro in the middle of the string as plain text', async ({ page }) => {
+            const input = 'Before {{ hehe After';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe(input);
+
+            expect(hasMacroWarnings).toBe(true);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should treat dangling macro start as text and still evaluate subsequent macro', async ({ page }) => {
+            const input = 'Test {{ hehe {{user}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // Default test env uses name1Override = "User" and name2Override = "Character".
+            expect(output).toBe('Test {{ hehe User');
+
+            expect(hasMacroWarnings).toBe(true);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should ignore invalid macro start but still evaluate following valid macro', async ({ page }) => {
+            const input = 'Test {{&& hehe {{user}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // Default test env uses name1Override = "User" and name2Override = "Character".
+            expect(output).toBe('Test {{&& hehe User');
+
+            expect(hasMacroWarnings).toBe(false); // Doesn't even try to recognize this as a macro, doesn't look like one. No warning is fine
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow single opening brace immediately before a macro', async ({ page }) => {
+            const input = '{{{char}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // One literal '{' plus the resolved character name.
+            expect(output).toBe('{Character');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow single closing brace immediately after a macro', async ({ page }) => {
+            const input = '{{char}}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Character}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow single braces around a macro', async ({ page }) => {
+            const input = '{{{char}}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('{Character}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow double opening braces immediately before a macro', async ({ page }) => {
+            const input = '{{{{char}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('{{Character');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow double closing braces immediately after a macro', async ({ page }) => {
+            const input = '{{char}}}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Character}}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should allow double braces around a macro', async ({ page }) => {
+            const input = '{{{{char}}}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('{{Character}}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should resolve nested macro inside argument with surrounding braces', async ({ page }) => {
+            const input = 'Result: {{reverse::pre-{ {{user}} }-post}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            // Argument "pre-{ User }-post" reversed becomes "tsop-} resU {-erp".
+            expect(output).toBe('Result: tsop-} resU {-erp');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should handle adjacent macros with no separator', async ({ page }) => {
+            const input = '{{char}}{{user}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('CharacterUser');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should handle macros separated only by surrounding braces', async ({ page }) => {
+            const input = '{{char}}{ {{user}} }';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Character{ User }');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should handle Windows newlines with braces near macros', async ({ page }) => {
+            const input = 'Line1 {{char}}\r\n{Line2}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Line1 Character\r\n{Line2}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should treat stray closing braces outside macros as plain text', async ({ page }) => {
+            const input = 'Foo }} bar';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe(input);
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should keep stray closing braces and still evaluate following macro', async ({ page }) => {
+            const input = 'Foo }} {{user}}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Foo }} User');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+
+        test('should handle stray closing braces before macros as plain text', async ({ page }) => {
+            const input = 'Foo {{user}} }}';
+            const { output, hasMacroWarnings, hasMacroErrors } = await evaluateWithEngineAndCaptureMacroLogs(page, input);
+
+            expect(output).toBe('Foo User }}');
+
+            expect(hasMacroWarnings).toBe(false);
+            expect(hasMacroErrors).toBe(false);
+        });
+    });
+
     test.describe('Arity errors', () => {
         test('should not resolve newline when called with arguments', async ({ page }) => {
             /** @type {string[]} */
@@ -490,4 +700,41 @@ async function evaluateWithEngine(page, input) {
     }, input);
 
     return result;
+}
+
+/**
+ * Evaluates the given input string while capturing whether any macro-related
+ * warnings or errors were logged to the browser console.
+ *
+ * This is useful for tests that want to assert both the resolved output and
+ * whether the lexer/parser/engine reported issues (e.g. unterminated macros).
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} input
+ * @returns {Promise<{ output: string, hasMacroWarnings: boolean, hasMacroErrors: boolean }>}
+ */
+async function evaluateWithEngineAndCaptureMacroLogs(page, input) {
+    /** @type {boolean} */
+    let hasMacroWarnings = false;
+    /** @type {boolean} */
+    let hasMacroErrors = false;
+
+    /** @param {import('playwright').ConsoleMessage} msg */
+    const handler = (msg) => {
+        const text = msg.text();
+        if (text.includes('[Macro] Warning:')) {
+            hasMacroWarnings = true;
+        }
+        if (text.includes('[Macro] Error:')) {
+            hasMacroErrors = true;
+        }
+    };
+
+    page.on('console', handler);
+    try {
+        const output = await evaluateWithEngine(page, input);
+        return { output, hasMacroWarnings, hasMacroErrors };
+    } finally {
+        page.off('console', handler);
+    }
 }

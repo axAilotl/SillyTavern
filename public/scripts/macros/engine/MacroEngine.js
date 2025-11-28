@@ -1,7 +1,7 @@
 import { MacroParser } from './MacroParser.js';
 import { MacroCstWalker } from './MacroCstWalker.js';
 import { MacroRegistry } from './MacroRegistry.js';
-import { logMacroInternalError, logMacroRuntimeWarning, logMacroSyntaxWarning } from './MacroDiagnostics.js';
+import { logMacroGeneralError, logMacroInternalError, logMacroRuntimeWarning, logMacroSyntaxWarning } from './MacroDiagnostics.js';
 
 /** @typedef {import('./MacroCstWalker.js').MacroCall} MacroCall */
 /** @typedef {import('./MacroEnv.types.js').MacroEnv} MacroEnv */
@@ -46,12 +46,24 @@ class MacroEngine {
             logMacroSyntaxWarning({ phase: 'parsing', input, errors: parserErrors });
         }
 
-        const evaluated = MacroCstWalker.evaluateDocument({
-            text: preProcessed,
-            cst,
-            env: safeEnv,
-            resolveMacro: this.#resolveMacro.bind(this),
-        });
+        // If the parser did not produce a valid CST, fall back to the original input.
+        if (!cst || typeof cst !== 'object' || !cst.children) {
+            logMacroGeneralError({ message: 'Macro parser produced an invalid CST. Returning original input.', error: { input, lexingErrors, parserErrors } });
+            return input;
+        }
+
+        let evaluated;
+        try {
+            evaluated = MacroCstWalker.evaluateDocument({
+                text: preProcessed,
+                cst,
+                env: safeEnv,
+                resolveMacro: this.#resolveMacro.bind(this),
+            });
+        } catch (error) {
+            logMacroGeneralError({ message: 'Macro evaluation failed. Returning original input.', error: { input, error } });
+            return input;
+        }
 
         const result = this.#runPostProcessors(evaluated, safeEnv);
 

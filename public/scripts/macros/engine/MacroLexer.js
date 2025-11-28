@@ -54,8 +54,9 @@ const Tokens = {
     Identifier: createToken({ name: 'Identifier', pattern: /[a-zA-Z][\w-_]*/ }),
     WhiteSpace: createToken({ name: 'WhiteSpace', pattern: /\s+/, group: Lexer.SKIPPED }),
 
-    // Capture unknown characters one by one, to still allow other tokens being matched once they are there
-    Unknown: createToken({ name: 'Unknown', pattern: /[^{}]/ }),
+    // Capture unknown characters one by one, to still allow other tokens being matched once they are there.
+    // This includes any possible braces that is not the double closing braces as MacroEnd.
+    Unknown: createToken({ name: 'Unknown', pattern: /([^}]|\}(?!\}))/ }),
 
     // TODO: Capture-all rest for now, that is not the macro end or opening of a new macro. Might be replaced later down the line.
     Text: createToken({ name: 'Text', pattern: /.+(?=\}\}|\{\{)/, line_breaks: true }),
@@ -90,6 +91,10 @@ const Def = {
             // Inside a macro, we will match the identifier
             // Enter 'macro_identifier_end' mode automatically at the end of the identifier, so we don't match more than one identifier
             enter(Tokens.Macro.Identifier, modes.macro_identifier_end),
+
+            // If none of the tokens above are found, this is an invalid macro at runtime.
+            // We still need to exit the mode to prevent lexer errors
+            exits(Tokens.ModePopper, modes.macro_def),
         ],
         [modes.macro_identifier_end]: [
             // Valid options after a macro identifier: whitespace, colon/double-colon (captured), macro end braces, or output modifier pipe.

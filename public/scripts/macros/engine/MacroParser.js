@@ -34,9 +34,10 @@ class MacroParser extends CstParser {
         $.document = $.RULE('document', () => {
             $.MANY(() => {
                 $.OR([
-                    { ALT: () => $.CONSUME(Tokens.Plaintext) },
-                    { ALT: () => $.CONSUME(Tokens.PlaintextOpenBrace) },
+                    { ALT: () => $.CONSUME(Tokens.Plaintext, { LABEL: 'plaintext' }) },
+                    { ALT: () => $.CONSUME(Tokens.PlaintextOpenBrace, { LABEL: 'plaintext' }) },
                     { ALT: () => $.SUBRULE($.macro) },
+                    { ALT: () => $.CONSUME(Tokens.Macro.Start, { LABEL: 'plaintext' }) },
                 ]);
             });
         });
