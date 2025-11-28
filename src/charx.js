@@ -25,7 +25,6 @@ function findZipStart(buffer) {
     const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
     const index = buf.indexOf(ZIP_SIGNATURE);
     if (index > 0) {
-        console.debug(`CharX: Found ZIP signature at offset ${index} (SFX archive)`);
         return buf.slice(index);
     }
     return buf;
@@ -73,23 +72,15 @@ export class CharXParser {
             throw new Error('Failed to extract card.json from CharX file');
         }
 
-        console.debug('CharX: Parsing card.json');
         const card = JSON.parse(cardBuffer.toString());
 
         if (card.spec === undefined) {
             throw new Error('Invalid CharX card file: missing spec field');
         }
 
-        console.debug(`CharX: Card spec=${card.spec}, name=${card.data?.name || card.name}`);
-
         const embeddedAssets = this.collectCharXAssets(card);
-        console.debug(`CharX: Found ${embeddedAssets.length} total assets`);
-
         const iconAsset = this.pickCharXIconAsset(embeddedAssets);
-        console.debug('CharX: Icon asset:', iconAsset ? `${iconAsset.name} (${iconAsset.zipPath})` : 'none');
-
         const auxiliaryAssets = this.mapCharXAssetsForStorage(embeddedAssets);
-        console.debug(`CharX: Mapped ${auxiliaryAssets.length} auxiliary assets for storage`);
 
         const archivePaths = new Set();
 
@@ -102,11 +93,9 @@ export class CharXParser {
             }
         }
 
-        console.debug(`CharX: Extracting ${archivePaths.size} asset files from archive`);
         let extractedBuffers = new Map();
         if (archivePaths.size > 0) {
             extractedBuffers = await extractFilesFromZipBuffer(this.#data, [...archivePaths]);
-            console.debug(`CharX: Extracted ${extractedBuffers.size} asset files`);
         }
 
         /** @type {string|Buffer} */
@@ -302,7 +291,6 @@ function deleteExistingByBaseName(dirPath, baseName) {
         for (const file of files) {
             if (path.parse(file).name === baseName) {
                 fs.unlinkSync(path.join(dirPath, file));
-                console.debug(`CharX: Overwriting existing ${file}`);
             }
         }
     } catch {
@@ -374,7 +362,6 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
                 deleteExistingByBaseName(targetDir, asset.baseName);
                 const filePath = path.join(targetDir, `${asset.baseName}.${asset.ext || 'png'}`);
                 writeFileAtomicSync(filePath, buffer);
-                console.debug(`CharX: Saved sprite "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
                 summary.sprites += 1;
                 continue;
             }
@@ -390,7 +377,6 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
                 const fileName = `${asset.baseName}.${asset.ext || 'png'}`;
                 const filePath = path.join(backgroundDir, fileName);
                 writeFileAtomicSync(filePath, buffer);
-                console.debug(`CharX: Saved background "${asset.name}" as ${fileName}`);
                 summary.backgrounds += 1;
                 continue;
             }
@@ -403,7 +389,6 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
                 // Overwrite existing misc asset with same name
                 const filePath = path.join(miscDir, `${asset.baseName}.${asset.ext || 'png'}`);
                 writeFileAtomicSync(filePath, buffer);
-                console.debug(`CharX: Saved misc asset "${asset.name}" (${asset.type}) as ${path.basename(filePath)}`);
                 summary.misc += 1;
             }
         } catch (error) {
