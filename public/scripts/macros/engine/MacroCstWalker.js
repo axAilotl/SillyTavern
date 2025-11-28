@@ -38,12 +38,7 @@ class MacroCstWalker {
     /** @type {MacroCstWalker} */ static #instance;
     /** @type {MacroCstWalker} */ static get instance() { return MacroCstWalker.#instance ?? (MacroCstWalker.#instance = new MacroCstWalker()); }
 
-    /** @type {WeakMap<CstNode, string>} */
-    #macroCache;
-
-    constructor() {
-        this.#macroCache = new WeakMap();
-    }
+    constructor() { }
 
     /**
      * Evaluates a full document CST into a resolved string.
@@ -166,10 +161,6 @@ class MacroCstWalker {
      * @returns {string}
      */
     #evaluateMacroNode(macroNode, context) {
-        if (this.#macroCache.has(macroNode)) {
-            return this.#macroCache.get(macroNode) || '';
-        }
-
         const { text, env, resolveMacro } = context;
 
         const children = macroNode.children || {};
@@ -242,7 +233,6 @@ class MacroCstWalker {
         const value = resolveMacro(call);
         const stringValue = typeof value === 'string' ? value : String(value ?? '');
 
-        this.#macroCache.set(macroNode, stringValue);
         return stringValue;
     }
 
