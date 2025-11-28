@@ -6,7 +6,7 @@ import { getInstructMacros } from './instruct-mode.js';
 import { getVariableMacros } from './variables.js';
 import { isMobile } from './RossAscends-mods.js';
 import { inject_ids } from './constants.js';
-import { initRegisterMacros, macros as macroSystem, MacroCategory } from './macros/macro-system.js';
+import { initRegisterMacros, macros as macroSystem } from './macros/macro-system.js';
 import { power_user } from './power-user.js';
 
 /**
