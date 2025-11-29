@@ -10,6 +10,7 @@ import {
     createAliasIndicator,
     renderMacroDetails,
 } from '../macros/MacroBrowser.js';
+import { enumIcons } from '../slash-commands/SlashCommandCommonEnumsProvider.js';
 
 /** @typedef {import('../macros/engine/MacroRegistry.js').MacroDefinition} MacroDefinition */
 
@@ -36,7 +37,7 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
      */
     constructor(macro, context = null) {
         // Use the macro name as the autocomplete key
-        super(macro.name, '{}');
+        super(macro.name, enumIcons.macro);
         this.#macro = macro;
         this.#context = context;
         // nameOffset = 2 to skip the {{ prefix in the display (formatMacroSignature includes braces)
@@ -130,10 +131,7 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
         }
 
         // Reuse MacroBrowser's renderMacroDetails with options
-        const details = renderMacroDetails(this.#macro, {
-            currentArgIndex,
-            showCategory: false, // Hide category in autocomplete (too verbose)
-        });
+        const details = renderMacroDetails(this.#macro, { currentArgIndex });
 
         // Add class for autocomplete-specific styling overrides
         details.classList.add('macro-ac-details');

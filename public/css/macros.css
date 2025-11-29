@@ -182,7 +182,7 @@
    Macro Details Panel
    ----------------------------------------------------------------------------- */
 
-.macroBrowser .macro-details-header {
+.macro-details .macro-details-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -190,7 +190,7 @@
     margin-bottom: 0.75em;
 }
 
-.macroBrowser .macro-details-name {
+.macro-details .macro-details-name {
     font-family: var(--monoFontFamily);
     font-size: 1.1em;
     color: var(--SmartThemeQuoteColor);
@@ -201,13 +201,13 @@
     display: inline-block; /* Shrink-wrap to content */
 }
 
-.macroBrowser .macro-details-header > .macro-source {
+.macro-details .macro-details-header > .macro-source {
     flex: 0 0 auto;
     font-size: 1em;
     margin-top: 0.15em; /* Align with name top padding */
 }
 
-.macroBrowser .macro-category-badge {
+.macro-details .macro-category-badge {
     display: inline-block;
     font-size: 0.75em;
     padding: 0.2em 0.6em;
@@ -217,11 +217,11 @@
     margin-bottom: 0.75em;
 }
 
-.macroBrowser .macro-details-section {
+.macro-details .macro-details-section {
     margin-bottom: 1em;
 }
 
-.macroBrowser .macro-details-label {
+.macro-details .macro-details-label {
     font-weight: bold;
     font-size: 0.85em;
     opacity: 0.8;
@@ -230,7 +230,7 @@
     letter-spacing: 0.05em;
 }
 
-.macroBrowser .macro-details-text {
+.macro-details .macro-details-text {
     line-height: 1.4;
 }
 
@@ -238,13 +238,13 @@
    Arguments List (in details panel)
    ----------------------------------------------------------------------------- */
 
-.macroBrowser .macro-args-list {
+.macro-details .macro-args-list {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.macroBrowser .macro-arg-item {
+.macro-details .macro-arg-item {
     padding: 0.4em 0;
     border-bottom: 1px solid var(--black30a);
     display: flex;
@@ -253,17 +253,17 @@
     gap: 0.5em;
 }
 
-.macroBrowser .macro-arg-item:last-child {
+.macro-details .macro-arg-item:last-child {
     border-bottom: none;
 }
 
-.macroBrowser .macro-arg-name {
+.macro-details .macro-arg-name {
     font-family: var(--monoFontFamily);
     font-weight: bold;
     color: var(--SmartThemeQuoteColor);
 }
 
-.macroBrowser .macro-arg-type {
+.macro-details .macro-arg-type {
     font-size: 0.75em;
     padding: 0.1em 0.4em;
     border-radius: 3px;
@@ -271,39 +271,39 @@
     color: var(--SmartThemeEmColor);
 }
 
-.macroBrowser .macro-arg-required {
+.macro-details .macro-arg-required {
     font-size: 0.8em;
     color: var(--warning-color, #e8a97f);
 }
 
-.macroBrowser .macro-arg-desc {
+.macro-details .macro-arg-desc {
     flex: 1 1 100%;
     font-size: 0.9em;
     opacity: 0.8;
 }
 
-.macroBrowser .macro-arg-sample {
+.macro-details .macro-arg-sample {
     font-size: 0.85em;
     opacity: 0.6;
     font-style: italic;
 }
 
-.macroBrowser .macro-arg-list-info {
+.macro-details .macro-arg-list-info {
     font-size: 0.85em;
     opacity: 0.8;
 }
 
-.macroBrowser .macro-example-list {
+.macro-details .macro-example-list {
     list-style: disc;
     padding-left: 1.5em;
     margin: 0.25em 0;
 }
 
-.macroBrowser .macro-example-list li {
+.macro-details .macro-example-list li {
     padding: 0.2em 0;
 }
 
-.macroBrowser .macro-example-list code {
+.macro-details .macro-example-list code {
     font-family: var(--monoFontFamily);
     background: var(--black30a);
     padding: 0.1em 0.3em;
@@ -311,7 +311,7 @@
 }
 
 /* Alias indicator icon in list items */
-.macroBrowser .macro-alias-indicator {
+.macro-details .macro-alias-indicator {
     flex: 0 0 auto;
     font-size: 0.8em;
     opacity: 0.6;
@@ -319,12 +319,12 @@
     transform: rotate(90deg);
 }
 
-.macroBrowser .macro-item.isAlias .macro-signature {
+.macro-details .macro-item.isAlias .macro-signature {
     opacity: 0.85;
 }
 
 /* Alias of indicator in details panel */
-.macroBrowser .macro-alias-of {
+.macro-details .macro-alias-of {
     display: flex;
     align-items: center;
     gap: 0.5em;
@@ -336,13 +336,13 @@
     opacity: 0.9;
 }
 
-.macroBrowser .macro-alias-of i {
+.macro-details .macro-alias-of i {
     transform: rotate(90deg);
     font-size: 0.85em;
     opacity: 0.7;
 }
 
-.macroBrowser .macro-alias-of code {
+.macro-details .macro-alias-of code {
     font-family: var(--monoFontFamily);
     background: var(--black30a);
     padding: 0.1em 0.4em;
@@ -350,7 +350,7 @@
 }
 
 /* Aliases list in details panel */
-.macroBrowser .macro-alias-list {
+.macro-details .macro-alias-list {
     list-style: none;
     padding: 0;
     margin: 0.25em 0;
@@ -359,29 +359,29 @@
     gap: 0.5em;
 }
 
-.macroBrowser .macro-alias-item {
+.macro-details .macro-alias-item {
     display: inline-flex;
     align-items: center;
     gap: 0.3em;
 }
 
-.macroBrowser .macro-alias-item code {
+.macro-details .macro-alias-item code {
     font-family: var(--monoFontFamily);
     background: var(--black30a);
     padding: 0.2em 0.5em;
     border-radius: 3px;
 }
 
-.macroBrowser .macro-alias-item.isHidden {
+.macro-details .macro-alias-item.isHidden {
     opacity: 0.5;
 }
 
-.macroBrowser .macro-alias-item.isHidden code {
+.macro-details .macro-alias-item.isHidden code {
     text-decoration: line-through;
     text-decoration-style: dashed;
 }
 
-.macroBrowser .macro-alias-hidden-badge {
+.macro-details .macro-alias-hidden-badge {
     font-size: 0.75em;
     opacity: 0.7;
     font-style: italic;
