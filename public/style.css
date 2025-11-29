@@ -3323,6 +3323,46 @@ input[type=search]:focus::-webkit-search-cancel-button {
     justify-content: space-evenly;
 }
 
+.bg-tabs-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.bg-tabs {
+    display: flex;
+    gap: 6px;
+}
+
+.bg-tab {
+    border: 1px solid var(--gray800a);
+    background: var(--black-semi-transparent);
+    color: inherit;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+
+.bg-tab:hover {
+    background: var(--gray700a);
+}
+
+.bg-tab.active {
+    background: var(--SmartThemeBlurTintColor);
+    border-color: var(--SmartThemeAccentColor);
+    color: var(--SmartThemeTextColor);
+}
+
+.bg-tab-panel {
+    display: none;
+}
+
+.bg-tab-panel.active {
+    display: block;
+}
+
 .input-file {
     display: flex;
     justify-content: center;
