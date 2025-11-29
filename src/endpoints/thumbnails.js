@@ -96,9 +96,10 @@ function getOriginalFolder(directories, type, charFolder) {
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Type of the thumbnail
  * @param {string} file Name of the file
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  */
-export function invalidateThumbnail(directories, type, file) {
-    const folder = getThumbnailFolder(directories, type);
+export function invalidateThumbnail(directories, type, file, charFolder) {
+    const folder = getThumbnailFolder(directories, type, charFolder);
     if (folder === undefined) throw new Error('Invalid thumbnail type');
 
     const pathToThumbnail = path.join(folder, sanitize(file));
