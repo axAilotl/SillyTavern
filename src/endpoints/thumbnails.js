@@ -20,7 +20,7 @@ const quality = Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.qu
 const pngFormat = String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
 
 /**
- * @typedef {'bg' | 'avatar' | 'persona'} ThumbnailType
+ * @typedef {'bg' | 'avatar' | 'persona' | 'charbg'} ThumbnailType
  */
 
 /** @type {Record<string, number[]>} */
@@ -28,15 +28,17 @@ export const dimensions = {
     'bg': getConfigValue('thumbnails.dimensions.bg', [160, 90]),
     'avatar': getConfigValue('thumbnails.dimensions.avatar', [96, 144]),
     'persona': getConfigValue('thumbnails.dimensions.persona', [96, 144]),
+    'charbg': getConfigValue('thumbnails.dimensions.bg', [160, 90]), // Same as bg
 };
 
 /**
  * Gets a path to thumbnail folder based on the type.
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Thumbnail type
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  * @returns {string} Path to the thumbnails folder
  */
-function getThumbnailFolder(directories, type) {
+function getThumbnailFolder(directories, type, charFolder) {
     let thumbnailFolder;
 
     switch (type) {
@@ -49,6 +51,11 @@ function getThumbnailFolder(directories, type) {
         case 'persona':
             thumbnailFolder = directories.thumbnailsPersona;
             break;
+        case 'charbg':
+            if (charFolder) {
+                thumbnailFolder = path.join(directories.characters, charFolder, 'thumbnails');
+            }
+            break;
     }
 
     return thumbnailFolder;
@@ -58,9 +65,10 @@ function getThumbnailFolder(directories, type) {
  * Gets a path to the original images folder based on the type.
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Thumbnail type
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  * @returns {string} Path to the original images folder
  */
-function getOriginalFolder(directories, type) {
+function getOriginalFolder(directories, type, charFolder) {
     let originalFolder;
 
     switch (type) {
@@ -72,6 +80,11 @@ function getOriginalFolder(directories, type) {
             break;
         case 'persona':
             originalFolder = directories.avatars;
+            break;
+        case 'charbg':
+            if (charFolder) {
+                originalFolder = path.join(directories.characters, charFolder, 'backgrounds');
+            }
             break;
     }
 
@@ -98,21 +111,27 @@ export function invalidateThumbnail(directories, type, file) {
 /**
  * Generates or retrieves a thumbnail for a given file.
  * @param {import('../users.js').UserDirectoryList} directories - User's directory configuration.
- * @param {ThumbnailType} type - Type of thumbnail ('bg', 'avatar', 'persona').
+ * @param {ThumbnailType} type - Type of thumbnail ('bg', 'avatar', 'persona', 'charbg').
  * @param {string} file - The filename of the image.
  * @param {boolean} [forceGenerate=false] - Whether to force generation even if a thumbnail exists.
  * @param {boolean|null} [isKnownAnimated=null] - If true, skips generation. If false, assumes static. If null, checks.
+ * @param {string} [charFolder] - Character folder name (required for 'charbg' type).
  * @returns {Promise<{path: string|null, aspectRatio: number|null, resolution: number|null}>} Path to thumbnail, its aspect ratio, and resolution.
  */
-export async function generateThumbnail(directories, type, file, forceGenerate = false, isKnownAnimated = null) {
+export async function generateThumbnail(directories, type, file, forceGenerate = false, isKnownAnimated = null, charFolder = null) {
     // If the caller has already determined the file is animated, skip processing.
     if (isKnownAnimated) {
         return { path: null, aspectRatio: null, resolution: null };
     }
 
-    const thumbnailFolder = getThumbnailFolder(directories, type);
-    const originalFolder = getOriginalFolder(directories, type);
+    const thumbnailFolder = getThumbnailFolder(directories, type, charFolder);
+    const originalFolder = getOriginalFolder(directories, type, charFolder);
     if (thumbnailFolder === undefined || originalFolder === undefined) throw new Error('Invalid thumbnail type');
+
+    // Ensure thumbnail folder exists for character backgrounds
+    if (type === 'charbg' && !fs.existsSync(thumbnailFolder)) {
+        fs.mkdirSync(thumbnailFolder, { recursive: true });
+    }
     const pathToCachedFile = path.join(thumbnailFolder, file);
 
     try {
@@ -244,17 +263,30 @@ async function processSingleImage(file, originalFolder, thumbnailFolder, type) {
 publicRouter.get('/', async function (request, response) {
     try {
         const thumbnailsEnabled = !!getConfigValue('thumbnails.enabled', true, 'boolean');
-        const { file: rawFile, type, animated } = request.query;
+        const { file: rawFile, type, animated, folder: rawFolder } = request.query;
         if (typeof rawFile !== 'string' || typeof type !== 'string') return response.sendStatus(400);
-        if (!(type === 'bg' || type === 'avatar' || type === 'persona')) {
+        if (!(type === 'bg' || type === 'avatar' || type === 'persona' || type === 'charbg')) {
             return response.sendStatus(400);
         }
 
         const file = sanitize(rawFile);
         if (file !== rawFile) return response.sendStatus(403);
 
+        // Character backgrounds require a folder parameter
+        let charFolder = null;
+        if (type === 'charbg') {
+            if (typeof rawFolder !== 'string' || !rawFolder) {
+                return response.sendStatus(400);
+            }
+            charFolder = sanitize(rawFolder);
+            if (charFolder !== rawFolder) {
+                console.error('Malicious folder name prevented');
+                return response.sendStatus(403);
+            }
+        }
+
         const serveOriginal = () => {
-            const folder = getOriginalFolder(request.user.directories, type);
+            const folder = getOriginalFolder(request.user.directories, type, charFolder);
             const pathToOriginalFile = path.resolve(path.join(folder, file));
             if (!fs.existsSync(pathToOriginalFile)) return response.sendStatus(404);
             return response.sendFile(pathToOriginalFile);
@@ -277,12 +309,18 @@ publicRouter.get('/', async function (request, response) {
             return serveOriginal();
         }
 
-        const thumbnailFolder = getThumbnailFolder(request.user.directories, type);
+        const thumbnailFolder = getThumbnailFolder(request.user.directories, type, charFolder);
+
+        // Ensure thumbnail folder exists for character backgrounds
+        if (type === 'charbg' && !fs.existsSync(thumbnailFolder)) {
+            fs.mkdirSync(thumbnailFolder, { recursive: true });
+        }
+
         const pathToCachedFile = path.join(thumbnailFolder, file);
 
         // Try to generate thumbnail if it doesn't exist
         if (!fs.existsSync(pathToCachedFile)) {
-            const thumbResult = await generateThumbnail(request.user.directories, type, file, false);
+            const thumbResult = await generateThumbnail(request.user.directories, type, file, false, null, charFolder);
             // If generation failed (path is null), send 404 for frontend placeholder
             if (!thumbResult.path) {
                 return response.sendStatus(404);

@@ -72,6 +72,78 @@ router.post('/all', async function (request, response) {
     }
 });
 
+router.post('/character', async function (request, response) {
+    if (!request.body?.avatar) {
+        return response.sendStatus(400);
+    }
+
+    const avatar = sanitize(request.body.avatar);
+    const folderName = avatar.replace(/\.[^/.]+$/, '');
+
+    if (!folderName) {
+        return response.json({ images: [], folderName: '' });
+    }
+
+    const bgPath = path.join(request.user.directories.characters, folderName, 'backgrounds');
+
+    if (!(await fileExists(bgPath))) {
+        return response.json({ images: [], folderName });
+    }
+
+    try {
+        const files = await fsp.readdir(bgPath);
+        const images = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.avif'].includes(ext);
+        });
+        response.json({ images, folderName });
+    } catch (error) {
+        console.error('Failed to read character backgrounds:', error);
+        response.json({ images: [], folderName });
+    }
+});
+
+/**
+ * Get background preferences (global background, per-character backgrounds).
+ */
+router.get('/preferences', async function (request, response) {
+    try {
+        const manager = new BackgroundsMetadataManager(request.user.directories);
+        const metadata = await manager.read();
+        const preferences = metadata.preferences || { global: null, characters: {} };
+        response.json(preferences);
+    } catch (error) {
+        console.error('Failed to read background preferences:', error);
+        response.json({ global: null, characters: {} });
+    }
+});
+
+/**
+ * Save background preferences (global background, per-character backgrounds).
+ * Body: { global: { name, url }, characters: { [charFolder]: url } }
+ */
+router.post('/preferences', async function (request, response) {
+    try {
+        const preferences = request.body;
+        if (!preferences || typeof preferences !== 'object') {
+            return response.status(400).send('Invalid preferences object.');
+        }
+
+        const manager = new BackgroundsMetadataManager(request.user.directories);
+        await manager.update(metadata => {
+            metadata.preferences = {
+                global: preferences.global || null,
+                characters: preferences.characters || {},
+            };
+        });
+
+        response.json({ success: true });
+    } catch (error) {
+        console.error('Failed to save background preferences:', error);
+        response.status(500).send('Failed to save preferences.');
+    }
+});
+
 router.post('/delete', getFileNameValidationFunction('bg'), async function (request, response) {
     if (!request.body || !request.body.bg) {
         return response.status(400).send('Background filename not provided.');

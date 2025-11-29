@@ -1,6 +1,6 @@
 import { Fuse, localforage } from '../lib.js';
 import { chat_metadata, eventSource, event_types, generateQuietPrompt, getCurrentChatId, getRequestHeaders, getThumbnailUrl, saveSettingsDebounced } from '../script.js';
-import { openThirdPartyExtensionMenu, saveMetadataDebounced } from './extensions.js';
+import { getContext, openThirdPartyExtensionMenu, saveMetadataDebounced } from './extensions.js';
 import { SlashCommand } from './slash-commands/SlashCommand.js';
 import { SlashCommandParser } from './slash-commands/SlashCommandParser.js';
 import { createThumbnail, flashHighlight, getBase64Async, stringFormat, debounce, setupScrollToTop } from './utils.js';
@@ -44,12 +44,75 @@ const THUMBNAIL_CONFIG = {
  */
 let lazyLoadObserver = null;
 
+/**
+ * Current character's folder name for character-specific backgrounds
+ * @type {string|null}
+ */
+let currentCharacterFolder = null;
+
+/**
+ * Stores the last global (non-character) background URL for restoration when switching characters
+ * @type {string|null}
+ */
+let globalBackgroundUrl = null;
+
+/**
+ * Stores per-character background selections (charFolder → URL)
+ * @type {Map<string, string>}
+ */
+const characterBackgrounds = new Map();
+
 export let background_settings = {
     name: '__transparent.png',
     url: generateUrlParameter('__transparent.png', false),
     fitting: 'classic',
     animation: false,
 };
+
+/**
+ * Stores the global background info for persistence
+ * @type {{name: string, url: string}|null}
+ */
+let globalBackgroundInfo = null;
+
+/**
+ * Debounced function to save background preferences to the server.
+ * Saves to backgrounds/index.json instead of the main settings.json.
+ */
+const saveBackgroundPreferencesDebounced = debounce(async () => {
+    try {
+        const preferences = {
+            global: globalBackgroundInfo,
+            characters: Object.fromEntries(characterBackgrounds),
+        };
+        await fetch('/api/backgrounds/preferences', {
+            method: 'POST',
+            headers: getRequestHeaders(),
+            body: JSON.stringify(preferences),
+        });
+    } catch (error) {
+        console.error('Failed to save background preferences:', error);
+    }
+}, debounce_timeout.relaxed);
+
+/**
+ * Loads background preferences from the server (backgrounds/index.json).
+ * @returns {Promise<{global: {name: string, url: string}|null, characters: Object}>}
+ */
+async function loadBackgroundPreferences() {
+    try {
+        const response = await fetch('/api/backgrounds/preferences', {
+            method: 'GET',
+            headers: getRequestHeaders(),
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (error) {
+        console.error('Failed to load background preferences:', error);
+    }
+    return { global: null, characters: {} };
+}
 
 /**
  * Creates a single thumbnail DOM element. The CSS now handles all sizing.
@@ -98,7 +161,7 @@ function applyThumbnailColumns(count) {
     saveSettingsDebounced();
 }
 
-export function loadBackgroundSettings(settings) {
+export async function loadBackgroundSettings(settings) {
     let backgroundSettings = settings.background;
     if (!backgroundSettings || !backgroundSettings.name || !backgroundSettings.url) {
         backgroundSettings = background_settings;
@@ -110,6 +173,33 @@ export function loadBackgroundSettings(settings) {
         backgroundSettings.animation = false;
     }
 
+    // Load preferences from backgrounds/index.json (per-character, global)
+    const preferences = await loadBackgroundPreferences();
+
+    // Restore per-character backgrounds
+    characterBackgrounds.clear();
+    if (preferences.characters && typeof preferences.characters === 'object') {
+        for (const [folder, url] of Object.entries(preferences.characters)) {
+            characterBackgrounds.set(folder, url);
+        }
+    }
+
+    // Initialize global background from preferences or fall back to settings.json
+    if (preferences.global?.url) {
+        globalBackgroundUrl = preferences.global.url;
+        globalBackgroundInfo = preferences.global;
+    } else {
+        // Fall back to settings.json (migration from old system)
+        const isCharacterBg = backgroundSettings.url?.includes('/characters/') && backgroundSettings.url?.includes('/backgrounds/');
+        if (!isCharacterBg) {
+            globalBackgroundUrl = backgroundSettings.url;
+            globalBackgroundInfo = { name: backgroundSettings.name, url: backgroundSettings.url };
+        } else {
+            globalBackgroundUrl = generateUrlParameter('__transparent.png', false);
+            globalBackgroundInfo = { name: '__transparent.png', url: globalBackgroundUrl };
+        }
+    }
+
     // If a value is already saved, use it. Otherwise, determine default based on screen size.
     let columns = backgroundSettings.thumbnailColumns;
     if (!columns) {
@@ -119,7 +209,8 @@ export function loadBackgroundSettings(settings) {
     background_settings.thumbnailColumns = columns;
     applyThumbnailColumns(background_settings.thumbnailColumns);
 
-    setBackground(backgroundSettings.name, backgroundSettings.url);
+    // On startup, apply global background. onChatChanged will apply correct per-char bg when chat loads.
+    setBackground(globalBackgroundInfo.name, globalBackgroundUrl, true);
     setFittingClass(backgroundSettings.fitting);
     $('#background_fitting').val(backgroundSettings.fitting);
     $('#background_thumbnails_animation').prop('checked', background_settings.animation);
@@ -145,13 +236,26 @@ async function forceSetBackground(backgroundInfo) {
 }
 
 async function onChatChanged() {
-    const lockedUrl = chat_metadata[BG_METADATA_KEY];
+    const context = getContext();
+    const avatar = context.characters?.[context.characterId]?.avatar ?? null;
+    const charFolder = avatar?.replace(/\.[^/.]+$/, '');
 
-    $('#bg1').css('background-image', lockedUrl || background_settings.url);
+    // Determine effective background: per-chat locked > per-character > global
+    let effectiveUrl;
+    if (charFolder && characterBackgrounds.has(charFolder)) {
+        effectiveUrl = characterBackgrounds.get(charFolder);
+    } else {
+        effectiveUrl = globalBackgroundUrl;
+    }
+
+    const lockedUrl = chat_metadata[BG_METADATA_KEY];
+    $('#bg1').css('background-image', lockedUrl || effectiveUrl);
 
     renderChatBackgrounds();
     highlightLockedBackground();
     highlightSelectedBackground();
+
+    await getCharacterBackgrounds(avatar);
 }
 
 function getBackgroundPath(fileUrl) {
@@ -423,7 +527,7 @@ const autoBgPrompt = 'Ignore previous instructions and choose a location ONLY fr
 
 async function autoBackgroundCommand() {
     /** @type {HTMLElement[]} */
-    const bgTitles = Array.from(document.querySelectorAll('#bg_menu_content .BGSampleTitle'));
+    const bgTitles = Array.from(document.querySelectorAll('#bg_menu_content .BGSampleTitle, #bg_character_content .BGSampleTitle'));
     const options = bgTitles.map(x => ({ element: x, text: x.innerText.trim() })).filter(x => x.text.length > 0);
     if (options.length == 0) {
         toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder.');
@@ -493,6 +597,68 @@ function renderChatBackgrounds(backgrounds) {
     });
 
     activateLazyLoader();
+}
+
+/**
+ * Fetches and renders backgrounds from the current character's backgrounds folder.
+ * @param {string|null} avatar - The character's avatar filename, or null to clear.
+ */
+async function getCharacterBackgrounds(avatar) {
+    if (!avatar) {
+        currentCharacterFolder = null;
+        renderCharacterBackgrounds([]);
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/backgrounds/character', {
+            method: 'POST',
+            headers: getRequestHeaders(),
+            body: JSON.stringify({ avatar }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            currentCharacterFolder = data.folderName;
+            renderCharacterBackgrounds(data.images);
+        }
+    } catch (error) {
+        console.error('Failed to fetch character backgrounds:', error);
+        currentCharacterFolder = null;
+        renderCharacterBackgrounds([]);
+    }
+}
+
+/**
+ * Renders the character-specific backgrounds gallery.
+ * @param {string[]} backgrounds - List of background filenames.
+ */
+function renderCharacterBackgrounds(backgrounds) {
+    const container = $('#bg_character_content');
+    container.empty();
+    $('#bg_character_header').toggle(backgrounds.length > 0);
+
+    if (!backgrounds.length) {
+        return;
+    }
+
+    backgrounds.forEach(bg => {
+        // Full path for clicking (full-size image) - don't pre-encode, generateUrlParameter handles it
+        const fullPath = `/characters/${currentCharacterFolder}/backgrounds/${bg}`;
+        // Thumbnail URL for display
+        const thumbnailUrl = getThumbnailUrl('charbg', bg, false, currentCharacterFolder);
+
+        const imageData = { filename: fullPath, isCustom: true };
+        const thumbnail = createThumbnailElement(imageData);
+        container.append(thumbnail);
+
+        // Set thumbnail URL directly on the clipper
+        const clipper = thumbnail.querySelector('.thumbnail-clipper');
+        if (clipper) {
+            clipper.classList.remove('lazy-load-background');
+            clipper.style.backgroundImage = `url("${thumbnailUrl}")`;
+        }
+    });
 }
 
 export async function getBackgrounds() {
@@ -581,14 +747,38 @@ async function resolveImageUrl(bg, isCustom) {
     return `url("${thumbnailUrl}")`;
 }
 
-async function setBackground(bg, url) {
+/**
+ * Sets the background and saves preferences.
+ * @param {string} bg - Background filename
+ * @param {string} url - Background URL
+ * @param {boolean} [skipSave=false] - Skip saving preferences (used during initial load)
+ */
+async function setBackground(bg, url, skipSave = false) {
     // Only change the visual background if one is not locked for the current chat.
     if (!isChatBackgroundLocked()) {
         $('#bg1').css('background-image', url);
     }
+
+    // Track global vs per-character backgrounds separately
+    const isCharacterBg = url?.includes('/characters/') && url?.includes('/backgrounds/');
+    if (isCharacterBg && currentCharacterFolder) {
+        // Store per-character background
+        characterBackgrounds.set(currentCharacterFolder, url);
+    } else if (!isCharacterBg) {
+        globalBackgroundUrl = url;
+        globalBackgroundInfo = { name: bg, url: url };
+    }
+
+    // Update background_settings for legacy compatibility (fitting, animation, etc still use this)
     background_settings.name = bg;
     background_settings.url = url;
-    saveSettingsDebounced();
+
+    if (!skipSave) {
+        // Save per-character and global preferences to backgrounds/index.json
+        saveBackgroundPreferencesDebounced();
+        // Also save to main settings for legacy fields (name, url for compatibility)
+        saveSettingsDebounced();
+    }
 }
 
 async function delBackground(bg) {
@@ -737,7 +927,7 @@ function highlightSelectedBackground() {
 
 function onBackgroundFilterInput() {
     const filterValue = String($('#bg-filter').val()).toLowerCase();
-    $('#bg_menu_content > .bg_example, #bg_custom_content > .bg_example').each(function () {
+    $('#bg_menu_content > .bg_example, #bg_character_content > .bg_example, #bg_custom_content > .bg_example').each(function () {
         const $bg = $(this);
         const title = $bg.attr('title') || '';
         const hasMatch = title.toLowerCase().includes(filterValue);
