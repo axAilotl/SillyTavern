@@ -38,6 +38,23 @@ const THUMBNAIL_CONFIG = {
     height: 90,
 };
 
+const BackgroundTabs = {
+    System: 'system',
+    Character: 'character',
+    Chat: 'chat',
+};
+
+let activeBackgroundTab = BackgroundTabs.System;
+let systemBackgrounds = [];
+let characterBackgrounds = [];
+let chatBackgrounds = [];
+
+function getBackgroundTitle(bg, isCustom) {
+    const fileName = isCustom ? bg.split('/').pop() || bg : bg;
+    const nameWithoutExtension = fileName.slice(0, fileName.lastIndexOf('.'));
+    return nameWithoutExtension || fileName;
+}
+
 /**
  * Global IntersectionObserver instance for lazy loading backgrounds
  * @type {IntersectionObserver|null}
@@ -134,10 +151,9 @@ function createThumbnailElement(imageData) {
     thumbnail.append(clipper);
 
     const url = generateUrlParameter(bg, isCustom);
-    const title = isCustom ? bg.split('/').pop() : bg;
-    const friendlyTitle = title.slice(0, title.lastIndexOf('.'));
+    const friendlyTitle = getBackgroundTitle(bg, isCustom);
 
-    thumbnail.attr('title', title);
+    thumbnail.attr('title', friendlyTitle);
     thumbnail.attr('bgfile', bg);
     thumbnail.attr('custom', String(isCustom));
     thumbnail.data('url', url);
@@ -235,6 +251,20 @@ async function forceSetBackground(backgroundInfo) {
     highlightLockedBackground();
 }
 
+function getCharacterBackgroundList() {
+    const character = this_chid !== undefined ? characters[this_chid] : null;
+    if (!character) return [];
+
+    const candidates = [
+        character.backgrounds,
+        character.data?.backgrounds,
+        character.data?.assets?.backgrounds,
+    ];
+
+    const available = candidates.find(Array.isArray);
+    return available ? [...available] : [];
+}
+
 async function onChatChanged() {
     const context = getContext();
     const avatar = context.characters?.[context.characterId]?.avatar ?? null;
@@ -251,7 +281,11 @@ async function onChatChanged() {
     const lockedUrl = chat_metadata[BG_METADATA_KEY];
     $('#bg1').css('background-image', lockedUrl || effectiveUrl);
 
-    renderChatBackgrounds();
+    characterBackgrounds = getCharacterBackgroundList();
+    chatBackgrounds = chat_metadata[LIST_METADATA_KEY] || [];
+    renderCharacterBackgrounds(characterBackgrounds);
+    renderChatBackgrounds(chatBackgrounds);
+    renderActiveTabContents();
     highlightLockedBackground();
     highlightSelectedBackground();
 
@@ -268,7 +302,7 @@ function highlightLockedBackground() {
     const lockedBackgroundUrl = chat_metadata[BG_METADATA_KEY];
 
     if (lockedBackgroundUrl) {
-        $('.bg_example').filter(function () {
+        getActiveContainer().find('.bg_example').filter(function () {
             return $(this).data('url') === lockedBackgroundUrl;
         }).addClass('locked-background');
     }
@@ -563,14 +597,30 @@ async function autoBackgroundCommand() {
  * @param {string[]} [backgrounds] - Optional filtered list of backgrounds.
  */
 function renderSystemBackgrounds(backgrounds) {
-    const sourceList = backgrounds || [];
+    systemBackgrounds = backgrounds ?? systemBackgrounds;
+
+    const filtered = getFilteredBackgrounds(systemBackgrounds, false);
     const container = $('#bg_menu_content');
     container.empty();
 
-    if (sourceList.length === 0) return;
-
-    sourceList.forEach(bg => {
+    filtered.forEach(bg => {
         const imageData = { filename: bg, isCustom: false };
+        const thumbnail = createThumbnailElement(imageData);
+        container.append(thumbnail);
+    });
+
+    activateLazyLoader();
+}
+
+function renderCharacterBackgrounds(backgrounds) {
+    characterBackgrounds = backgrounds ?? characterBackgrounds;
+
+    const filtered = getFilteredBackgrounds(characterBackgrounds, true);
+    const container = $('#bg_character_content');
+    container.empty();
+
+    filtered.forEach(bg => {
+        const imageData = { filename: bg, isCustom: true };
         const thumbnail = createThumbnailElement(imageData);
         container.append(thumbnail);
     });
@@ -583,14 +633,14 @@ function renderSystemBackgrounds(backgrounds) {
  * @param {string[]} [backgrounds] - Optional filtered list of backgrounds.
  */
 function renderChatBackgrounds(backgrounds) {
-    const sourceList = backgrounds ?? (chat_metadata[LIST_METADATA_KEY] || []);
+    chatBackgrounds = backgrounds ?? (chat_metadata[LIST_METADATA_KEY] || []);
+
+    const filtered = getFilteredBackgrounds(chatBackgrounds, true);
     const container = $('#bg_custom_content');
     container.empty();
-    $('#bg_chat_hint').toggle(!sourceList.length);
+    $('#bg_chat_hint').toggle(!filtered.length);
 
-    if (sourceList.length === 0) return;
-
-    sourceList.forEach(bg => {
+    filtered.forEach(bg => {
         const imageData = { filename: bg, isCustom: true };
         const thumbnail = createThumbnailElement(imageData);
         container.append(thumbnail);
@@ -671,8 +721,13 @@ export async function getBackgrounds() {
         const { images, config } = await response.json();
         Object.assign(THUMBNAIL_CONFIG, config);
 
-        renderSystemBackgrounds(images);
+        systemBackgrounds = images;
+        renderSystemBackgrounds(systemBackgrounds);
+        if (activeBackgroundTab !== BackgroundTabs.System) {
+            renderActiveTabContents();
+        }
         highlightSelectedBackground();
+        highlightLockedBackground();
     }
 }
 
@@ -683,7 +738,7 @@ function activateLazyLoader() {
         lazyLoadObserver = null;
     }
 
-    const lazyLoadElements = document.querySelectorAll('.lazy-load-background');
+    const lazyLoadElements = document.querySelectorAll('.bg-tab-panel.active .lazy-load-background');
 
     const options = {
         root: null,
@@ -893,7 +948,20 @@ async function uploadBackground(formData) {
  * @param {string} bg
  */
 function highlightNewBackground(bg) {
-    const newBg = $(`.bg_example[bgfile="${bg}"]`);
+    const targetTab = chatBackgrounds.includes(bg)
+        ? BackgroundTabs.Chat
+        : characterBackgrounds.includes(bg)
+            ? BackgroundTabs.Character
+            : BackgroundTabs.System;
+
+    if (targetTab !== activeBackgroundTab) {
+        setActiveBackgroundTab(targetTab);
+    }
+
+    renderActiveTabContents();
+    const newBg = getActiveContainer().find(`.bg_example[bgfile="${bg}"]`).first();
+    if (!newBg.length) return;
+
     const scrollOffset = newBg.offset().top - newBg.parent().offset().top;
     $('#Backgrounds').scrollTop(scrollOffset);
     flashHighlight(newBg);
@@ -919,7 +987,7 @@ function highlightSelectedBackground() {
 
     if (activeUrl) {
         // Find the thumbnail whose data-url attribute matches the active URL
-        $('.bg_example').filter(function () {
+        getActiveContainer().find('.bg_example').filter(function () {
             return $(this).data('url') === activeUrl;
         }).addClass('selected-background');
     }
@@ -990,6 +1058,36 @@ export function initBackgrounds() {
     $('#auto_background').on('click', autoBackgroundCommand);
     $('#add_bg_button').on('change', onBackgroundUploadSelected);
     $('#bg-filter').on('input', () => debouncedOnBackgroundFilterInput());
+    $('.bg-tab').on('click', function () {
+        setActiveBackgroundTab(String($(this).data('tab')));
+        debouncedOnBackgroundFilterInput();
+    });
+    $('.bg-tab').on('keydown', function (event) {
+        const { key } = event;
+        const tabs = $('.bg-tab');
+        const currentIndex = tabs.index(this);
+        let targetIndex = currentIndex;
+
+        if (key === 'ArrowLeft' || key === 'ArrowUp') {
+            targetIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+        } else if (key === 'ArrowRight' || key === 'ArrowDown') {
+            targetIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+        } else if (key === 'Home') {
+            targetIndex = 0;
+        } else if (key === 'End') {
+            targetIndex = tabs.length - 1;
+        } else {
+            return;
+        }
+
+        event.preventDefault();
+
+        const targetTab = tabs.eq(targetIndex);
+        targetTab.trigger('focus');
+        setActiveBackgroundTab(String(targetTab.data('tab')));
+        debouncedOnBackgroundFilterInput();
+    });
+    $('.bg-tab.active').attr('aria-selected', 'true');
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'lockbg',
         callback: () => {
