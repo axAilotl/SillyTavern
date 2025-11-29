@@ -6,6 +6,7 @@ import { oai_settings } from './scripts/openai';
 import { textgenerationwebui_settings } from './scripts/textgen-settings';
 import { FileAttachment } from './scripts/chats';
 import { ReasoningMessageExtra } from './scripts/reasoning';
+import { OVERSWIPE_BEHAVIOR } from './scripts/constants';
 
 declare global {
     // Custom types
@@ -16,6 +17,7 @@ declare global {
     type TextCompletionSettings = typeof textgenerationwebui_settings;
     type MessageTimestamp = string | number | Date;
     type Character = import('./scripts/char-data').v1CharData;
+    type ChatMessageExtra = BaseMessageExtra & Partial<ReasoningMessageExtra> & Record<string, any>;
 
     interface Group {
         id: string;
@@ -42,6 +44,10 @@ declare global {
 
     interface ChatHeader {
         chat_metadata: ChatMetadata;
+        /** @deprecated For backward compatibility ONLY */
+        user_name: 'unused';
+        /** @deprecated For backward compatibility ONLY */
+        character_name: 'unused';
     }
 
     interface ChatMetadata {
@@ -64,12 +70,19 @@ declare global {
         force_avatar?: string;
         original_avatar?: string;
         swipes?: string[];
-        swipe_info?: Record<string, any>;
+        swipe_info?: SwipeInfo[];
         swipe_id?: number;
-        extra?: ChatMessageExtra & Partial<ReasoningMessageExtra> & Record<string, any>;
+        extra?: ChatMessageExtra;
     };
 
-    interface ChatMessageExtra {
+    interface SwipeInfo {
+        send_date?: MessageTimestamp;
+        gen_started?: MessageTimestamp;
+        gen_finished?: MessageTimestamp;
+        extra?: ChatMessageExtra;
+    }
+
+    interface BaseMessageExtra {
         gen_id?: number;
         bias?: string;
         uses_system_ui?: boolean;
@@ -80,6 +93,9 @@ declare global {
         title?: string;
         isSmallSys?: boolean;
         token_count?: number;
+        /** When false, the message cannot be swiped. */
+        swipeable?: boolean;
+        overswipe_behavior?: OVERSWIPE_BEHAVIOR;
         files?: FileAttachment[];
         inline_image?: boolean;
         media_display?: string;
@@ -202,4 +218,6 @@ declare global {
             rgba: string;
         }
     };
+
+    type SwipeEvent = JQuery.TriggeredEvent<any, any, HTMLElement, HTMLElement>;
 }
