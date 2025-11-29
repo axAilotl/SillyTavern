@@ -416,14 +416,21 @@ export function createAliasIndicator(macro) {
 }
 
 /**
- * Creates a DOM element for argument type badge.
- * @param {MacroArgType} type
+ * Creates a type badge element. Supports single type or array of types.
+ * @param {MacroArgType|MacroArgType[]} type - Single type or array of accepted types.
  * @returns {HTMLElement}
  */
 export function createTypeBadge(type) {
     const badge = document.createElement('span');
     badge.classList.add('macro-arg-type');
-    badge.textContent = type;
+
+    if (Array.isArray(type)) {
+        badge.textContent = type.join(' | ');
+        badge.title = `Accepts: ${type.join(', ')}`;
+    } else {
+        badge.textContent = type;
+    }
+
     return badge;
 }
 

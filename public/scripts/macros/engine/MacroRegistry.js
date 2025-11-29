@@ -43,9 +43,13 @@ export const MacroCategory = Object.freeze({
  * @enum {string}
  */
 export const MacroArgType = Object.freeze({
+    /** String value of any kind */
     STRING: 'string',
+    /** Integer value (natural number, no decimal spaces) */
     INTEGER: 'integer',
+    /** Number value (decimal spaces allowed, includes integers values) */
     NUMBER: 'number',
+    /** Boolean value (true/false, 1/0, yes/no, on/off) */
     BOOLEAN: 'boolean',
 });
 
@@ -74,7 +78,7 @@ export const MacroArgType = Object.freeze({
  * @property {string} name
  * @property {string} [sampleValue]
  * @property {string} [description]
- * @property {MacroArgType} [type=MacroArgType.STRING]
+ * @property {MacroArgType|MacroArgType[]} [type=MacroArgType.STRING] - Single type or array of accepted types.
  */
 
 /**
@@ -220,14 +224,12 @@ class MacroRegistry {
                             name: def.name.trim(),
                             sampleValue: def.sampleValue?.trim(),
                             description: typeof def.description === 'string' ? def.description : undefined,
-                            type: def.type ?? 'string',
+                            type: Array.isArray(def.type) && def.type.length === 0 ? 'string' : def.type ?? 'string',
                         };
 
-                        if (normalized.type !== undefined
-                            && normalized.type !== 'string'
-                            && normalized.type !== 'integer'
-                            && normalized.type !== 'number'
-                            && normalized.type !== 'boolean') {
+                        const validTypes = ['string', 'integer', 'number', 'boolean'];
+                        const type = Array.isArray(normalized.type) ? normalized.type : [normalized.type];
+                        if (type.some(t => !validTypes.includes(t))) {
                             throw new Error(`Macro "${name}" options.requiredArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
                         }
 
@@ -535,7 +537,8 @@ function validateArgTypes(call, def, requiredArgs) {
             throw new Error(`Macro "${call.name}" (position ${i + 1}) has invalid definition or type.`);
         }
 
-        if (!isValueOfType(value, argDef.type)) {
+        const types = Array.isArray(argDef.type) ? argDef.type : [argDef.type];
+        if (!types.some(type => isValueOfType(value, type))) {
             const argName = argDef.name || `Argument ${i + 1}`;
             const message = `Macro "${call.name}" (position ${i + 1}) argument "${argName}" expected type ${argDef.type} but got value "${value}".`;
             if (def.strictArgs) {
