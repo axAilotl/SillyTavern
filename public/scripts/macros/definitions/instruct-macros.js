@@ -54,7 +54,7 @@ export function registerInstructMacros() {
     registerSimple(['instructLastUserPrefix', 'instructLastInput'], () => power_user.instruct.last_input_sequence || power_user.instruct.input_sequence, instEnabled, 'Instruct last user / input prefix sequence.');
 
     // System prompt macros
-    registerSimple(['defaultSystemPrompt', 'instructSystem', 'instructSystemPrompt'], () => power_user.sysprompt.content, sysEnabled, 'Alias for the default system prompt.');
+    registerSimple(['defaultSystemPrompt', 'instructSystem', 'instructSystemPrompt'], () => power_user.sysprompt.content, sysEnabled, 'Default system prompt.');
 
     MacroRegistry.registerMacro('systemPrompt', {
         category: MacroCategory.PROMPTS,

@@ -1,4 +1,4 @@
-import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory, MacroValueType } from '../engine/MacroRegistry.js';
 import { isMobile } from '../../RossAscends-mods.js';
 import { parseMesExamples, main_api } from '../../../script.js';
 import { power_user } from '../../power-user.js';
@@ -16,31 +16,36 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('user', {
         category: MacroCategory.NAMES,
         description: 'Your current Persona username.',
+        returns: 'Persona username.',
         handler: ({ env }) => env.names.user,
     });
 
     MacroRegistry.registerMacro('char', {
         category: MacroCategory.NAMES,
         description: 'The character\'s name.',
+        returns: 'Character name.',
         handler: ({ env }) => env.names.char,
     });
 
     MacroRegistry.registerMacro('group', {
+        aliases: [{ alias: 'charIfNotGroup', visible: false }],
         category: MacroCategory.NAMES,
         description: 'Comma-separated list of group member names (including muted) or the character name in solo chats.',
-        aliases: [{ alias: 'charIfNotGroup', visible: false }],
+        returns: 'List of group member names.',
         handler: ({ env }) => env.names.group ?? '',
     });
 
     MacroRegistry.registerMacro('groupNotMuted', {
         category: MacroCategory.NAMES,
         description: 'Comma-separated list of group member names excluding muted members.',
+        returns: 'List of group member names excluding muted members.',
         handler: ({ env }) => env.names.groupNotMuted ?? '',
     });
 
     MacroRegistry.registerMacro('notChar', {
         category: MacroCategory.NAMES,
         description: 'Comma-separated list of all participants except the current speaker.',
+        returns: 'List of all participants except the current speaker.',
         handler: ({ env }) => env.names.notChar ?? '',
     });
 
@@ -48,48 +53,56 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('charPrompt', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s Main Prompt override.',
+        returns: 'Character Main Prompt override.',
         handler: ({ env }) => env.character.charPrompt ?? '',
     });
 
     MacroRegistry.registerMacro('charInstruction', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s Post-History Instructions override.',
+        returns: 'Character Post-History Instructions override.',
         handler: ({ env }) => env.character.charInstruction ?? '',
     });
 
     MacroRegistry.registerMacro('description', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s description.',
+        returns: 'Character description.',
         handler: ({ env }) => env.character.description ?? '',
     });
 
     MacroRegistry.registerMacro('personality', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s personality.',
+        returns: 'Character personality.',
         handler: ({ env }) => env.character.personality ?? '',
     });
 
     MacroRegistry.registerMacro('scenario', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s scenario.',
+        returns: 'Character scenario.',
         handler: ({ env }) => env.character.scenario ?? '',
     });
 
     MacroRegistry.registerMacro('persona', {
         category: MacroCategory.CHARACTER,
         description: 'Your current Persona description.',
+        returns: 'Persona description.',
         handler: ({ env }) => env.character.persona ?? '',
     });
 
     MacroRegistry.registerMacro('mesExamplesRaw', {
         category: MacroCategory.CHARACTER,
         description: 'Unformatted dialogue examples from the character card.',
+        returns: 'Unformatted dialogue examples.',
         handler: ({ env }) => env.character.mesExamplesRaw ?? '',
     });
 
     MacroRegistry.registerMacro('mesExamples', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s dialogue examples, formatted for instruct mode when enabled.',
+        returns: 'Formatted dialogue examples.',
         handler: ({ env }) => {
             const raw = env.character.mesExamplesRaw ?? '';
             if (!raw) return '';
@@ -112,30 +125,34 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('charDepthPrompt', {
         category: MacroCategory.CHARACTER,
         description: 'The character\'s @ Depth Note.',
+        returns: 'Character @ Depth Note.',
         handler: ({ env }) => env.character.charDepthPrompt ?? '',
     });
 
     MacroRegistry.registerMacro('creatorNotes', {
         category: MacroCategory.CHARACTER,
         description: 'Creator notes from the character card.',
+        returns: 'Creator notes.',
         handler: ({ env }) => env.character.creatorNotes ?? '',
     });
 
     // Character version macros (legacy variants and documented {{charVersion}})
     MacroRegistry.registerMacro('charVersion', {
-        category: MacroCategory.CHARACTER,
-        description: 'The character\'s version number.',
         aliases: [
             { alias: 'version', visible: false }, // Legacy alias
             { alias: 'char_version', visible: false }, // Legacy underscore variant
         ],
+        category: MacroCategory.CHARACTER,
+        description: 'The character\'s version number.',
+        returns: 'Character version number.',
         handler: ({ env }) => env.character.version ?? '',
     });
 
     // System / env extras macros (from MacroEnv.system / MacroEnv.extra)
     MacroRegistry.registerMacro('model', {
         category: MacroCategory.STATE,
-        description: 'Text generation model name for the currently selected API.',
+        description: 'Model name for the currently selected API (Chat Completion or Chat Completion).',
+        returns: 'Model name.',
         handler: ({ env }) => env.system.model,
     });
 
@@ -143,6 +160,7 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('summary', {
         category: MacroCategory.CHAT,
         description: 'Latest chat summary from the "Summarize" extension (when available).',
+        returns: 'Latest chat summary.',
         handler: ({ env }) => {
             const value = /** @type {any} */ (env.extra).summary;
             return value == null ? '' : String(value);
@@ -152,6 +170,7 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('original', {
         category: MacroCategory.CHARACTER,
         description: 'Original message content for {{original}} substitution in in character prompt overrides.',
+        returns: 'Original message content.',
         handler: ({ env }) => {
             const value = env.functions.original();
             return value;
@@ -162,6 +181,8 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('isMobile', {
         category: MacroCategory.STATE,
         description: '"true" if currently running in a mobile environment, "false" otherwise.',
+        returns: 'Whether the environment is mobile.',
+        returnType: MacroValueType.BOOLEAN,
         handler: () => String(isMobile()),
     });
 }

@@ -1,4 +1,4 @@
-import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory, MacroValueType } from '../engine/MacroRegistry.js';
 import { chat, chat_metadata } from '../../../script.js';
 
 /**
@@ -9,48 +9,61 @@ export function registerChatMacros() {
     MacroRegistry.registerMacro('lastMessage', {
         category: MacroCategory.CHAT,
         description: 'Last message in the chat.',
+        returns: 'Last message in the chat.',
         handler: () => String(getLastMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastMessageId', {
         category: MacroCategory.CHAT,
         description: 'Index of the last message in the chat.',
+        returns: 'Index of the last message in the chat.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getLastMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastUserMessage', {
         category: MacroCategory.CHAT,
         description: 'Last user message in the chat.',
+        returns: 'Last user message in the chat.',
         handler: () => String(getLastUserMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastCharMessage', {
         category: MacroCategory.CHAT,
         description: 'Last character/bot message in the chat.',
+        returns: 'Last character/bot message in the chat.',
         handler: () => String(getLastCharMessage() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstIncludedMessageId', {
         category: MacroCategory.CHAT,
         description: 'Index of the first message included in the current context.',
+        returns: 'Index of the first message included in the context.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getFirstIncludedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('firstDisplayedMessageId', {
         category: MacroCategory.CHAT,
         description: 'Index of the first displayed message in the chat.',
+        returns: 'Index of the first displayed message in the chat.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getFirstDisplayedMessageId() ?? ''),
     });
 
     MacroRegistry.registerMacro('lastSwipeId', {
         category: MacroCategory.CHAT,
         description: '1-based index of the last swipe for the last message.',
+        returns: '1-based index of the last swipe.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getLastSwipeId() ?? ''),
     });
 
     MacroRegistry.registerMacro('currentSwipeId', {
         category: MacroCategory.CHAT,
         description: '1-based index of the current swipe.',
+        returns: '1-based index of the current swipe.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getCurrentSwipeId() ?? ''),
     });
 }
