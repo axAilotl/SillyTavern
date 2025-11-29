@@ -5410,10 +5410,18 @@
                     </div>
                 </div>
                 <div id="bg-scrollable-content">
-                    <div class="heading-container-with-controls">
-                        <h3 data-i18n="System Backgrounds" class="wide100p textAlignCenter heading-text">
-                            System Backgrounds
-                        </h3>
+                    <div class="bg-tabs-row">
+                        <div class="bg-tabs" role="tablist">
+                            <button id="bg-tab-system" class="bg-tab active" data-tab="system" role="tab" aria-selected="true" aria-controls="bg-tab-panel-system" tabindex="0" data-i18n="Global/System">
+                                Global/System
+                            </button>
+                            <button id="bg-tab-character" class="bg-tab" data-tab="character" role="tab" aria-selected="false" aria-controls="bg-tab-panel-character" tabindex="-1" data-i18n="Character">
+                                Character
+                            </button>
+                            <button id="bg-tab-chat" class="bg-tab" data-tab="chat" role="tab" aria-selected="false" aria-controls="bg-tab-panel-chat" tabindex="-1" data-i18n="Chat">
+                                Chat
+                            </button>
+                        </div>
                         <div class="heading-controls">
                             <button id="bg_thumb_zoom_out" class="menu_button menu_button_icon" title="Make thumbnails smaller" data-i18n="[title]Make thumbnails smaller">
                                 <i class="fa-solid fa-minus"></i>
@@ -5423,15 +5431,17 @@
                             </button>
                         </div>
                     </div>
-                    <div id="bg_menu_content" class="bg_list">
+                    <div class="bg-tab-panel active" data-tab="system" role="tabpanel" id="bg-tab-panel-system" aria-labelledby="bg-tab-system">
+                        <div id="bg_menu_content" class="bg_list"></div>
                     </div>
-                    <h3 data-i18n="Chat Backgrounds" class="wide100p textAlignCenter">
-                        Chat Backgrounds
-                    </h3>
-                    <div id="bg_chat_hint" class="wide100p textAlignCenter">
-                        <span data-i18n="bg_chat_hint_1">Chat backgrounds generated with the</span> <code><i class="fa-solid fa-paintbrush"></i>&nbsp;Image Generation</code> <span data-i18n="bg_chat_hint_2">extension will appear here.</span>
+                    <div class="bg-tab-panel" data-tab="character" role="tabpanel" id="bg-tab-panel-character" aria-labelledby="bg-tab-character">
+                        <div id="bg_character_content" class="bg_list"></div>
                     </div>
-                    <div id="bg_custom_content" class="bg_list">
+                    <div class="bg-tab-panel" data-tab="chat" role="tabpanel" id="bg-tab-panel-chat" aria-labelledby="bg-tab-chat">
+                        <div id="bg_chat_hint" class="wide100p textAlignCenter">
+                            <span data-i18n="bg_chat_hint_1">Chat backgrounds generated with the</span> <code><i class="fa-solid fa-paintbrush"></i>&nbsp;Image Generation</code> <span data-i18n="bg_chat_hint_2">extension will appear here.</span>
+                        </div>
+                        <div id="bg_custom_content" class="bg_list"></div>
                     </div>
                 </div>
                 <form id="form_bg_upload" style="display: none;">
