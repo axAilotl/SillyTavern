@@ -37,12 +37,13 @@ export const MacroCategory = Object.freeze({
 });
 
 /**
- * Enum of standard macro argument types for type checking and documentation.
+ * Enum of standard macro value types for type checking and documentation.
+ * Used for both argument types and return types.
  *
  * @readonly
  * @enum {string}
  */
-export const MacroArgType = Object.freeze({
+export const MacroValueType = Object.freeze({
     /** String value of any kind */
     STRING: 'string',
     /** Integer value (natural number, no decimal spaces) */
@@ -62,6 +63,7 @@ export const MacroArgType = Object.freeze({
  * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string} [description=''] - Add a description of what the macro does.
  * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
+ * @property {MacroValueType|MacroValueType[]} [returnType=MacroValueType.STRING] - The type(s) this macro returns. Defaults to string.
  * @property {string} [displayOverride] - Override the auto-generated macro signature for display (must include curly braces, e.g. "{{macro::arg}}").
  * @property {string|string[]} [exampleUsage] - Example usage(s) shown in documentation (must include curly braces).
  * @property {MacroHandler} handler - The handler function for the macro.
@@ -78,7 +80,7 @@ export const MacroArgType = Object.freeze({
  * @property {string} name
  * @property {string} [sampleValue]
  * @property {string} [description]
- * @property {MacroArgType|MacroArgType[]} [type=MacroArgType.STRING] - Single type or array of accepted types.
+ * @property {MacroValueType|MacroValueType[]} [type=MacroValueType.STRING] - Single type or array of accepted types.
  */
 
 /**
@@ -116,6 +118,7 @@ export const MacroArgType = Object.freeze({
  * @property {boolean} strictArgs
  * @property {string} description
  * @property {string|null} returns
+ * @property {MacroValueType|MacroValueType[]} returnType - The type(s) this macro returns.
  * @property {string|null} displayOverride - Override for the auto-generated macro signature display.
  * @property {string[]} exampleUsage - Example usage strings for documentation.
  * @property {MacroHandler} handler
@@ -185,6 +188,7 @@ class MacroRegistry {
                 strictArgs: rawStrictArgs,
                 description: rawDescription,
                 returns: rawReturns,
+                returnType: rawReturnType,
                 displayOverride: rawDisplayOverride,
                 exampleUsage: rawExampleUsage,
                 handler,
@@ -279,6 +283,19 @@ class MacroRegistry {
                 returns = rawReturns || '<empty string>';
             }
 
+            // Process and validate returnType (defaults to 'string')
+            const validTypes = ['string', 'integer', 'number', 'boolean'];
+            let returnType = /** @type {MacroValueType|MacroValueType[]} */ ('string');
+            if (rawReturnType !== undefined && rawReturnType !== null) {
+                // Normalize to non-empty value or default
+                returnType = Array.isArray(rawReturnType) && rawReturnType.length === 0 ? 'string' : rawReturnType;
+                // Validate all types
+                const typesToValidate = Array.isArray(returnType) ? returnType : [returnType];
+                if (typesToValidate.some(t => !validTypes.includes(t))) {
+                    throw new Error(`Macro "${name}" options.returnType must be one of "string", "integer", "number", or "boolean" (or an array of these) when provided.`);
+                }
+            }
+
             let displayOverride = null;
             if (rawDisplayOverride !== undefined && rawDisplayOverride !== null) {
                 if (typeof rawDisplayOverride !== 'string') throw new Error(`Macro "${name}" options.displayOverride must be a string when provided.`);
@@ -322,6 +339,7 @@ class MacroRegistry {
                 strictArgs,
                 description,
                 returns,
+                returnType,
                 displayOverride,
                 exampleUsage,
                 handler,
@@ -553,7 +571,7 @@ function validateArgTypes(call, def, requiredArgs) {
  * Checks whether a string value conforms to the given macro argument type.
  *
  * @param {string} value
- * @param {MacroArgType} type
+ * @param {MacroValueType} type
  * @returns {boolean}
  */
 function isValueOfType(value, type) {

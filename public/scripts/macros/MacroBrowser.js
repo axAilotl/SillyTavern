@@ -7,7 +7,7 @@ import { MacroRegistry, MacroCategory } from './engine/MacroRegistry.js';
 import { performFuzzySearch, power_user } from '../power-user.js';
 
 /** @typedef {import('./engine/MacroRegistry.js').MacroDefinition} MacroDefinition */
-/** @typedef {import('./engine/MacroRegistry.js').MacroArgType} MacroArgType */
+/** @typedef {import('./engine/MacroRegistry.js').MacroValueType} MacroValueType */
 
 /**
  * Category display names and order for documentation.
@@ -417,7 +417,7 @@ export function createAliasIndicator(macro) {
 
 /**
  * Creates a type badge element. Supports single type or array of types.
- * @param {MacroArgType|MacroArgType[]} type - Single type or array of accepted types.
+ * @param {MacroValueType|MacroValueType[]} type - Single type or array of accepted types.
  * @returns {HTMLElement}
  */
 export function createTypeBadge(type) {
@@ -603,18 +603,31 @@ export function renderMacroDetails(macro, options = {}) {
         details.appendChild(argsSection);
     }
 
-    // Returns section (if specified)
-    if (macro.returns) {
+    // Returns section (always show - at minimum shows the type)
+    {
         const returnsSection = document.createElement('div');
         returnsSection.classList.add('macro-details-section');
         const returnsLabel = document.createElement('div');
         returnsLabel.classList.add('macro-details-label');
         returnsLabel.textContent = 'Returns';
         returnsSection.appendChild(returnsLabel);
-        const returnsText = document.createElement('div');
-        returnsText.classList.add('macro-details-text');
-        returnsText.textContent = macro.returns;
-        returnsSection.appendChild(returnsText);
+
+        const returnsContent = document.createElement('div');
+        returnsContent.classList.add('macro-returns-content');
+
+        // Add return type badge
+        const returnTypeBadge = createTypeBadge(macro.returnType);
+        returnsContent.appendChild(returnTypeBadge);
+
+        // Add description text if provided
+        if (macro.returns) {
+            const returnsText = document.createElement('span');
+            returnsText.classList.add('macro-details-text');
+            returnsText.textContent = macro.returns;
+            returnsContent.appendChild(returnsText);
+        }
+
+        returnsSection.appendChild(returnsContent);
         details.appendChild(returnsSection);
     }
 
