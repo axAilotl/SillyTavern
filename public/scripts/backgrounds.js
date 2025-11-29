@@ -77,7 +77,7 @@ let globalBackgroundUrl = null;
  * Stores per-character background selections (charFolder → URL)
  * @type {Map<string, string>}
  */
-const characterBackgrounds = new Map();
+const characterBackgroundSelections = new Map();
 
 export let background_settings = {
     name: '__transparent.png',
@@ -100,7 +100,7 @@ const saveBackgroundPreferencesDebounced = debounce(async () => {
     try {
         const preferences = {
             global: globalBackgroundInfo,
-            characters: Object.fromEntries(characterBackgrounds),
+            characters: Object.fromEntries(characterBackgroundSelections),
         };
         await fetch('/api/backgrounds/preferences', {
             method: 'POST',
@@ -242,10 +242,10 @@ export async function loadBackgroundSettings(settings) {
     const preferences = await loadBackgroundPreferences();
 
     // Restore per-character backgrounds
-    characterBackgrounds.clear();
+    characterBackgroundSelections.clear();
     if (preferences.characters && typeof preferences.characters === 'object') {
         for (const [folder, url] of Object.entries(preferences.characters)) {
-            characterBackgrounds.set(folder, url);
+            characterBackgroundSelections.set(folder, url);
         }
     }
 
@@ -321,8 +321,8 @@ async function onChatChanged() {
 
     // Determine effective background: per-chat locked > per-character > global
     let effectiveUrl;
-    if (charFolder && characterBackgrounds.has(charFolder)) {
-        effectiveUrl = characterBackgrounds.get(charFolder);
+    if (charFolder && characterBackgroundSelections.has(charFolder)) {
+        effectiveUrl = characterBackgroundSelections.get(charFolder);
     } else {
         effectiveUrl = globalBackgroundUrl;
     }
@@ -661,22 +661,6 @@ function renderSystemBackgrounds(backgrounds) {
     activateLazyLoader();
 }
 
-function renderCharacterBackgrounds(backgrounds) {
-    characterBackgrounds = backgrounds ?? characterBackgrounds;
-
-    const filtered = getFilteredBackgrounds(characterBackgrounds, true);
-    const container = $('#bg_character_content');
-    container.empty();
-
-    filtered.forEach(bg => {
-        const imageData = { filename: bg, isCustom: true };
-        const thumbnail = createThumbnailElement(imageData);
-        container.append(thumbnail);
-    });
-
-    activateLazyLoader();
-}
-
 /**
  * Renders the chat-specific (custom) backgrounds gallery.
  * @param {string[]} [backgrounds] - Optional filtered list of backgrounds.
@@ -730,18 +714,21 @@ async function getCharacterBackgrounds(avatar) {
 
 /**
  * Renders the character-specific backgrounds gallery.
- * @param {string[]} backgrounds - List of background filenames.
+ * @param {string[]} [backgrounds] - Optional list of background filenames.
  */
 function renderCharacterBackgrounds(backgrounds) {
+    characterBackgrounds = backgrounds ?? characterBackgrounds;
+
+    const filtered = getFilteredBackgrounds(characterBackgrounds, true);
     const container = $('#bg_character_content');
     container.empty();
-    $('#bg_character_header').toggle(backgrounds.length > 0);
 
-    if (!backgrounds.length) {
+    if (!filtered.length) {
+        activateLazyLoader();
         return;
     }
 
-    backgrounds.forEach(bg => {
+    filtered.forEach(bg => {
         // Full path for clicking (full-size image) - don't pre-encode, generateUrlParameter handles it
         const fullPath = `/characters/${currentCharacterFolder}/backgrounds/${bg}`;
         // Thumbnail URL for display
@@ -758,6 +745,8 @@ function renderCharacterBackgrounds(backgrounds) {
             clipper.style.backgroundImage = `url("${thumbnailUrl}")`;
         }
     });
+
+    activateLazyLoader();
 }
 
 export async function getBackgrounds() {
@@ -867,7 +856,7 @@ async function setBackground(bg, url, skipSave = false) {
     const isCharacterBg = url?.includes('/characters/') && url?.includes('/backgrounds/');
     if (isCharacterBg && currentCharacterFolder) {
         // Store per-character background
-        characterBackgrounds.set(currentCharacterFolder, url);
+        characterBackgroundSelections.set(currentCharacterFolder, url);
     } else if (!isCharacterBg) {
         globalBackgroundUrl = url;
         globalBackgroundInfo = { name: bg, url: url };
