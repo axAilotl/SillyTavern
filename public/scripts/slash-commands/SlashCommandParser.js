@@ -506,7 +506,7 @@ export class SlashCommandParser {
                         identifier,
                         macro.start + 2,
                         options,
-                        false
+                        false,
                     );
                     return result;
                 }
