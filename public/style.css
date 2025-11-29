@@ -3331,6 +3331,11 @@ input[type=search]:focus::-webkit-search-cancel-button {
     margin: 8px 0 12px;
 }
 
+.bg-tabs-row .heading-controls {
+    display: flex;
+    gap: 5px;
+}
+
 .bg-tabs {
     display: flex;
     gap: 6px;
