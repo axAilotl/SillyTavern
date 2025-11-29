@@ -557,6 +557,24 @@ async function onRenameBackgroundClick(e) {
     }
 }
 
+/**
+ * Checks if a background path is a character background.
+ * @param {string} bgPath - The background file path or name.
+ * @returns {boolean} True if it's a character background.
+ */
+function isCharacterBackground(bgPath) {
+    return bgPath?.includes('/characters/') && bgPath?.includes('/backgrounds/');
+}
+
+/**
+ * Extracts the filename from a character background path.
+ * @param {string} bgPath - Full path like /characters/CharName/backgrounds/image.png
+ * @returns {string} Just the filename like image.png
+ */
+function getCharacterBackgroundFilename(bgPath) {
+    return bgPath?.split('/').pop() || bgPath;
+}
+
 async function onDeleteBackgroundClick(e) {
     e.stopPropagation();
     const bgToDelete = $(this).closest('.bg_example');
@@ -566,10 +584,31 @@ async function onDeleteBackgroundClick(e) {
     const bg = bgToDelete.attr('bgfile');
 
     if (confirm) {
-        // If it's not custom, it's a built-in background. Delete it from the server
-        if (!isCustom) {
+        const isCharBg = isCharacterBackground(bg);
+
+        if (isCharBg) {
+            // Character background - delete from character's backgrounds folder
+            const filename = getCharacterBackgroundFilename(bg);
+            const context = getContext();
+            const avatar = context.characters?.[context.characterId]?.avatar;
+
+            if (avatar && filename) {
+                const response = await fetch('/api/backgrounds/character/delete', {
+                    method: 'POST',
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify({ avatar, bg: filename }),
+                });
+
+                if (!response.ok) {
+                    toastr.error('Failed to delete character background');
+                    return;
+                }
+            }
+        } else if (!isCustom) {
+            // System background - delete from server
             delBackground(bg);
         } else {
+            // Chat background - remove from metadata
             const list = chat_metadata[LIST_METADATA_KEY] || [];
             const index = list.indexOf(bg);
             list.splice(index, 1);
@@ -599,7 +638,10 @@ async function onDeleteBackgroundClick(e) {
             highlightLockedBackground();
         }
 
-        if (isCustom) {
+        if (isCharBg) {
+            // Refresh character backgrounds list
+            renderCharacterBackgrounds();
+        } else if (isCustom) {
             renderChatBackgrounds();
             saveMetadataDebounced();
         }

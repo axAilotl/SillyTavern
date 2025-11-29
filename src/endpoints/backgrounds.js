@@ -104,6 +104,42 @@ router.post('/character', async function (request, response) {
 });
 
 /**
+ * Delete a character background image.
+ * Body: { avatar: string, bg: string }
+ */
+router.post('/character/delete', async function (request, response) {
+    if (!request.body?.avatar || !request.body?.bg) {
+        return response.status(400).send('Avatar and background filename are required.');
+    }
+
+    const avatar = sanitize(request.body.avatar);
+    const folderName = avatar.replace(/\.[^/.]+$/, '');
+    const bgFilename = sanitize(request.body.bg);
+
+    if (!folderName || !bgFilename) {
+        return response.status(400).send('Invalid avatar or background filename.');
+    }
+
+    const bgPath = path.join(request.user.directories.characters, folderName, 'backgrounds', bgFilename);
+
+    try {
+        if (!(await fileExists(bgPath))) {
+            return response.status(404).send('Background file not found.');
+        }
+
+        await fsp.unlink(bgPath);
+
+        // Also delete the thumbnail if it exists
+        invalidateThumbnail(request.user.directories, 'charbg', bgFilename, folderName);
+
+        response.send('ok');
+    } catch (error) {
+        console.error('Failed to delete character background:', error);
+        response.status(500).send('Failed to delete background.');
+    }
+});
+
+/**
  * Get background preferences (global background, per-character backgrounds).
  */
 router.get('/preferences', async function (request, response) {
