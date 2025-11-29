@@ -16,6 +16,28 @@ router.post('/all', function (request, response) {
     response.json({ images, config });
 });
 
+router.post('/character', function (request, response) {
+    if (!request.body?.avatar) {
+        return response.sendStatus(400);
+    }
+
+    const avatar = sanitize(request.body.avatar);
+    const folderName = avatar.replace(/\.[^/.]+$/, '');
+
+    if (!folderName) {
+        return response.json({ images: [], folderName: '' });
+    }
+
+    const bgPath = path.join(request.user.directories.characters, folderName, 'backgrounds');
+
+    if (!fs.existsSync(bgPath)) {
+        return response.json({ images: [], folderName });
+    }
+
+    const images = getImages(bgPath);
+    response.json({ images, folderName });
+});
+
 router.post('/delete', getFileNameValidationFunction('bg'), function (request, response) {
     if (!request.body) return response.sendStatus(400);
 

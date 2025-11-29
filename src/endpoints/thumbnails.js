@@ -15,7 +15,7 @@ const quality = Math.min(100, Math.max(1, parseInt(getConfigValue('thumbnails.qu
 const pngFormat = String(getConfigValue('thumbnails.format', 'jpg')).toLowerCase().trim() === 'png';
 
 /**
- * @typedef {'bg' | 'avatar' | 'persona'} ThumbnailType
+ * @typedef {'bg' | 'avatar' | 'persona' | 'charbg'} ThumbnailType
  */
 
 /** @type {Record<string, number[]>} */
@@ -23,15 +23,17 @@ export const dimensions = {
     'bg': getConfigValue('thumbnails.dimensions.bg', [160, 90]),
     'avatar': getConfigValue('thumbnails.dimensions.avatar', [96, 144]),
     'persona': getConfigValue('thumbnails.dimensions.persona', [96, 144]),
+    'charbg': getConfigValue('thumbnails.dimensions.bg', [160, 90]), // Same as bg
 };
 
 /**
  * Gets a path to thumbnail folder based on the type.
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Thumbnail type
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  * @returns {string} Path to the thumbnails folder
  */
-function getThumbnailFolder(directories, type) {
+function getThumbnailFolder(directories, type, charFolder) {
     let thumbnailFolder;
 
     switch (type) {
@@ -44,6 +46,11 @@ function getThumbnailFolder(directories, type) {
         case 'persona':
             thumbnailFolder = directories.thumbnailsPersona;
             break;
+        case 'charbg':
+            if (charFolder) {
+                thumbnailFolder = path.join(directories.characters, charFolder, 'thumbnails');
+            }
+            break;
     }
 
     return thumbnailFolder;
@@ -53,9 +60,10 @@ function getThumbnailFolder(directories, type) {
  * Gets a path to the original images folder based on the type.
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Thumbnail type
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  * @returns {string} Path to the original images folder
  */
-function getOriginalFolder(directories, type) {
+function getOriginalFolder(directories, type, charFolder) {
     let originalFolder;
 
     switch (type) {
@@ -67,6 +75,11 @@ function getOriginalFolder(directories, type) {
             break;
         case 'persona':
             originalFolder = directories.avatars;
+            break;
+        case 'charbg':
+            if (charFolder) {
+                originalFolder = path.join(directories.characters, charFolder, 'backgrounds');
+            }
             break;
     }
 
@@ -95,12 +108,18 @@ export function invalidateThumbnail(directories, type, file) {
  * @param {import('../users.js').UserDirectoryList} directories User directories
  * @param {ThumbnailType} type Type of the thumbnail
  * @param {string} file Name of the file
+ * @param {string} [charFolder] Character folder name (required for 'charbg' type)
  * @returns
  */
-async function generateThumbnail(directories, type, file) {
-    let thumbnailFolder = getThumbnailFolder(directories, type);
-    let originalFolder = getOriginalFolder(directories, type);
+async function generateThumbnail(directories, type, file, charFolder) {
+    let thumbnailFolder = getThumbnailFolder(directories, type, charFolder);
+    let originalFolder = getOriginalFolder(directories, type, charFolder);
     if (thumbnailFolder === undefined || originalFolder === undefined) throw new Error('Invalid thumbnail type');
+
+    // Ensure thumbnail folder exists for character backgrounds
+    if (type === 'charbg' && !fs.existsSync(thumbnailFolder)) {
+        fs.mkdirSync(thumbnailFolder, { recursive: true });
+    }
     const pathToCachedFile = path.join(thumbnailFolder, file);
     const pathToOriginalFile = path.join(originalFolder, file);
 
@@ -199,8 +218,21 @@ router.get('/', async function (request, response) {
             return response.sendStatus(400);
         }
 
-        if (!(type === 'bg' || type === 'avatar' || type === 'persona')) {
+        if (!(type === 'bg' || type === 'avatar' || type === 'persona' || type === 'charbg')) {
             return response.sendStatus(400);
+        }
+
+        // Character backgrounds require a folder parameter
+        let charFolder = null;
+        if (type === 'charbg') {
+            if (typeof request.query.folder !== 'string' || !request.query.folder) {
+                return response.sendStatus(400);
+            }
+            charFolder = sanitize(request.query.folder);
+            if (sanitize(charFolder) !== charFolder) {
+                console.error('Malicious folder name prevented');
+                return response.sendStatus(403);
+            }
         }
 
         if (sanitize(file) !== file) {
@@ -209,7 +241,7 @@ router.get('/', async function (request, response) {
         }
 
         if (!thumbnailsEnabled) {
-            const folder = getOriginalFolder(request.user.directories, type);
+            const folder = getOriginalFolder(request.user.directories, type, charFolder);
 
             if (folder === undefined) {
                 return response.sendStatus(400);
@@ -228,7 +260,7 @@ router.get('/', async function (request, response) {
             return response.send(originalFile);
         }
 
-        const pathToCachedFile = await generateThumbnail(request.user.directories, type, file);
+        const pathToCachedFile = await generateThumbnail(request.user.directories, type, file, charFolder);
 
         if (!pathToCachedFile) {
             return response.sendStatus(404);
