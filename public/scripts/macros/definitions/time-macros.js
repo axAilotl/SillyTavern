@@ -12,7 +12,10 @@ export function registerTimeMacros() {
         category: MacroCategory.TIME,
         // Optional single list argument: UTC offset, e.g. {{time::UTC+2}}
         list: { min: 0, max: 1 },
-        description: 'Current local time, or UTC offset when called as {{time::UTC+1}} or {{time::UTC-7}}, etc.',
+        description: 'Current local time, or UTC offset when called as {{time::UTC±(offset)}}',
+        returns: 'A time string in the format HH:mm.',
+        displayOverride: '{{time::UTC±(offset)}}',
+        exampleUsage: ['{{time}}', '{{time::UTC+2}}', '{{time::UTC-7}}'],
         handler: ({ list }) => {
             const offsetSpec = Array.isArray(list) && list.length > 0 ? String(list[0]).trim() : '';
             if (!offsetSpec) return moment().format('LT');
@@ -29,25 +32,29 @@ export function registerTimeMacros() {
 
     MacroRegistry.registerMacro('date', {
         category: MacroCategory.TIME,
-        description: 'Current local date.',
+        description: 'Current local date as a string in the local short format.',
+        returns: 'Current local date in local short format.',
         handler: () => moment().format('LL'),
     });
 
     MacroRegistry.registerMacro('weekday', {
         category: MacroCategory.TIME,
         description: 'Current weekday name.',
+        returns: 'Current weekday name.',
         handler: () => moment().format('dddd'),
     });
 
     MacroRegistry.registerMacro('isotime', {
         category: MacroCategory.TIME,
         description: 'Current time in HH:mm format.',
+        returns: 'Current time in HH:mm format.',
         handler: () => moment().format('HH:mm'),
     });
 
     MacroRegistry.registerMacro('isodate', {
         category: MacroCategory.TIME,
         description: 'Current date in YYYY-MM-DD format.',
+        returns: 'Current date in YYYY-MM-DD format.',
         handler: () => moment().format('YYYY-MM-DD'),
     });
 
@@ -62,13 +69,16 @@ export function registerTimeMacros() {
             },
         ],
         description: 'Formats the current date/time using the given moment.js format string.',
+        returns: 'Formatted date/time string.',
+        exampleUsage: ['{{datetimeformat::YYYY-MM-DD HH:mm:ss}}', '{{datetimeformat::LLLL}}'],
         handler: ({ requiredArgs: [format] }) => moment().format(format),
     });
 
     MacroRegistry.registerMacro('idle_duration', {
         category: MacroCategory.TIME,
         description: 'Human-readable duration since the last user message.',
-        handler: () => getTimeSinceLastMessageCore(),
+        returns: 'Human-readable duration since the last user message.',
+        handler: () => getTimeSinceLastMessage(),
     });
 
     // Time difference between two values
@@ -89,6 +99,9 @@ export function registerTimeMacros() {
             },
         ],
         description: 'Human-readable difference between two times. Order of times does not matter, it will return the absolute difference.',
+        returns: 'Human-readable difference between two times.',
+        displayOverride: '{{timeDiff::left::right}}', // Shorten this, otherwise it's too long. Full dates don't really help for understanding the macro.
+        exampleUsage: ['{{ timeDiff :: 2023-01-01 12:00:00 :: 2023-01-01 15:00:00 }}'],
         handler: ({ requiredArgs: [left, right] }) => {
             const diff = moment.duration(moment(left).diff(moment(right)));
             return diff.humanize(true);
@@ -96,7 +109,7 @@ export function registerTimeMacros() {
     });
 }
 
-function getTimeSinceLastMessageCore() {
+function getTimeSinceLastMessage() {
     const now = moment();
 
     if (Array.isArray(chat) && chat.length > 0) {
