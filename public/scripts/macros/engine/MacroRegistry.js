@@ -38,6 +38,7 @@ export const MacroCategory = Object.freeze({
 
 /**
  * @typedef {Object} MacroDefinitionOptions
+ * @property {MacroAliasDef[]} [aliases] - Alternative names for this macro. Each alias creates a lookup entry pointing to the same definition.
  * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
  * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
  * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
@@ -47,6 +48,12 @@ export const MacroCategory = Object.freeze({
  * @property {string} [displayOverride] - Override the auto-generated macro signature for display (must include curly braces, e.g. "{{macro::arg}}").
  * @property {string|string[]} [exampleUsage] - Example usage(s) shown in documentation (must include curly braces).
  * @property {MacroHandler} handler - The handler function for the macro.
+ */
+
+/**
+ * @typedef {Object} MacroAliasDef
+ * @property {string} alias - The alias name.
+ * @property {boolean} [visible=true] - Whether this alias appears in documentation/autocomplete. Defaults to true.
  */
 
 /**
@@ -87,7 +94,8 @@ export const MacroCategory = Object.freeze({
 
 /**
  * @typedef {Object} MacroDefinition
- * @property {string} name
+ * @property {string} name - Primary macro name.
+ * @property {MacroResolvedAlias[]} aliases - Parsed alias definitions for this macro.
  * @property {MacroCategory|string} category
  * @property {number} requiredArgs
  * @property {MacroPositionalArgDef[]} requiredArgDefs
@@ -99,6 +107,14 @@ export const MacroCategory = Object.freeze({
  * @property {string[]} exampleUsage - Example usage strings for documentation.
  * @property {MacroHandler} handler
  * @property {MacroSource} source
+ * @property {string|null} aliasOf - If this is an alias, the primary macro name this is an alias of. Can also be used to check if this is an alias macro.
+ * @property {boolean|null} aliasVisible - If this is an alias, whether this alias is visible in docs/autocomplete.
+ */
+
+/**
+ * @typedef {Object} MacroResolvedAlias
+ * @property {string} alias - The alias name.
+ * @property {boolean} visible - Whether this alias is visible in documentation/autocomplete.
  */
 
 /**
@@ -149,6 +165,7 @@ class MacroRegistry {
             if (!options || typeof options !== 'object') throw new Error(`Macro "${name}" options must be a non-null object.`);
 
             const {
+                aliases: rawAliases,
                 category: rawCategory,
                 requiredArgs: rawRequiredArgs,
                 list: rawList,
@@ -161,6 +178,21 @@ class MacroRegistry {
             } = options;
 
             if (typeof handler !== 'function') throw new Error(`Macro "${name}" options.handler must be a function.`);
+
+            /** @type {MacroResolvedAlias[]} */
+            const aliases = [];
+            if (rawAliases !== undefined && rawAliases !== null) {
+                if (!Array.isArray(rawAliases)) throw new Error(`Macro "${name}" options.aliases must be an array.`);
+                for (const [i, aliasDef] of rawAliases.entries()) {
+                    if (!aliasDef || typeof aliasDef !== 'object') throw new Error(`Macro "${name}" options.aliases[${i}] must be an object.`);
+                    if (typeof aliasDef.alias !== 'string' || !aliasDef.alias.trim()) throw new Error(`Macro "${name}" options.aliases[${i}].alias must be a non-empty string.`);
+                    const aliasName = aliasDef.alias.trim();
+                    if (aliasName === name) throw new Error(`Macro "${name}" options.aliases[${i}].alias cannot be the same as the macro name.`);
+                    const visible = aliasDef.visible !== false; // Default to true
+                    aliases.push({ alias: aliasName, visible });
+                }
+            }
+
             if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
             const category = rawCategory.trim();
 
@@ -236,7 +268,6 @@ class MacroRegistry {
                 returns = rawReturns || '<empty string>';
             }
 
-            // Process displayOverride
             let displayOverride = null;
             if (rawDisplayOverride !== undefined && rawDisplayOverride !== null) {
                 if (typeof rawDisplayOverride !== 'string') throw new Error(`Macro "${name}" options.displayOverride must be a string when provided.`);
@@ -247,7 +278,6 @@ class MacroRegistry {
                 }
             }
 
-            // Process exampleUsage
             /** @type {string[]} */
             let exampleUsage = [];
             if (rawExampleUsage !== undefined && rawExampleUsage !== null) {
@@ -273,6 +303,7 @@ class MacroRegistry {
             /** @type {MacroDefinition} */
             const definition = {
                 name: name,
+                aliases,
                 category,
                 requiredArgs,
                 requiredArgDefs,
@@ -288,9 +319,26 @@ class MacroRegistry {
                     isExtension,
                     isThirdParty,
                 },
+                aliasOf: null,
+                aliasVisible: null,
             };
 
             this.#macros.set(name, definition);
+
+            // Register alias entries pointing to the same definition
+            for (const { alias, visible } of aliases) {
+                if (this.#macros.has(alias)) {
+                    console.warn(`Alias "${alias}" for macro "${name}" overwrites an existing macro.`);
+                }
+                /** @type {MacroDefinition} */
+                const aliasEntry = {
+                    ...definition,
+                    name: alias, // The lookup name is the alias
+                    aliasOf: name,
+                    aliasVisible: visible,
+                };
+                this.#macros.set(alias, aliasEntry);
+            }
 
             return definition;
         } catch (error) {
@@ -340,12 +388,34 @@ class MacroRegistry {
     }
 
     /**
+     * Returns the primary (non-alias) definition for a macro.
+     * If given an alias name, returns the primary definition it points to.
+     *
+     * @param {string} name - Macro name or alias.
+     * @returns {MacroDefinition|undefined}
+     */
+    getPrimaryMacro(name) {
+        const def = this.getMacro(name);
+        if (!def) return undefined;
+        return def.aliasOf ? this.getMacro(def.aliasOf) : def;
+    }
+
+    /**
      * Returns an array of all registered macros.
      *
+     * @param {Object} [options] - Filter options.
+     * @param {boolean} [options.excludeAliases=false] - If true, excludes alias entries (only returns primary definitions).
+     * @param {boolean} [options.excludeHiddenAliases=false] - If true, excludes alias entries where visible=false.
      * @returns {MacroDefinition[]}
      */
-    getAllMacros() {
-        return Array.from(this.#macros.values());
+    getAllMacros({ excludeAliases = false, excludeHiddenAliases = false } = {}) {
+        let macros = Array.from(this.#macros.values());
+        if (excludeAliases) {
+            macros = macros.filter(m => !m.aliasOf);
+        } else if (excludeHiddenAliases) {
+            macros = macros.filter(m => !m.aliasOf || m.aliasVisible !== false);
+        }
+        return macros;
     }
 
     /**

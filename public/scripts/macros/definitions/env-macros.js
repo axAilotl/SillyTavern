@@ -28,6 +28,7 @@ export function registerEnvMacros() {
     MacroRegistry.registerMacro('group', {
         category: MacroCategory.NAMES,
         description: 'Comma-separated list of group member names (including muted) or the character name in solo chats.',
+        aliases: [{ alias: 'charIfNotGroup', visible: false }],
         handler: ({ env }) => env.names.group ?? '',
     });
 
@@ -41,13 +42,6 @@ export function registerEnvMacros() {
         category: MacroCategory.NAMES,
         description: 'Comma-separated list of all participants except the current speaker.',
         handler: ({ env }) => env.names.notChar ?? '',
-    });
-
-    // Alias used in legacy docs: behaves like {{group}} / {{charIfNotGroup}}
-    MacroRegistry.registerMacro('charIfNotGroup', {
-        category: MacroCategory.NAMES,
-        description: 'Alias for {{group}} in solo chats; behaves like the group macro.',
-        handler: ({ env }) => env.names.group ?? '',
     });
 
     // Character card field macros (from MacroEnv.character)
@@ -127,22 +121,14 @@ export function registerEnvMacros() {
         handler: ({ env }) => env.character.creatorNotes ?? '',
     });
 
-    // Character version macros (legacy variants and documented {{version}})
-    MacroRegistry.registerMacro('version', {
-        category: MacroCategory.CHARACTER,
-        description: 'The character\'s version number.',
-        handler: ({ env }) => env.character.version ?? '',
-    });
-
+    // Character version macros (legacy variants and documented {{charVersion}})
     MacroRegistry.registerMacro('charVersion', {
         category: MacroCategory.CHARACTER,
-        description: 'Alias for the character\'s version number.',
-        handler: ({ env }) => env.character.version ?? '',
-    });
-
-    MacroRegistry.registerMacro('char_version', {
-        category: MacroCategory.CHARACTER,
-        description: 'Legacy alias for the character\'s version number.',
+        description: 'The character\'s version number.',
+        aliases: [
+            { alias: 'version', visible: false }, // Legacy alias
+            { alias: 'char_version', visible: false }, // Legacy underscore variant
+        ],
         handler: ({ env }) => env.character.version ?? '',
     });
 

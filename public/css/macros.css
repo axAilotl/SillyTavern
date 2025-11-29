@@ -309,3 +309,80 @@
     padding: 0.1em 0.3em;
     border-radius: 3px;
 }
+
+/* Alias indicator icon in list items */
+.macroBrowser .macro-alias-indicator {
+    flex: 0 0 auto;
+    font-size: 0.8em;
+    opacity: 0.6;
+    margin-left: 0.5em;
+    transform: rotate(90deg);
+}
+
+.macroBrowser .macro-item.isAlias .macro-signature {
+    opacity: 0.85;
+}
+
+/* Alias of indicator in details panel */
+.macroBrowser .macro-alias-of {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin: 0.5em 0;
+    padding: 0.4em 0.6em;
+    background: var(--black30a);
+    border-radius: 4px;
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.macroBrowser .macro-alias-of i {
+    transform: rotate(90deg);
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.macroBrowser .macro-alias-of code {
+    font-family: var(--monoFontFamily);
+    background: var(--black30a);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+}
+
+/* Aliases list in details panel */
+.macroBrowser .macro-alias-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.25em 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.macroBrowser .macro-alias-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+}
+
+.macroBrowser .macro-alias-item code {
+    font-family: var(--monoFontFamily);
+    background: var(--black30a);
+    padding: 0.2em 0.5em;
+    border-radius: 3px;
+}
+
+.macroBrowser .macro-alias-item.isHidden {
+    opacity: 0.5;
+}
+
+.macroBrowser .macro-alias-item.isHidden code {
+    text-decoration: line-through;
+    text-decoration-style: dashed;
+}
+
+.macroBrowser .macro-alias-hidden-badge {
+    font-size: 0.75em;
+    opacity: 0.7;
+    font-style: italic;
+}

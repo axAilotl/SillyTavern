@@ -53,10 +53,12 @@ export class MacroBrowser {
 
     /**
      * Groups macros by category in registration order.
+     * Excludes hidden aliases from the list.
      */
     #loadMacros() {
         this.macrosByCategory.clear();
-        const allMacros = MacroRegistry.getAllMacros();
+        // Exclude hidden aliases - they won't show in the list
+        const allMacros = MacroRegistry.getAllMacros({ excludeHiddenAliases: true });
 
         for (const macro of allMacros) {
             const category = macro.category || MacroCategory.MISC;
@@ -225,6 +227,7 @@ export class MacroBrowser {
         const allMacros = MacroRegistry.getAllMacros();
         const searchData = allMacros.map(macro => ({
             name: macro.name,
+            aliases: macro.aliases?.map(a => a.alias).join(' '),
             description: macro.description || '',
             category: getCategoryConfig(macro.category).label,
             argNames: macro.requiredArgDefs.map(d => d.name).join(' '),
@@ -234,6 +237,7 @@ export class MacroBrowser {
         // Fuzzy search with weighted keys
         const keys = [
             { name: 'name', weight: 10 },
+            { name: 'aliases', weight: 1 }, // No need to rank those high, if they are important (visible) they have their own entry
             { name: 'description', weight: 5 },
             { name: 'category', weight: 3 },
             { name: 'argNames', weight: 2 },
@@ -395,6 +399,20 @@ function createSourceIndicator(macro) {
 }
 
 /**
+ * Creates a DOM element for alias indicator icon.
+ * @param {MacroDefinition} macro
+ * @returns {HTMLElement|null}
+ */
+function createAliasIndicator(macro) {
+    if (!macro.aliasOf) return null;
+
+    const icon = document.createElement('span');
+    icon.classList.add('macro-alias-indicator', 'fa-solid', 'fa-arrow-turn-up');
+    icon.title = `Alias of {{${macro.aliasOf}}}`;
+    return icon;
+}
+
+/**
  * Creates a DOM element for argument type badge.
  * @param {MacroArgType} type
  * @returns {HTMLElement}
@@ -408,13 +426,14 @@ function createTypeBadge(type) {
 
 /**
  * Renders a single macro item for the list.
- * Order: [signature] [description (shrinks)] [source icon]
+ * Order: [signature] [description (shrinks)] [alias icon?] [source icon]
  * @param {MacroDefinition} macro
  * @returns {HTMLElement}
  */
 function renderMacroItem(macro) {
     const item = document.createElement('div');
     item.classList.add('macro-item');
+    if (macro.aliasOf) item.classList.add('isAlias');
     item.dataset.macroName = macro.name;
 
     // Signature (fixed width, truncates if too long)
@@ -428,6 +447,10 @@ function renderMacroItem(macro) {
     desc.classList.add('macro-desc-preview');
     desc.textContent = macro.description || '<no description>';
     item.appendChild(desc);
+
+    // Alias indicator (if this is an alias entry)
+    const aliasIcon = createAliasIndicator(macro);
+    if (aliasIcon) item.appendChild(aliasIcon);
 
     // Source indicator (fixed, stays at right edge)
     item.appendChild(createSourceIndicator(macro));
@@ -461,6 +484,14 @@ function renderMacroDetails(macro) {
     categoryBadge.classList.add('macro-category-badge');
     categoryBadge.textContent = getCategoryConfig(macro.category).label;
     details.appendChild(categoryBadge);
+
+    // If this is an alias, show what it's an alias of
+    if (macro.aliasOf) {
+        const aliasOfSection = document.createElement('div');
+        aliasOfSection.classList.add('macro-alias-of');
+        aliasOfSection.innerHTML = `<i class="fa-solid fa-arrow-turn-up"></i> Alias of <code>{{${macro.aliasOf}}}</code>`;
+        details.appendChild(aliasOfSection);
+    }
 
     // Description
     const descSection = document.createElement('div');
@@ -588,6 +619,40 @@ function renderMacroDetails(macro) {
         }
         exampleSection.appendChild(exampleList);
         details.appendChild(exampleSection);
+    }
+
+    // Aliases section (if this macro has aliases)
+    if (macro.aliases && macro.aliases.length > 0) {
+        const aliasSection = document.createElement('div');
+        aliasSection.classList.add('macro-details-section');
+        const aliasLabel = document.createElement('div');
+        aliasLabel.classList.add('macro-details-label');
+        aliasLabel.textContent = 'Aliases';
+        aliasSection.appendChild(aliasLabel);
+
+        const aliasList = document.createElement('ul');
+        aliasList.classList.add('macro-alias-list');
+        for (const { alias, visible } of macro.aliases) {
+            const li = document.createElement('li');
+            li.classList.add('macro-alias-item');
+            if (!visible) li.classList.add('isHidden');
+
+            const code = document.createElement('code');
+            code.textContent = `{{${alias}}}`;
+            li.appendChild(code);
+
+            if (!visible) {
+                const hiddenBadge = document.createElement('span');
+                hiddenBadge.classList.add('macro-alias-hidden-badge');
+                hiddenBadge.textContent = '(hidden)';
+                hiddenBadge.title = 'This alias is not shown in documentation or autocomplete';
+                li.appendChild(hiddenBadge);
+            }
+
+            aliasList.appendChild(li);
+        }
+        aliasSection.appendChild(aliasList);
+        details.appendChild(aliasSection);
     }
 
     return details;
