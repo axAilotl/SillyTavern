@@ -37,6 +37,19 @@ export const MacroCategory = Object.freeze({
 });
 
 /**
+ * Enum of standard macro argument types for type checking and documentation.
+ *
+ * @readonly
+ * @enum {string}
+ */
+export const MacroArgType = Object.freeze({
+    STRING: 'string',
+    INTEGER: 'integer',
+    NUMBER: 'number',
+    BOOLEAN: 'boolean',
+});
+
+/**
  * @typedef {Object} MacroDefinitionOptions
  * @property {MacroAliasDef[]} [aliases] - Alternative names for this macro. Each alias creates a lookup entry pointing to the same definition.
  * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
@@ -61,11 +74,7 @@ export const MacroCategory = Object.freeze({
  * @property {string} name
  * @property {string} [sampleValue]
  * @property {string} [description]
- * @property {MacroArgType} [type='string']
- */
-
-/**
- * @typedef {'string'|'integer'|'number'|'boolean'} MacroArgType
+ * @property {MacroArgType} [type=MacroArgType.STRING]
  */
 
 /**

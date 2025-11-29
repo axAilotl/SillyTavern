@@ -8,7 +8,7 @@
 
 // Engine singletons and enums
 import { MacroEngine } from './engine/MacroEngine.js';
-import { MacroRegistry, MacroCategory } from './engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory, MacroArgType } from './engine/MacroRegistry.js';
 import { MacroLexer } from './engine/MacroLexer.js';
 import { MacroParser } from './engine/MacroParser.js';
 import { MacroCstWalker } from './engine/MacroCstWalker.js';
@@ -24,7 +24,7 @@ import { registerVariableMacros } from './definitions/variable-macros.js';
 import { registerInstructMacros } from './definitions/instruct-macros.js';
 
 // Re-export the category enum for external use
-export { MacroCategory };
+export { MacroCategory, MacroArgType };
 
 // Re-export most-used jsdoc definitions
 /** @typedef {import('./engine/MacroRegistry.js').MacroDefinitionOptions} MacroDefinitionOptions */
@@ -32,7 +32,6 @@ export { MacroCategory };
 /** @typedef {import('./engine/MacroRegistry.js').MacroPositionalArgDef} MacroPositionalArgDef */
 /** @typedef {import('./engine/MacroRegistry.js').MacroListSpec} MacroListSpec */
 /** @typedef {import('./engine/MacroRegistry.js').MacroHandler} MacroHandler */
-/** @typedef {import('./engine/MacroRegistry.js').MacroArgType} MacroArgType */
 /** @typedef {import('./engine/MacroRegistry.js').MacroExecutionContext} MacroExecutionContext */
 
 /** @typedef {import('chevrotain').CstNode} CstNode */
