@@ -3,7 +3,7 @@ import { chat_metadata, main_api, getMaxContextSize, extension_prompts, getCurre
 import { getStringHash } from '../../utils.js';
 import { textgenerationwebui_banned_in_macros } from '../../textgen-settings.js';
 import { inject_ids } from '../../constants.js';
-import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory, MacroValueType } from '../engine/MacroRegistry.js';
 
 /**
  * Registers SillyTavern's core built-in macros in the MacroRegistry.
@@ -18,6 +18,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('newline', {
         category: MacroCategory.UTILITY,
         description: 'Inserts a newline character.',
+        returns: '\n',
         handler: () => '\n',
     });
 
@@ -25,13 +26,15 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('noop', {
         category: MacroCategory.UTILITY,
         description: 'Does nothing and produces an empty string.',
+        returns: '',
         handler: () => '',
     });
 
     // {{trim}} -> macro will currently replace itself with itself. Trimming is handled in post-processing.
     MacroRegistry.registerMacro('trim', {
         category: MacroCategory.UTILITY,
-        description: 'Trims whitespace from the argument provided.',
+        description: 'Trims all whitespaces around the trim macro.',
+        returns: '',
         handler: () => '{{trim}}',
     });
 
@@ -39,6 +42,7 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('input', {
         category: MacroCategory.UTILITY,
         description: 'Current text from the send textarea.',
+        returns: 'Current text from the send textarea.',
         handler: () => (/** @type {HTMLTextAreaElement} */(document.querySelector('#send_textarea')))?.value ?? '',
     });
 
@@ -46,14 +50,24 @@ export function registerCoreMacros() {
     MacroRegistry.registerMacro('maxPrompt', {
         category: MacroCategory.STATE,
         description: 'Maximum prompt context size.',
+        returns: 'Maximum prompt context size.',
+        returnType: MacroValueType.INTEGER,
         handler: () => String(getMaxContextSize()),
     });
 
     // String utilities
     MacroRegistry.registerMacro('reverse', {
         category: MacroCategory.UTILITY,
-        requiredArgs: 1,
+        requiredArgs: [
+            {
+                name: 'value',
+                type: MacroValueType.STRING,
+                description: 'The string to reverse.',
+            },
+        ],
         description: 'Reverses the characters of the argument provided.',
+        returns: 'Reversed string.',
+        exampleUsage: ['{{reverse::I am Lana}}'],
         handler: ({ requiredArgs: [value] }) => Array.from(value).reverse().join(''),
     });
 
@@ -63,7 +77,9 @@ export function registerCoreMacros() {
         list: true,         // We consume any arguments as if this is a list, but we'll ignore them in the handler anyway
         strictArgs: false,  // and we also always remove it, even if the parsing might say it's invalid
         description: 'Comment macro that produces an empty string. Can be used for writing into prompt definitions, without being passed to the context.',
+        returns: '',
         displayOverride: '{{// ...}}',
+        exampleUsage: ['{{// This is a comment}}'],
         handler: () => '',
     });
 
@@ -80,6 +96,8 @@ export function registerCoreMacros() {
             },
         ],
         description: 'Rolls dice using droll syntax (e.g. {{roll 1d20}}).',
+        returns: 'Dice roll result.',
+        returnType: MacroValueType.INTEGER,
         exampleUsage: [
             '{{roll::1d20}}',
             '{{roll::6}}',
@@ -108,6 +126,8 @@ export function registerCoreMacros() {
         category: MacroCategory.RANDOM,
         list: true,
         description: 'Picks a random item from a list. Will be re-rolled every time macros are resolved.',
+        returns: 'Randomly selected item from the list.',
+        exampleUsage: ['Her hair is {{random::blonde::brown::red::black::blue}}.'],
         handler: ({ list, raw: rawListString }) => {
             // We let double-colon args be handled by the list argument parser
             // But for the ancient legacy comma separated list, we'll fall back to the raw argument and split via the old logic
@@ -133,6 +153,8 @@ export function registerCoreMacros() {
         category: MacroCategory.RANDOM,
         list: true,
         description: 'Picks a random item from a list, but keeps the choice stable for a given chat and macro position.',
+        returns: 'Stable randomly selected item from the list.',
+        exampleUsage: ['Her hair is {{pick::blonde::brown::red::black::blue}}.'],
         handler: ({ list, raw: rawListString, range, env }) => {
             /** @type {string[]} */
             let items = Array.isArray(list) ? [...list] : [];
@@ -177,6 +199,7 @@ export function registerCoreMacros() {
         ],
         description: 'Bans a word for textgenerationwebui backend. (Strips quotes surrounding the banned word, if present)',
         returns: '',
+        exampleUsage: ['{{banned::delve}}'],
         handler: ({ requiredArgs: [bannedWord] }) => {
             // Strip quotes via regex, which were allowed in legacy syntax
             bannedWord = bannedWord.replace(/^"|"$/g, '');
@@ -199,7 +222,9 @@ export function registerCoreMacros() {
                 type: 'string',
             },
         ],
-        description: 'Returns the outlet prompt for a given outlet key.',
+        description: 'Returns the world info outlet prompt for a given outlet key.',
+        returns: 'World info outlet prompt.',
+        exampleUsage: ['{{outlet::character-achievements}}'],
         handler: ({ requiredArgs: [outlet] }) => {
             if (!outlet) return '';
             const value = extension_prompts[inject_ids.CUSTOM_WI_OUTLET(outlet)]?.value;
