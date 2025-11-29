@@ -818,7 +818,8 @@ function activateLazyLoader() {
         lazyLoadObserver = null;
     }
 
-    const lazyLoadElements = document.querySelectorAll('.bg-tab-panel.active .lazy-load-background');
+    // Observe lazy-load elements in ALL tabs, not just active, so switching tabs works correctly
+    const lazyLoadElements = document.querySelectorAll('.bg-tab-panel .lazy-load-background');
 
     const options = {
         root: null,
