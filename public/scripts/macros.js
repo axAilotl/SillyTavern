@@ -137,7 +137,8 @@ export class MacrosParser {
     static [Symbol.iterator] = function* () {
         // When experimental macro engine is active, yield from the new registry
         if (power_user.experimental_macro_engine) {
-            for (const def of macroSystem.registry.getAllMacros()) {
+            // Exclude hidden aliases for consistency with autocomplete behavior
+            for (const def of macroSystem.registry.getAllMacros({ excludeHiddenAliases: true })) {
                 yield { key: def.name, description: def.description || '' };
             }
             return;

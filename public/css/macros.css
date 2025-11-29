@@ -386,3 +386,123 @@
     opacity: 0.7;
     font-style: italic;
 }
+
+/* ============================================
+   Enhanced Macro Autocomplete Styles
+   ============================================ */
+
+/* Fix macro items in autocomplete list - override the grid display: contents */
+.autoComplete > .item.macro-ac-item {
+    display: flex !important;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5em;
+    grid-column: 1 / -1;
+    padding: 0.25em 0.5em;
+    min-height: 1.8em;
+}
+
+.autoComplete > .item.macro-ac-item > .type {
+    flex: 0 0 auto;
+    width: 2em;
+    text-align: center;
+}
+
+.autoComplete > .item.macro-ac-item > .specs {
+    flex: 0 0 auto;
+    max-width: 40%;
+}
+
+.autoComplete > .item.macro-ac-item > .specs > .name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.autoComplete > .item.macro-ac-item > .stopgap {
+    flex: 0 0 0.5em;
+    display: block !important;
+}
+
+.autoComplete > .item.macro-ac-item > .help {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.autoComplete > .item.macro-ac-item > .help > .helpContent {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+/* Indicator icons (alias and source) at the end */
+.autoComplete > .item.macro-ac-item > .macro-ac-indicator {
+    flex: 0 0 auto;
+    font-size: 0.85em;
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+.autoComplete > .item.macro-ac-item > .macro-ac-indicator:first-of-type {
+    margin-left: auto;
+}
+
+.autoComplete > .item.macro-ac-item > .macro-ac-indicator + .macro-ac-indicator {
+    margin-left: 0.25em;
+}
+
+/* Third-party source indicator */
+.autoComplete > .item.macro-ac-item > .macro-source.isThirdParty {
+    color: #F89406;
+}
+
+/* Current argument hint banner in details */
+.macro-ac-arg-hint {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    padding: 0.5em 0.75em;
+    background: linear-gradient(90deg, var(--ac-color-selectedBackground, var(--SmartThemeQuoteColor)), transparent);
+    border-left: 3px solid var(--ac-color-matchedText, var(--SmartThemeBorderColor));
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 0.5em;
+    font-size: 0.9em;
+}
+
+.macro-ac-arg-hint i {
+    color: var(--ac-color-matchedText, var(--SmartThemeBorderColor));
+    font-size: 0.8em;
+}
+
+.macro-ac-hint-type {
+    font-family: var(--monoFontFamily);
+    font-size: 0.85em;
+    padding: 0.1em 0.3em;
+    background: var(--ac-color-hoveredBackground, var(--black30a));
+    border-radius: 3px;
+    margin-left: 0.25em;
+}
+
+.macro-ac-hint-desc {
+    opacity: 0.8;
+}
+
+.macro-ac-hint-sample {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Details panel using MacroBrowser styles - just add autocomplete context adjustments */
+.autoComplete-details .macro-ac-details {
+    padding: 0.5em;
+}
+
+/* Highlight current argument in arguments list */
+.autoComplete-details .macro-arg-item.current {
+    background: var(--ac-color-selectedBackground, var(--SmartThemeQuoteColor));
+    padding: 0.25em 0.5em;
+    margin: 0 -0.5em;
+    border-radius: 4px;
+}

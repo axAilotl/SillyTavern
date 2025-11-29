@@ -342,7 +342,7 @@ function getCategoryConfig(category) {
  * @param {MacroDefinition} macro
  * @returns {string}
  */
-function formatMacroSignature(macro) {
+export function formatMacroSignature(macro) {
     // Use displayOverride if provided
     if (macro.displayOverride) {
         return macro.displayOverride;
@@ -380,7 +380,7 @@ function formatMacroSignature(macro) {
  * @param {MacroDefinition} macro
  * @returns {HTMLElement}
  */
-function createSourceIndicator(macro) {
+export function createSourceIndicator(macro) {
     const src = document.createElement('span');
     src.classList.add('macro-source', 'fa-solid');
 
@@ -406,7 +406,7 @@ function createSourceIndicator(macro) {
  * @param {MacroDefinition} macro
  * @returns {HTMLElement|null}
  */
-function createAliasIndicator(macro) {
+export function createAliasIndicator(macro) {
     if (!macro.aliasOf) return null;
 
     const icon = document.createElement('span');
@@ -420,7 +420,7 @@ function createAliasIndicator(macro) {
  * @param {MacroArgType} type
  * @returns {HTMLElement}
  */
-function createTypeBadge(type) {
+export function createTypeBadge(type) {
     const badge = document.createElement('span');
     badge.classList.add('macro-arg-type');
     badge.textContent = type;
@@ -463,10 +463,15 @@ function renderMacroItem(macro) {
 
 /**
  * Renders detailed information for a macro.
+ * Can optionally highlight the current argument being typed.
  * @param {MacroDefinition} macro
+ * @param {Object} [options]
+ * @param {number} [options.currentArgIndex=-1] - Index of argument to highlight (-1 for none).
+ * @param {boolean} [options.showCategory=true] - Whether to show category badge.
  * @returns {HTMLElement}
  */
-function renderMacroDetails(macro) {
+export function renderMacroDetails(macro, options = {}) {
+    const { currentArgIndex = -1, showCategory = true } = options;
     const details = document.createElement('div');
     details.classList.add('macro-details');
 
@@ -482,11 +487,13 @@ function renderMacroDetails(macro) {
     header.appendChild(createSourceIndicator(macro));
     details.appendChild(header);
 
-    // Category badge
-    const categoryBadge = document.createElement('span');
-    categoryBadge.classList.add('macro-category-badge');
-    categoryBadge.textContent = getCategoryConfig(macro.category).label;
-    details.appendChild(categoryBadge);
+    // Category badge (optional)
+    if (showCategory) {
+        const categoryBadge = document.createElement('span');
+        categoryBadge.classList.add('macro-category-badge');
+        categoryBadge.textContent = getCategoryConfig(macro.category).label;
+        details.appendChild(categoryBadge);
+    }
 
     // If this is an alias, show what it's an alias of
     if (macro.aliasOf) {
@@ -526,6 +533,7 @@ function renderMacroDetails(macro) {
             const argDef = macro.requiredArgDefs[i];
             const argItem = document.createElement('li');
             argItem.classList.add('macro-arg-item');
+            if (currentArgIndex === i) argItem.classList.add('current');
 
             const argName = document.createElement('code');
             argName.classList.add('macro-arg-name');
@@ -560,6 +568,7 @@ function renderMacroDetails(macro) {
         if (macro.list) {
             const listItem = document.createElement('li');
             listItem.classList.add('macro-arg-item', 'macro-arg-list');
+            if (currentArgIndex >= macro.requiredArgs) listItem.classList.add('current');
 
             const listName = document.createElement('code');
             listName.classList.add('macro-arg-name');
