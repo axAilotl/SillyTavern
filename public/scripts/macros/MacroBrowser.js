@@ -223,6 +223,9 @@ export class MacroBrowser {
             return;
         }
 
+        // Trim query of braces, as we don't have them in the macro names of the search definitions
+        query = query.replace(/[{}]/g, '');
+
         // Build searchable data array from all macros
         const allMacros = MacroRegistry.getAllMacros();
         const searchData = allMacros.map(macro => ({
