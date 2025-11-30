@@ -79,6 +79,7 @@ export const MacroValueType = Object.freeze({
  * @typedef {Object} MacroUnnamedArgDef
  * @property {string} name
  * @property {boolean} [optional=false] - Whether this argument is optional. Optional args must form a contiguous suffix (no required args after an optional).
+ * @property {string} [defaultValue] - Default value for optional args. ONLY meaningful when optional is true. Shown in docs/autocomplete.
  * @property {string} [sampleValue]
  * @property {string} [description]
  * @property {MacroValueType|MacroValueType[]} [type=MacroValueType.STRING] - Single type or array of accepted types.

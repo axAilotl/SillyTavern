@@ -554,7 +554,11 @@ export function renderMacroDetails(macro, options = {}) {
 
             const argRequiredLabel = document.createElement('span');
             argRequiredLabel.classList.add(argDef?.optional ? 'macro-arg-optional' : 'macro-arg-required');
-            argRequiredLabel.textContent = argDef?.optional ? '(optional)' : '(required)';
+            if (argDef?.optional && argDef.defaultValue !== undefined) {
+                argRequiredLabel.textContent = `(optional, default: ${argDef.defaultValue === '' ? '<empty string>' : argDef.defaultValue})`;
+            } else {
+                argRequiredLabel.textContent = argDef?.optional ? '(optional)' : '(required)';
+            }
             argItem.appendChild(argRequiredLabel);
 
             if (argDef?.description) {

@@ -169,7 +169,12 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
         } else {
             // Unnamed argument hint (required or optional)
             const argDef = this.#macro.unnamedArgDefs[argIndex];
-            const optionalLabel = argDef?.optional ? ' <em>(optional)</em>' : '';
+            let optionalLabel = '';
+            if (argDef?.optional) {
+                optionalLabel = argDef.defaultValue !== undefined
+                    ? ` <em>(optional, default: ${argDef.defaultValue === '' ? '<empty string>' : argDef.defaultValue})</em>`
+                    : ' <em>(optional)</em>';
+            }
             const text = document.createElement('span');
             text.innerHTML = `<strong>${argDef?.name || `Argument ${argIndex + 1}`}</strong>${optionalLabel}`;
             if (argDef?.type) {
