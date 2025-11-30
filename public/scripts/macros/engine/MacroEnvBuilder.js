@@ -1,5 +1,6 @@
 import { name1, name2, characters, getCharacterCardFieldsLazy, getGeneratingModel } from '../../../script.js';
 import { groups, selected_group } from '../../../scripts/group-chats.js';
+import { logMacroGeneralError } from './MacroDiagnostics.js';
 /**
  * MacroEnvBuilder is responsible for constructing the MacroEnv object
  * that is passed to macro handlers.
@@ -152,7 +153,7 @@ class MacroEnvBuilder {
                 fn(env, ctx);
             } catch (e) {
                 // Provider errors should not break macro evaluation
-                console.error('MacroEnvBuilder: Provider error', e);
+                logMacroGeneralError({ message: 'MacroEnvBuilder: Provider error', error: e });
             }
         }
 

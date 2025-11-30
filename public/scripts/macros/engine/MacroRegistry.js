@@ -322,7 +322,7 @@ class MacroRegistry {
             }
 
             if (this.#macros.has(name)) {
-                console.warn(`Macro "${name}" is already registered and will be overwritten.`);
+                logMacroRegisterWarning({ macroName: name, message: `Macro "${name}" is already registered and will be overwritten.` });
             }
 
             // Detect extension/third-party status from call stack
@@ -357,7 +357,7 @@ class MacroRegistry {
             // Register alias entries pointing to the same definition
             for (const { alias, visible } of aliases) {
                 if (this.#macros.has(alias)) {
-                    console.warn(`Alias "${alias}" for macro "${name}" overwrites an existing macro.`);
+                    logMacroRegisterWarning({ macroName: name, message: `Alias "${alias}" for macro "${name}" overwrites an existing macro.` });
                 }
                 /** @type {MacroDefinition} */
                 const aliasEntry = {
