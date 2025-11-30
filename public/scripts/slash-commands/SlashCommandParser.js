@@ -496,8 +496,8 @@ export class SlashCommandParser {
                 const macroContent = text.slice(macro.start + 2, macro.end - (text.slice(macro.end - 2, macro.end) === '}}' ? 2 : 0));
                 const context = parseMacroContext(macroContent, cursorInMacro);
 
-                // Extract just the identifier (strip trailing colons/whitespace from macro.name)
-                const identifier = macro.name.replace(/[\s:]+$/, '').trim();
+                // Extract just the identifier (strip trailing colons/whitespace/closing braces from macro.name)
+                const identifier = macro.name.replace(/[\s:}]+$/, '').trim();
 
                 // Use enhanced macro autocomplete when experimental engine is enabled
                 if (power_user.experimental_macro_engine) {
