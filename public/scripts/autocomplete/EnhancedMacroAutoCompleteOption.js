@@ -174,7 +174,12 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
             if (argDef?.type) {
                 const typeSpan = document.createElement('code');
                 typeSpan.classList.add('macro-ac-hint-type');
-                typeSpan.textContent = argDef.type;
+                if (Array.isArray(argDef.type)) {
+                    typeSpan.textContent = argDef.type.join(' | ');
+                    typeSpan.title = `Accepts: ${argDef.type.join(', ')}`;
+                } else {
+                    typeSpan.textContent = argDef.type;
+                }
                 text.append(' ', typeSpan);
             }
             hint.append(text);
