@@ -35,9 +35,19 @@ export function registerCoreMacros() {
     // {{newline}} -> '\n'
     MacroRegistry.registerMacro('newline', {
         category: MacroCategory.UTILITY,
-        description: 'Inserts a newline character.',
-        returns: '\n',
-        handler: () => '\n',
+        unnamedArgs: [
+            {
+                name: 'count',
+                optional: true,
+                defaultValue: '1',
+                type: MacroValueType.INTEGER,
+                description: 'Number of newlines to insert.',
+            }
+        ],
+        description: 'Inserts one or more newlines. One newline by default, more if the count argument is specified.',
+        returns: 'One or more \\n.',
+        exampleUsage: ['{{newline}}', '{{newline::2}}'],
+        handler: ({ unnamedArgs: [count] }) => '\n'.repeat(Number(count ?? 1)),
     });
 
     // {{noop}} -> ''
