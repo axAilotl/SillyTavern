@@ -1,7 +1,7 @@
 import { moment } from '../../../lib.js';
 import { chat } from '../../../script.js';
 import { timestampToMoment } from '../../utils.js';
-import { MacroRegistry, MacroCategory } from '../engine/MacroRegistry.js';
+import { MacroRegistry, MacroCategory, MacroValueType } from '../engine/MacroRegistry.js';
 
 /**
  * Registers time/date related macros and utilities.
@@ -11,13 +11,20 @@ export function registerTimeMacros() {
     MacroRegistry.registerMacro('time', {
         category: MacroCategory.TIME,
         // Optional single list argument: UTC offset, e.g. {{time::UTC+2}}
-        list: { min: 0, max: 1 },
+        unnamedArgs: [
+            {
+                name: 'offset',
+                optional: true,
+                type: MacroValueType.STRING,
+                sampleValue: 'UTC+2',
+                description: 'UTC offset in the format UTC±(offset).',
+            },
+        ],
         description: 'Current local time, or UTC offset when called as {{time::UTC±(offset)}}',
         returns: 'A time string in the format HH:mm.',
-        displayOverride: '{{time::UTC±(offset)}}',
+        displayOverride: '{{time::[UTC±(offset)]}}',
         exampleUsage: ['{{time}}', '{{time::UTC+2}}', '{{time::UTC-7}}'],
-        handler: ({ list }) => {
-            const offsetSpec = Array.isArray(list) && list.length > 0 ? String(list[0]).trim() : '';
+        handler: ({ unnamedArgs: [offsetSpec] }) => {
             if (!offsetSpec) return moment().format('LT');
 
             const match = /^UTC([+-]\d+)$/.exec(offsetSpec);
