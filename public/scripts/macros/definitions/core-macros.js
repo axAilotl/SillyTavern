@@ -14,6 +14,24 @@ import { MacroRegistry, MacroCategory, MacroValueType } from '../engine/MacroReg
  * in macros.js while using the new MacroRegistry/MacroEngine pipeline.
  */
 export function registerCoreMacros() {
+    // {{space}} -> ' '
+    MacroRegistry.registerMacro('space', {
+        category: MacroCategory.UTILITY,
+        unnamedArgs: [
+            {
+                name: 'count',
+                optional: true,
+                defaultValue: '1',
+                type: MacroValueType.INTEGER,
+                description: 'Number of spaces to insert.',
+            }
+        ],
+        description: 'Returns one or more spaces. One space by default, more if the count argument is specified.',
+        returns: 'One or more spaces.',
+        exampleUsage: ['{{space}}', '{{space::4}}'],
+        handler: ({ unnamedArgs: [count] }) => ' '.repeat(Number(count ?? 1)),
+    });
+
     // {{newline}} -> '\n'
     MacroRegistry.registerMacro('newline', {
         category: MacroCategory.UTILITY,
