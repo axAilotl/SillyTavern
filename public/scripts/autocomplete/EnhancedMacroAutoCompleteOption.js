@@ -148,9 +148,9 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
         if (!this.#context || this.#context.currentArgIndex < 0) return null;
 
         const argIndex = this.#context.currentArgIndex;
-        const isListArg = argIndex >= this.#macro.requiredArgs;
+        const isListArg = argIndex >= this.#macro.maxArgs;
 
-        // If we're beyond required args and there's no list, no hint
+        // If we're beyond unnamed args and there's no list, no hint
         if (isListArg && !this.#macro.list) return null;
 
         const hint = document.createElement('div');
@@ -162,15 +162,16 @@ export class EnhancedMacroAutoCompleteOption extends AutoCompleteOption {
 
         if (isListArg) {
             // List argument hint
-            const listIndex = argIndex - this.#macro.requiredArgs + 1;
+            const listIndex = argIndex - this.#macro.maxArgs + 1;
             const text = document.createElement('span');
             text.innerHTML = `<strong>List item ${listIndex}</strong>`;
             hint.append(text);
         } else {
-            // Required argument hint
-            const argDef = this.#macro.requiredArgDefs[argIndex];
+            // Unnamed argument hint (required or optional)
+            const argDef = this.#macro.unnamedArgDefs[argIndex];
+            const optionalLabel = argDef?.optional ? ' <em>(optional)</em>' : '';
             const text = document.createElement('span');
-            text.innerHTML = `<strong>${argDef?.name || `Argument ${argIndex + 1}`}</strong>`;
+            text.innerHTML = `<strong>${argDef?.name || `Argument ${argIndex + 1}`}</strong>${optionalLabel}`;
             if (argDef?.type) {
                 const typeSpan = document.createElement('code');
                 typeSpan.classList.add('macro-ac-hint-type');

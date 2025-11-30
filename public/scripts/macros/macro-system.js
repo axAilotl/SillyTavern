@@ -29,7 +29,7 @@ export { MacroCategory, MacroValueType };
 // Re-export most-used jsdoc definitions
 /** @typedef {import('./engine/MacroRegistry.js').MacroDefinitionOptions} MacroDefinitionOptions */
 /** @typedef {import('./engine/MacroRegistry.js').MacroDefinition} MacroDefinition */
-/** @typedef {import('./engine/MacroRegistry.js').MacroPositionalArgDef} MacroPositionalArgDef */
+/** @typedef {import('./engine/MacroRegistry.js').MacroUnnamedArgDef} MacroUnnamedArgDef */
 /** @typedef {import('./engine/MacroRegistry.js').MacroListSpec} MacroListSpec */
 /** @typedef {import('./engine/MacroRegistry.js').MacroHandler} MacroHandler */
 /** @typedef {import('./engine/MacroRegistry.js').MacroExecutionContext} MacroExecutionContext */

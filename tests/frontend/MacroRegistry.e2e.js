@@ -13,7 +13,7 @@ test.describe('MacroRegistry', () => {
 
                 MacroRegistry.unregisterMacro('test-valid');
                 MacroRegistry.registerMacro('test-valid', {
-                    requiredArgs: 2,
+                    unnamedArgs: 2,
                     list: { min: 1, max: 3 },
                     strictArgs: false,
                     description: 'Test macro for validation.',
@@ -23,7 +23,8 @@ test.describe('MacroRegistry', () => {
                 const def = MacroRegistry.getMacro('test-valid');
                 return {
                     name: def?.name,
-                    requiredArgs: def?.requiredArgs,
+                    minArgs: def?.minArgs,
+                    maxArgs: def?.maxArgs,
                     list: def?.list,
                     strictArgs: def?.strictArgs,
                     description: def?.description,
@@ -32,7 +33,8 @@ test.describe('MacroRegistry', () => {
 
             expect(result).toEqual({
                 name: 'test-valid',
-                requiredArgs: 2,
+                minArgs: 2,
+                maxArgs: 2,
                 list: { min: 1, max: 3 },
                 strictArgs: false,
                 description: 'Test macro for validation.',
@@ -72,17 +74,17 @@ test.describe('MacroRegistry', () => {
             })).rejects.toThrow(/options\.handler must be a function/);
         });
 
-        test('should reject invalid requiredArgs', async ({ page }) => {
+        test('should reject invalid unnamedArgs', async ({ page }) => {
             await expect(page.evaluate(async () => {
                 /** @type {import('../../public/scripts/macros/engine/MacroRegistry.js')} */
                 const { MacroRegistry } = await import('./scripts/macros/engine/MacroRegistry.js');
-                // requiredArgs must be non-negative integer
+                // unnamedArgs must be non-negative integer
                 MacroRegistry.registerMacro('bad-required', {
                     // @ts-expect-error intentionally wrong
-                    requiredArgs: -1,
+                    unnamedArgs: -1,
                     handler: () => '',
                 });
-            })).rejects.toThrow(/options\.requiredArgs must be a non-negative integer/);
+            })).rejects.toThrow(/options\.unnamedArgs must be a non-negative integer/);
         });
 
         test('should reject invalid strictArgs', async ({ page }) => {

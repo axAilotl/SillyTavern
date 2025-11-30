@@ -58,7 +58,7 @@ export function registerCoreMacros() {
     // String utilities
     MacroRegistry.registerMacro('reverse', {
         category: MacroCategory.UTILITY,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'value',
                 type: MacroValueType.STRING,
@@ -68,7 +68,7 @@ export function registerCoreMacros() {
         description: 'Reverses the characters of the argument provided.',
         returns: 'Reversed string.',
         exampleUsage: ['{{reverse::I am Lana}}'],
-        handler: ({ requiredArgs: [value] }) => Array.from(value).reverse().join(''),
+        handler: ({ unnamedArgs: [value] }) => Array.from(value).reverse().join(''),
     });
 
     // Comment macro: {{// ...}} -> '' (consumes any arguments)
@@ -87,7 +87,7 @@ export function registerCoreMacros() {
     // Dice roll macro: {{roll 1d6}} or {{roll: 1d6}}
     MacroRegistry.registerMacro('roll', {
         category: MacroCategory.RANDOM,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'formula',
                 sampleValue: '1d20',
@@ -103,7 +103,7 @@ export function registerCoreMacros() {
             '{{roll::6}}',
             '{{roll::3d6+4}}',
         ],
-        handler: ({ requiredArgs: [formula] }) => {
+        handler: ({ unnamedArgs: [formula] }) => {
             // If only digits were provided, treat it as `1dX`.
             if (/^\d+$/.test(formula)) {
                 formula = `1d${formula}`;
@@ -189,7 +189,7 @@ export function registerCoreMacros() {
     // Banned words macro: {{banned "word"}}
     MacroRegistry.registerMacro('banned', {
         category: MacroCategory.UTILITY,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'word',
                 sampleValue: 'word',
@@ -200,7 +200,7 @@ export function registerCoreMacros() {
         description: 'Bans a word for textgenerationwebui backend. (Strips quotes surrounding the banned word, if present)',
         returns: '',
         exampleUsage: ['{{banned::delve}}'],
-        handler: ({ requiredArgs: [bannedWord] }) => {
+        handler: ({ unnamedArgs: [bannedWord] }) => {
             // Strip quotes via regex, which were allowed in legacy syntax
             bannedWord = bannedWord.replace(/^"|"$/g, '');
             if (main_api === 'textgenerationwebui') {
@@ -214,7 +214,7 @@ export function registerCoreMacros() {
     // Outlet macro: {{outlet::key}}
     MacroRegistry.registerMacro('outlet', {
         category: MacroCategory.UTILITY,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'key',
                 sampleValue: 'my-outlet-key',
@@ -225,7 +225,7 @@ export function registerCoreMacros() {
         description: 'Returns the world info outlet prompt for a given outlet key.',
         returns: 'World info outlet prompt.',
         exampleUsage: ['{{outlet::character-achievements}}'],
-        handler: ({ requiredArgs: [outlet] }) => {
+        handler: ({ unnamedArgs: [outlet] }) => {
             if (!outlet) return '';
             const value = extension_prompts[inject_ids.CUSTOM_WI_OUTLET(outlet)]?.value;
             return value || '';

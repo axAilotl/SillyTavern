@@ -60,7 +60,7 @@ export function registerTimeMacros() {
 
     MacroRegistry.registerMacro('datetimeformat', {
         category: MacroCategory.TIME,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'format',
                 sampleValue: 'YYYY-MM-DD HH:mm:ss',
@@ -71,7 +71,7 @@ export function registerTimeMacros() {
         description: 'Formats the current date/time using the given moment.js format string.',
         returns: 'Formatted date/time string.',
         exampleUsage: ['{{datetimeformat::YYYY-MM-DD HH:mm:ss}}', '{{datetimeformat::LLLL}}'],
-        handler: ({ requiredArgs: [format] }) => moment().format(format),
+        handler: ({ unnamedArgs: [format] }) => moment().format(format),
     });
 
     MacroRegistry.registerMacro('idle_duration', {
@@ -84,7 +84,7 @@ export function registerTimeMacros() {
     // Time difference between two values
     MacroRegistry.registerMacro('timeDiff', {
         category: MacroCategory.TIME,
-        requiredArgs: [
+        unnamedArgs: [
             {
                 name: 'left',
                 sampleValue: '2023-01-01 12:00:00',
@@ -102,7 +102,7 @@ export function registerTimeMacros() {
         returns: 'Human-readable difference between two times.',
         displayOverride: '{{timeDiff::left::right}}', // Shorten this, otherwise it's too long. Full dates don't really help for understanding the macro.
         exampleUsage: ['{{ timeDiff :: 2023-01-01 12:00:00 :: 2023-01-01 15:00:00 }}'],
-        handler: ({ requiredArgs: [left, right] }) => {
+        handler: ({ unnamedArgs: [left, right] }) => {
             const diff = moment.duration(moment(left).diff(moment(right)));
             return diff.humanize(true);
         },

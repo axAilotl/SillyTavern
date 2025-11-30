@@ -233,8 +233,8 @@ export class MacroBrowser {
             aliases: macro.aliases?.map(a => a.alias).join(' '),
             description: macro.description || '',
             category: getCategoryConfig(macro.category).label,
-            argNames: macro.requiredArgDefs.map(d => d.name).join(' '),
-            argDescriptions: macro.requiredArgDefs.map(d => d.description || '').join(' '),
+            argNames: macro.unnamedArgDefs.map(d => d.name).join(' '),
+            argDescriptions: macro.unnamedArgDefs.map(d => d.description || '').join(' '),
         }));
 
         // Fuzzy search with weighted keys
@@ -339,6 +339,7 @@ function getCategoryConfig(category) {
 /**
  * Formats a macro signature with its arguments.
  * Uses displayOverride if available, otherwise auto-generates from args.
+ * Optional args are shown in [brackets].
  * @param {MacroDefinition} macro
  * @returns {string}
  */
@@ -350,11 +351,12 @@ export function formatMacroSignature(macro) {
 
     const parts = [macro.name];
 
-    // Add required args
-    for (let i = 0; i < macro.requiredArgs; i++) {
-        const argDef = macro.requiredArgDefs[i];
+    // Add all unnamed args (required + optional)
+    for (let i = 0; i < macro.unnamedArgDefs.length; i++) {
+        const argDef = macro.unnamedArgDefs[i];
         const argName = argDef?.sampleValue || argDef?.name || `arg${i + 1}`;
-        parts.push(argName);
+        // Wrap optional args in brackets
+        parts.push(argDef?.optional ? `[${argName}]` : argName);
     }
 
     // Add list args indicator
@@ -524,7 +526,7 @@ export function renderMacroDetails(macro, options = {}) {
     details.appendChild(descSection);
 
     // Arguments section (if any)
-    if (macro.requiredArgs > 0 || macro.list) {
+    if (macro.unnamedArgDefs.length > 0 || macro.list) {
         const argsSection = document.createElement('div');
         argsSection.classList.add('macro-details-section');
         const argsLabel = document.createElement('div');
@@ -535,11 +537,12 @@ export function renderMacroDetails(macro, options = {}) {
         const argsList = document.createElement('ul');
         argsList.classList.add('macro-args-list');
 
-        // Required args
-        for (let i = 0; i < macro.requiredArgs; i++) {
-            const argDef = macro.requiredArgDefs[i];
+        // Unnamed args (required + optional)
+        for (let i = 0; i < macro.unnamedArgDefs.length; i++) {
+            const argDef = macro.unnamedArgDefs[i];
             const argItem = document.createElement('li');
             argItem.classList.add('macro-arg-item');
+            if (argDef?.optional) argItem.classList.add('isOptional');
             if (currentArgIndex === i) argItem.classList.add('current');
 
             const argName = document.createElement('code');
@@ -549,10 +552,10 @@ export function renderMacroDetails(macro, options = {}) {
 
             argItem.appendChild(createTypeBadge(argDef.type ?? 'string'));
 
-            const argRequired = document.createElement('span');
-            argRequired.classList.add('macro-arg-required');
-            argRequired.textContent = '(required)';
-            argItem.appendChild(argRequired);
+            const argRequiredLabel = document.createElement('span');
+            argRequiredLabel.classList.add(argDef?.optional ? 'macro-arg-optional' : 'macro-arg-required');
+            argRequiredLabel.textContent = argDef?.optional ? '(optional)' : '(required)';
+            argItem.appendChild(argRequiredLabel);
 
             if (argDef?.description) {
                 const argDesc = document.createElement('span');
@@ -575,7 +578,7 @@ export function renderMacroDetails(macro, options = {}) {
         if (macro.list) {
             const listItem = document.createElement('li');
             listItem.classList.add('macro-arg-item', 'macro-arg-list');
-            if (currentArgIndex >= macro.requiredArgs) listItem.classList.add('current');
+            if (currentArgIndex >= macro.maxArgs) listItem.classList.add('current');
 
             const listName = document.createElement('code');
             listName.classList.add('macro-arg-name');

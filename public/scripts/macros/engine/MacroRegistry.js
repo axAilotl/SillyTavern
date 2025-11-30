@@ -58,8 +58,8 @@ export const MacroValueType = Object.freeze({
  * @typedef {Object} MacroDefinitionOptions
  * @property {MacroAliasDef[]} [aliases] - Alternative names for this macro. Each alias creates a lookup entry pointing to the same definition.
  * @property {MacroCategory|string} category - Category for grouping in documentation/autocomplete. Use MacroCategory enum values or a custom string.
- * @property {number|MacroPositionalArgDef[]} [requiredArgs=0] - Specifies the macro requires this many unnamed positional arguments or provides detailed definitions for them. (defaults to 0)
- * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the required args.
+ * @property {number|MacroUnnamedArgDef[]} [unnamedArgs=0] - Specifies the macro's unnamed positional arguments. Can be a number (all required) or an array of definitions (supports optional args). Optional args must be a suffix.
+ * @property {boolean|MacroListSpec} [list] - Whether the macro allows a list of arguments (optional min and max values can be set). These arguments will be added AFTER the unnamed args.
  * @property {boolean} [strictArgs=true] - Whether the macro should be strict about its arguments.
  * @property {string} [description=''] - Add a description of what the macro does.
  * @property {string} [returns] - Add a specific description of what the macro returns, if it is not obvious from the description.
@@ -76,8 +76,9 @@ export const MacroValueType = Object.freeze({
  */
 
 /**
- * @typedef {Object} MacroPositionalArgDef
+ * @typedef {Object} MacroUnnamedArgDef
  * @property {string} name
+ * @property {boolean} [optional=false] - Whether this argument is optional. Optional args must form a contiguous suffix (no required args after an optional).
  * @property {string} [sampleValue]
  * @property {string} [description]
  * @property {MacroValueType|MacroValueType[]} [type=MacroValueType.STRING] - Single type or array of accepted types.
@@ -96,10 +97,10 @@ export const MacroValueType = Object.freeze({
 /**
  * @typedef {Object} MacroExecutionContext
  * @property {string} name
- * @property {string[]} args
- * @property {string[]} requiredArgs
- * @property {string[]|null} list
- * @property {{ [key: string]: string }|null} namedArgs
+ * @property {string[]} args - All unnamed arguments passed to the macro.
+ * @property {string[]} unnamedArgs - Unnamed positional arguments (both required and optional, up to the defined count).
+ * @property {string[]|null} list - List arguments (after unnamed args), or null if list is not enabled.
+ * @property {{ [key: string]: string }|null} namedArgs - Reserved for future named argument support.
  * @property {string} raw
  * @property {MacroEnv} env
  * @property {CstNode|null} cstNode
@@ -112,8 +113,9 @@ export const MacroValueType = Object.freeze({
  * @property {string} name - Primary macro name.
  * @property {MacroResolvedAlias[]} aliases - Parsed alias definitions for this macro.
  * @property {MacroCategory|string} category
- * @property {number} requiredArgs
- * @property {MacroPositionalArgDef[]} requiredArgDefs
+ * @property {number} minArgs - Minimum number of unnamed args required (excludes optional args).
+ * @property {number} maxArgs - Maximum number of unnamed args accepted (includes optional args).
+ * @property {MacroUnnamedArgDef[]} unnamedArgDefs - Definitions for all unnamed positional arguments (required + optional).
  * @property {{ min: number, max: (number|null) }|null} list
  * @property {boolean} strictArgs
  * @property {string} description
@@ -183,7 +185,7 @@ class MacroRegistry {
             const {
                 aliases: rawAliases,
                 category: rawCategory,
-                requiredArgs: rawRequiredArgs,
+                unnamedArgs: rawUnnamedArgs,
                 list: rawList,
                 strictArgs: rawStrictArgs,
                 description: rawDescription,
@@ -213,19 +215,28 @@ class MacroRegistry {
             if (typeof rawCategory !== 'string' || !rawCategory.trim()) throw new Error(`Macro "${name}" options.category must be a non-empty string.`);
             const category = rawCategory.trim();
 
-            let requiredArgs = 0;
-            /** @type {MacroPositionalArgDef[]} */
-            let requiredArgDefs = [];
-            if (rawRequiredArgs !== undefined) {
-                if (Array.isArray(rawRequiredArgs)) {
-                    requiredArgs = rawRequiredArgs.length;
-                    requiredArgDefs = rawRequiredArgs.map((def, index) => {
-                        if (!def || typeof def !== 'object') throw new Error(`Macro "${name}" options.requiredArgs[${index}] must be an object when using argument definitions.`);
-                        if (typeof def.name !== 'string' || !def.name.trim()) throw new Error(`Macro "${name}" options.requiredArgs[${index}].name must be a non-empty string when using argument definitions.`);
+            let minArgs = 0;
+            let maxArgs = 0;
+            /** @type {MacroUnnamedArgDef[]} */
+            let unnamedArgDefs = [];
+            if (rawUnnamedArgs !== undefined) {
+                if (Array.isArray(rawUnnamedArgs)) {
+                    // Parse array of argument definitions with optional support
+                    let foundOptional = false;
+                    unnamedArgDefs = rawUnnamedArgs.map((def, index) => {
+                        if (!def || typeof def !== 'object') throw new Error(`Macro "${name}" options.unnamedArgs[${index}] must be an object when using argument definitions.`);
+                        if (typeof def.name !== 'string' || !def.name.trim()) throw new Error(`Macro "${name}" options.unnamedArgs[${index}].name must be a non-empty string when using argument definitions.`);
 
-                        /** @type {MacroPositionalArgDef} */
+                        // Validate: no required args after optional
+                        if (foundOptional && !def.optional) {
+                            throw new Error(`Macro "${name}" options.unnamedArgs[${index}] is required but follows an optional argument. Optional args must be a suffix.`);
+                        }
+                        if (def.optional) foundOptional = true;
+
+                        /** @type {MacroUnnamedArgDef} */
                         const normalized = {
                             name: def.name.trim(),
+                            optional: def.optional || false,
                             sampleValue: def.sampleValue?.trim(),
                             description: typeof def.description === 'string' ? def.description : undefined,
                             type: Array.isArray(def.type) && def.type.length === 0 ? 'string' : def.type ?? 'string',
@@ -234,19 +245,30 @@ class MacroRegistry {
                         const validTypes = ['string', 'integer', 'number', 'boolean'];
                         const type = Array.isArray(normalized.type) ? normalized.type : [normalized.type];
                         if (type.some(t => !validTypes.includes(t))) {
-                            throw new Error(`Macro "${name}" options.requiredArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
+                            throw new Error(`Macro "${name}" options.unnamedArgs[${index}].type must be one of "string", "integer", "number", or "boolean" when provided.`);
                         }
 
                         return normalized;
                     });
-                } else if (typeof rawRequiredArgs === 'number') {
-                    if (!Number.isInteger(rawRequiredArgs) || rawRequiredArgs < 0) {
-                        throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer when provided.`);
+
+                    // Compute minArgs (required count) and maxArgs (total count)
+                    maxArgs = unnamedArgDefs.length;
+                    minArgs = unnamedArgDefs.findIndex(d => d.optional);
+                    if (minArgs === -1) minArgs = maxArgs; // No optional args, all are required
+                } else if (typeof rawUnnamedArgs === 'number') {
+                    if (!Number.isInteger(rawUnnamedArgs) || rawUnnamedArgs < 0) {
+                        throw new Error(`Macro "${name}" options.unnamedArgs must be a non-negative integer when provided.`);
                     }
-                    requiredArgs = rawRequiredArgs;
-                    requiredArgDefs = Array.from({ length: rawRequiredArgs }, (_, i) => ({ name: `arg${i + 1}`, sampleValue: `arg${i + 1}`, type: 'string' }));
+                    minArgs = rawUnnamedArgs;
+                    maxArgs = rawUnnamedArgs;
+                    unnamedArgDefs = Array.from({ length: rawUnnamedArgs }, (_, i) => ({
+                        name: `arg${i + 1}`,
+                        sampleValue: `arg${i + 1}`,
+                        type: 'string',
+                        optional: false,
+                    }));
                 } else {
-                    throw new Error(`Macro "${name}" options.requiredArgs must be a non-negative integer or an array of argument definitions when provided.`);
+                    throw new Error(`Macro "${name}" options.unnamedArgs must be a non-negative integer or an array of argument definitions when provided.`);
                 }
             }
 
@@ -333,8 +355,9 @@ class MacroRegistry {
                 name: name,
                 aliases,
                 category,
-                requiredArgs,
-                requiredArgDefs,
+                minArgs,
+                maxArgs,
+                unnamedArgDefs,
                 list,
                 strictArgs,
                 description,
@@ -465,11 +488,12 @@ class MacroRegistry {
         const args = Array.isArray(call.args) ? call.args : [];
 
         if (!isArgsValid(def, args)) {
-            const expectedMin = def.list ? def.requiredArgs + def.list.min : def.requiredArgs;
-            const expectedMax = def.list && def.list.max !== null ? def.requiredArgs + def.list.max : null;
+            const expectedMin = def.list ? def.minArgs + def.list.min : def.minArgs;
+            const expectedMax = def.list && def.list.max !== null
+                ? def.maxArgs + def.list.max
+                : (def.list ? null : def.maxArgs);
 
             const expectation = (() => {
-                if (!def.list) return `${def.requiredArgs}`;
                 if (expectedMax !== null && expectedMax !== expectedMin) return `between ${expectedMin} and ${expectedMax}`;
                 if (expectedMax !== null && expectedMax === expectedMin) return `${expectedMin}`;
                 return `at least ${expectedMin}`;
@@ -482,12 +506,14 @@ class MacroRegistry {
             logMacroRuntimeWarning({ message, call, def });
         }
 
-        const requiredArgsValues = args.slice(0, Math.min(def.requiredArgs, args.length));
-        const listValues = !def.list ? null : args.length > def.requiredArgs ? args.slice(def.requiredArgs) : [];
+        // Compute unnamed args (required + optional, up to maxArgs)
+        const unnamedArgsCount = Math.min(args.length, def.maxArgs);
+        const unnamedArgsValues = args.slice(0, unnamedArgsCount);
+        const listValues = !def.list ? null : args.length > def.maxArgs ? args.slice(def.maxArgs) : [];
 
         // Perform best-effort type validation for documented positional arguments.
         // This can throw an error if the arguments are invalid.
-        validateArgTypes(call, def, requiredArgsValues);
+        validateArgTypes(call, def, unnamedArgsValues);
 
         const namedArgs = null;
 
@@ -495,7 +521,7 @@ class MacroRegistry {
         const executionContext = {
             name: def.name,
             args,
-            requiredArgs: requiredArgsValues,
+            unnamedArgs: unnamedArgsValues,
             list: listValues,
             namedArgs,
             raw: call.rawInner,
@@ -514,6 +540,7 @@ instance = MacroRegistry.instance;
 
 /**
  * Validates the arguments for a macro definition.
+ * Supports required args (minArgs), optional args (up to maxArgs), and list tail.
  *
  * @param {MacroDefinition} def - Macro definition.
  * @param {any[]} args - Arguments to validate.
@@ -521,35 +548,41 @@ instance = MacroRegistry.instance;
  */
 function isArgsValid(def, args) {
     const hasListArgs = def.list !== null;
-    if (!hasListArgs) return args.length === def.requiredArgs;
 
-    const argsShorterThanMin = args.length < def.requiredArgs + def.list.min;
-    if (argsShorterThanMin) return false;
+    // Without list: args must be between minArgs and maxArgs (inclusive)
+    if (!hasListArgs) {
+        return args.length >= def.minArgs && args.length <= def.maxArgs;
+    }
 
-    const listCount = args.length > def.requiredArgs ? args.length - def.requiredArgs : 0;
-    const argsLongerThanMax = def.list.max !== null && listCount > def.list.max;
-    if (argsLongerThanMax) return false;
+    // With list: args must be at least minArgs + list.min
+    const minRequired = def.minArgs + def.list.min;
+    if (args.length < minRequired) return false;
+
+    // List items are everything after maxArgs positional slots
+    const listCount = Math.max(0, args.length - def.maxArgs);
+    if (def.list.max !== null && listCount > def.list.max) return false;
+
     return true;
 }
 
 /**
- * Performs type validation for positional arguments using the metadata
+ * Performs type validation for unnamed positional arguments using the metadata
  * defined on the macro definition. When strictArgs is true, invalid argument
  * types cause an error to be thrown. When strictArgs is false, only warnings
  * are logged and execution continues.
  *
  * @param {MacroCall} call
  * @param {MacroDefinition} def
- * @param {string[]} requiredArgs
+ * @param {string[]} unnamedArgs
  */
-function validateArgTypes(call, def, requiredArgs) {
-    if (def.requiredArgDefs.length === 0) return;
+function validateArgTypes(call, def, unnamedArgs) {
+    if (def.unnamedArgDefs.length === 0) return;
 
-    const defs = def.requiredArgDefs;
-    const count = Math.min(defs.length, requiredArgs.length);
+    const defs = def.unnamedArgDefs;
+    const count = Math.min(defs.length, unnamedArgs.length);
     for (let i = 0; i < count; i++) {
         const argDef = defs[i];
-        const value = requiredArgs[i];
+        const value = unnamedArgs[i];
         if (!argDef || !argDef.type || typeof value !== 'string') {
             // Misconfigured macro definition: always surface as an error.
             throw new Error(`Macro "${call.name}" (position ${i + 1}) has invalid definition or type.`);
@@ -558,7 +591,8 @@ function validateArgTypes(call, def, requiredArgs) {
         const types = Array.isArray(argDef.type) ? argDef.type : [argDef.type];
         if (!types.some(type => isValueOfType(value, type))) {
             const argName = argDef.name || `Argument ${i + 1}`;
-            const message = `Macro "${call.name}" (position ${i + 1}) argument "${argName}" expected type ${argDef.type} but got value "${value}".`;
+            const optionalLabel = argDef.optional ? ' (optional)' : '';
+            const message = `Macro "${call.name}" (position ${i + 1}${optionalLabel}) argument "${argName}" expected type ${argDef.type} but got value "${value}".`;
             if (def.strictArgs) {
                 throw createMacroRuntimeError({ message, call, def: def });
             }

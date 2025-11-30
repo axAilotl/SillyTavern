@@ -466,11 +466,11 @@ test.describe('MacroEngine', () => {
 
                 MacroRegistry.unregisterMacro('test-list-bounds');
                 MacroRegistry.registerMacro('test-list-bounds', {
-                    requiredArgs: 1,
+                    unnamedArgs: 1,
                     list: { min: 1, max: 2 },
                     description: 'Test macro for list bounds.',
-                    handler: ({ requiredArgs, list }) => {
-                        const all = [...requiredArgs, ...(list ?? [])];
+                    handler: ({ unnamedArgs, list }) => {
+                        const all = [...unnamedArgs, ...(list ?? [])];
                         return all.join('|');
                     },
                 });
@@ -514,12 +514,12 @@ test.describe('MacroEngine', () => {
 
                 MacroRegistry.unregisterMacro('test-int-strict');
                 MacroRegistry.registerMacro('test-int-strict', {
-                    requiredArgs: [
+                    unnamedArgs: [
                         { name: 'value', type: 'integer', description: 'Must be an integer.' },
                     ],
                     strictArgs: true,
                     description: 'Strict integer macro for testing type validation.',
-                    handler: ({ requiredArgs: [value] }) => `#${value}#`,
+                    handler: ({ unnamedArgs: [value] }) => `#${value}#`,
                 });
             });
 
@@ -548,12 +548,12 @@ test.describe('MacroEngine', () => {
 
                 MacroRegistry.unregisterMacro('test-int-nonstrict');
                 MacroRegistry.registerMacro('test-int-nonstrict', {
-                    requiredArgs: [
+                    unnamedArgs: [
                         { name: 'value', type: 'integer', description: 'Must be an integer.' },
                     ],
                     strictArgs: false,
                     description: 'Non-strict integer macro for testing type validation.',
-                    handler: ({ requiredArgs: [value] }) => `#${value}#`,
+                    handler: ({ unnamedArgs: [value] }) => `#${value}#`,
                 });
             });
 
@@ -671,7 +671,7 @@ test.describe('MacroEngine', () => {
             }, input);
 
             // Dynamic macro with arguments should not resolve because the
-            // temporary definition is strictArgs: true and requiredArgs: 0.
+            // temporary definition is strictArgs: true and minArgs/maxArgs: 0.
             expect(output).toBe(input);
 
             // A runtime arity warning for the dynamic macro should be logged

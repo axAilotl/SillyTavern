@@ -92,8 +92,9 @@ class MacroEngine {
                 aliases: [],
                 category: 'dynamic',
                 description: 'Dynamic macro',
-                requiredArgs: 0,
-                requiredArgDefs: [],
+                minArgs: 0,
+                maxArgs: 0,
+                unnamedArgDefs: [],
                 list: null,
                 strictArgs: true, // Fail dynamic macros if they are called with arguments
                 returns: null,
