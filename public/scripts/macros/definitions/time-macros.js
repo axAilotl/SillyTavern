@@ -15,6 +15,7 @@ export function registerTimeMacros() {
             {
                 name: 'offset',
                 optional: true,
+                defaultValue: 'null',
                 type: MacroValueType.STRING,
                 sampleValue: 'UTC+2',
                 description: 'UTC offset in the format UTC±(offset).',

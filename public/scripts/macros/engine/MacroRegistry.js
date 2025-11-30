@@ -80,9 +80,9 @@ export const MacroValueType = Object.freeze({
  * @property {string} name
  * @property {boolean} [optional=false] - Whether this argument is optional. Optional args must form a contiguous suffix (no required args after an optional).
  * @property {string} [defaultValue] - Default value for optional args. ONLY meaningful when optional is true. Shown in docs/autocomplete.
+ * @property {MacroValueType|MacroValueType[]} [type=MacroValueType.STRING] - Single type or array of accepted types.
  * @property {string} [sampleValue]
  * @property {string} [description]
- * @property {MacroValueType|MacroValueType[]} [type=MacroValueType.STRING] - Single type or array of accepted types.
  */
 
 /**
@@ -238,9 +238,10 @@ class MacroRegistry {
                         const normalized = {
                             name: def.name.trim(),
                             optional: def.optional || false,
+                            defaultValue: def.defaultValue?.trim(),
+                            type: Array.isArray(def.type) && def.type.length === 0 ? 'string' : def.type ?? 'string',
                             sampleValue: def.sampleValue?.trim(),
                             description: typeof def.description === 'string' ? def.description : undefined,
-                            type: Array.isArray(def.type) && def.type.length === 0 ? 'string' : def.type ?? 'string',
                         };
 
                         const validTypes = ['string', 'integer', 'number', 'boolean'];
@@ -264,9 +265,9 @@ class MacroRegistry {
                     maxArgs = rawUnnamedArgs;
                     unnamedArgDefs = Array.from({ length: rawUnnamedArgs }, (_, i) => ({
                         name: `arg${i + 1}`,
-                        sampleValue: `arg${i + 1}`,
-                        type: 'string',
                         optional: false,
+                        type: 'string',
+                        sampleValue: `arg${i + 1}`,
                     }));
                 } else {
                     throw new Error(`Macro "${name}" options.unnamedArgs must be a non-negative integer or an array of argument definitions when provided.`);
