@@ -127,7 +127,7 @@ export function registerCoreMacros() {
         list: true,
         description: 'Picks a random item from a list. Will be re-rolled every time macros are resolved.',
         returns: 'Randomly selected item from the list.',
-        exampleUsage: ['Her hair is {{random::blonde::brown::red::black::blue}}.'],
+        exampleUsage: ['{{random::blonde::brown::red::black::blue}}'],
         handler: ({ list, raw: rawListString }) => {
             // We let double-colon args be handled by the list argument parser
             // But for the ancient legacy comma separated list, we'll fall back to the raw argument and split via the old logic
@@ -154,7 +154,7 @@ export function registerCoreMacros() {
         list: true,
         description: 'Picks a random item from a list, but keeps the choice stable for a given chat and macro position.',
         returns: 'Stable randomly selected item from the list.',
-        exampleUsage: ['Her hair is {{pick::blonde::brown::red::black::blue}}.'],
+        exampleUsage: ['{{pick::blonde::brown::red::black::blue}}'],
         handler: ({ list, raw: rawListString, range, env }) => {
             /** @type {string[]} */
             let items = Array.isArray(list) ? [...list] : [];
