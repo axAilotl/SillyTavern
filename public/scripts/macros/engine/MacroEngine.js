@@ -89,12 +89,20 @@ class MacroEngine {
             const impl = env.dynamicMacros[name];
             defOverride = {
                 name,
+                aliases: [],
+                category: 'dynamic',
                 description: 'Dynamic macro',
                 requiredArgs: 0,
                 requiredArgDefs: [],
                 list: null,
                 strictArgs: true, // Fail dynamic macros if they are called with arguments
                 returns: null,
+                returnType: 'string',
+                displayOverride: null,
+                exampleUsage: [],
+                source: { name: 'dynamic', isExtension: false, isThirdParty: false },
+                aliasOf: null,
+                aliasVisible: null,
                 handler: typeof impl === 'function' ? impl : () => impl,
             };
         }
