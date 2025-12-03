@@ -16,11 +16,13 @@ import { SlashCommandAutoCompleteNameResult } from './SlashCommandAutoCompleteNa
 import { SlashCommandUnnamedArgumentAssignment } from './SlashCommandUnnamedArgumentAssignment.js';
 import { SlashCommandEnumValue } from './SlashCommandEnumValue.js';
 import { MacroAutoCompleteOption } from '../autocomplete/MacroAutoCompleteOption.js';
+import { EnhancedMacroAutoCompleteOption, parseMacroContext } from '../autocomplete/EnhancedMacroAutoCompleteOption.js';
 import { SlashCommandBreakPoint } from './SlashCommandBreakPoint.js';
 import { SlashCommandDebugController } from './SlashCommandDebugController.js';
 import { commonEnumProviders } from './SlashCommandCommonEnumsProvider.js';
 import { SlashCommandBreak } from './SlashCommandBreak.js';
 import { MacrosParser } from '../macros.js';
+import { macros as macroSystem } from '../macros/macro-system.js';
 import { t } from '../i18n.js';
 
 /** @typedef {import('./SlashCommand.js').NamedArgumentsCapture} NamedArgumentsCapture */
@@ -489,6 +491,27 @@ export class SlashCommandParser {
             if (childClosure !== null) return null;
             const macro = this.macroIndex.findLast(it=>it.start <= index && it.end >= index);
             if (macro) {
+                // Calculate cursor position within the macro for argument context
+                const cursorInMacro = index - macro.start - 2; // -2 for {{
+                const macroContent = text.slice(macro.start + 2, macro.end - (text.slice(macro.end - 2, macro.end) === '}}' ? 2 : 0));
+                const context = parseMacroContext(macroContent, cursorInMacro);
+
+                // Extract just the identifier (strip trailing colons/whitespace/closing braces from macro.name)
+                const identifier = macro.name.replace(/[\s:}]+$/, '').trim();
+
+                // Use enhanced macro autocomplete when experimental engine is enabled
+                if (power_user.experimental_macro_engine) {
+                    const options = this.#buildEnhancedMacroOptions(context);
+                    const result = new AutoCompleteNameResult(
+                        identifier,
+                        macro.start + 2,
+                        options,
+                        false,
+                    );
+                    return result;
+                }
+
+                // Legacy: fetch from macros.html and MacrosParser
                 const frag = document.createRange().createContextualFragment(await (await fetch('/scripts/templates/macros.html')).text());
                 const options = [...frag.querySelectorAll('ul:nth-of-type(2n+1) > li')].map(li=>new MacroAutoCompleteOption(
                     li.querySelector('tt').textContent.slice(2, -2).replace(/^([^\s:]+[\s:]+).*$/, '$1'),
@@ -539,6 +562,44 @@ export class SlashCommandParser {
             return result;
         }
         return null;
+    }
+
+    /**
+     * Builds enhanced macro autocomplete options from the MacroRegistry.
+     * When typing arguments (after ::), prioritizes the exact macro match.
+     * @param {import('../autocomplete/EnhancedMacroAutoCompleteOption.js').MacroAutoCompleteContext} context
+     * @returns {EnhancedMacroAutoCompleteOption[]}
+     */
+    #buildEnhancedMacroOptions(context) {
+        /** @type {EnhancedMacroAutoCompleteOption[]} */
+        const options = [];
+
+        // Get all macros from the registry (excluding hidden aliases)
+        const allMacros = macroSystem.registry.getAllMacros({ excludeHiddenAliases: true });
+
+        // If we're typing arguments (after ::), only show the context to the matching macro
+        const isTypingArgs = context.currentArgIndex >= 0;
+
+        for (const macro of allMacros) {
+            // Check if this macro matches the typed identifier
+            const isExactMatch = macro.name === context.identifier;
+            const isAliasMatch = macro.aliasOf === context.identifier;
+
+            // Only pass context to the macro that matches the identifier being typed
+            // This ensures argument hints only show for the relevant macro
+            const macroContext = (isExactMatch || isAliasMatch) ? context : null;
+
+            const option = new EnhancedMacroAutoCompleteOption(macro, macroContext);
+
+            // When typing arguments, prioritize exact matches by putting them first
+            if (isTypingArgs && (isExactMatch || isAliasMatch)) {
+                options.unshift(option);
+            } else {
+                options.push(option);
+            }
+        }
+
+        return options;
     }
 
     /**

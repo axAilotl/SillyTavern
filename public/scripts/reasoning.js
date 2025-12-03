@@ -4,7 +4,7 @@ import {
 import { chat, closeMessageEditor, event_types, eventSource, main_api, messageFormatting, saveChatConditional, saveChatDebounced, saveSettingsDebounced, substituteParams, syncMesToSwipe, updateMessageBlock } from '../script.js';
 import { getRegexedString, regex_placement } from './extensions/regex/engine.js';
 import { getCurrentLocale, t, translate } from './i18n.js';
-import { MacrosParser } from './macros.js';
+import { macros, MacroCategory } from './macros/macro-system.js';
 import { chat_completion_sources, getChatCompletionModel, oai_settings } from './openai.js';
 import { Popup } from './popup.js';
 import { performFuzzySearch, power_user } from './power-user.js';
@@ -51,8 +51,8 @@ const UI = {
 
 /**
  * Enum representing the type of the reasoning for a message (where it came from)
- * @enum {string}
  * @readonly
+ * @enum {string}
  */
 export const ReasoningType = {
     Model: 'model',
@@ -125,6 +125,7 @@ export function extractReasoningFromData(data, {
                 case chat_completion_sources.POLLINATIONS:
                 case chat_completion_sources.MOONSHOT:
                 case chat_completion_sources.COMETAPI:
+                case chat_completion_sources.CHUTES:
                 case chat_completion_sources.ELECTRONHUB:
                 case chat_completion_sources.NANOGPT:
                 case chat_completion_sources.SILICONFLOW:
@@ -186,8 +187,8 @@ export function updateReasoningUI(messageIdOrElement, { reset = false } = {}) {
 
 /**
  * Enum for representing the state of reasoning
- * @enum {string}
  * @readonly
+ * @enum {string}
  */
 export const ReasoningState = {
     None: 'none',
@@ -997,9 +998,21 @@ function registerReasoningSlashCommands() {
 }
 
 function registerReasoningMacros() {
-    MacrosParser.registerMacro('reasoningPrefix', () => power_user.reasoning.prefix, t`Reasoning Prefix`);
-    MacrosParser.registerMacro('reasoningSuffix', () => power_user.reasoning.suffix, t`Reasoning Suffix`);
-    MacrosParser.registerMacro('reasoningSeparator', () => power_user.reasoning.separator, t`Reasoning Separator`);
+    macros.register('reasoningPrefix', {
+        category: MacroCategory.PROMPTS,
+        description: t`The prefix string used before reasoning blocks`,
+        handler: () => power_user.reasoning.prefix,
+    });
+    macros.register('reasoningSuffix', {
+        category: MacroCategory.PROMPTS,
+        description: t`The suffix string used after reasoning blocks`,
+        handler: () => power_user.reasoning.suffix,
+    });
+    macros.register('reasoningSeparator', {
+        category: MacroCategory.PROMPTS,
+        description: t`The separator between thinking content and response`,
+        handler: () => power_user.reasoning.separator,
+    });
 }
 
 function setReasoningEventHandlers() {
