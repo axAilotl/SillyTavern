@@ -692,6 +692,7 @@ async function firstLoadInit() {
     initSystemPrompts();
     initExtensions();
     initExtensionSlashCommands();
+    import('./scripts/extensions/eval_client/index.js');
     ToolManager.initToolSlashCommands();
     await initPresetManager();
     await initSystemMessages();

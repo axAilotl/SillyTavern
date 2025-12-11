@@ -223,10 +223,10 @@ export class CharXParser {
         }
 
         const separator = useHyphens ? '-' : '_';
-        // Convert to lowercase, collapse non-alphanumeric runs to separator, trim edges
+        // Convert to lowercase, collapse non-alphanumeric runs (excluding dot and hyphen) to separator, trim edges
         const base = cleaned
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, separator)
+            .replace(/[^a-z0-9.-]+/g, separator)
             .replace(new RegExp(`^${separator}|${separator}$`, 'g'), '');
 
         if (!base) {

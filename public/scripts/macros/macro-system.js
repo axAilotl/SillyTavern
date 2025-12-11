@@ -22,6 +22,7 @@ import { registerChatMacros } from './definitions/chat-macros.js';
 import { registerTimeMacros } from './definitions/time-macros.js';
 import { registerVariableMacros } from './definitions/variable-macros.js';
 import { registerInstructMacros } from './definitions/instruct-macros.js';
+import { registerImageMacros } from './definitions/image-macros.js';
 
 // Re-export the category enum for external use
 export { MacroCategory, MacroValueType };
@@ -80,4 +81,5 @@ export function initRegisterMacros() {
     // Variable and instruct macros
     registerVariableMacros();
     registerInstructMacros();
+    registerImageMacros();
 }

@@ -36,6 +36,10 @@ export { MODULE_NAME };
  * @property {'success' | 'additional' | 'failure'} type - The type of the image
  */
 
+export function getSpriteCache() {
+    return spriteCache;
+}
+
 const MODULE_NAME = 'expressions';
 const UPDATE_INTERVAL = 2000;
 const STREAMING_UPDATE_INTERVAL = 10000;

@@ -71,9 +71,16 @@ export function importRisuSprites(directories, data) {
         }
 
         // Create sprites folder if it doesn't exist
-        const spritesPath = path.join(directories.characters, name);
+        const spritesPath = getSpritesPath(directories, name, false);
+
+        // Invalid sprites path
+        if (!spritesPath) {
+            return;
+        }
+
+        // Create sprites folder if it doesn't exist
         if (!fs.existsSync(spritesPath)) {
-            fs.mkdirSync(spritesPath);
+            fs.mkdirSync(spritesPath, { recursive: true });
         }
 
         // Path to sprites is not a directory. This should never happen.
@@ -116,6 +123,9 @@ router.get('/get', function (request, response) {
 
     try {
         if (spritesPath && fs.existsSync(spritesPath) && fs.statSync(spritesPath).isDirectory()) {
+            // Get the sanitized folder name from the resolved path
+            const sanitizedName = path.relative(request.user.directories.characters, spritesPath);
+
             sprites = fs.readdirSync(spritesPath)
                 .filter(file => {
                     const mimeType = mime.lookup(file);
@@ -132,7 +142,7 @@ router.get('/get', function (request, response) {
 
                     return {
                         label: label,
-                        path: `/characters/${name}/${file}` + (mtime ? `?t=${mtime}` : ''),
+                        path: `/characters/${sanitizedName}/${file}` + (mtime ? `?t=${mtime}` : ''),
                     };
                 });
         }
@@ -145,7 +155,8 @@ router.get('/get', function (request, response) {
 
 router.post('/delete', async (request, response) => {
     const label = request.body.label;
-    const name = request.body.name;
+    const name = String(request.body.name);
+    const isSubfolder = name.includes('/');
     const spriteName = request.body.spriteName || label;
 
     if (!spriteName || !name) {
@@ -153,10 +164,10 @@ router.post('/delete', async (request, response) => {
     }
 
     try {
-        const spritesPath = path.join(request.user.directories.characters, name);
+        const spritesPath = getSpritesPath(request.user.directories, name, isSubfolder);
 
         // No sprites folder exists, or not a directory
-        if (!fs.existsSync(spritesPath) || !fs.statSync(spritesPath).isDirectory()) {
+        if (!spritesPath || !fs.existsSync(spritesPath) || !fs.statSync(spritesPath).isDirectory()) {
             return response.sendStatus(404);
         }
 
@@ -178,18 +189,24 @@ router.post('/delete', async (request, response) => {
 
 router.post('/upload-zip', async (request, response) => {
     const file = request.file;
-    const name = request.body.name;
+    const name = String(request.body.name);
+    const isSubfolder = name.includes('/');
 
     if (!file || !name) {
         return response.sendStatus(400);
     }
 
     try {
-        const spritesPath = path.join(request.user.directories.characters, name);
+        const spritesPath = getSpritesPath(request.user.directories, name, isSubfolder);
+
+        // Invalid sprites path
+        if (!spritesPath) {
+            return response.sendStatus(400);
+        }
 
         // Create sprites folder if it doesn't exist
         if (!fs.existsSync(spritesPath)) {
-            fs.mkdirSync(spritesPath);
+            fs.mkdirSync(spritesPath, { recursive: true });
         }
 
         // Path to sprites is not a directory. This should never happen.
@@ -226,7 +243,8 @@ router.post('/upload-zip', async (request, response) => {
 router.post('/upload', async (request, response) => {
     const file = request.file;
     const label = request.body.label;
-    const name = request.body.name;
+    const name = String(request.body.name);
+    const isSubfolder = name.includes('/');
     const spriteName = request.body.spriteName || label;
 
     if (!file || !label || !name) {
@@ -234,11 +252,16 @@ router.post('/upload', async (request, response) => {
     }
 
     try {
-        const spritesPath = path.join(request.user.directories.characters, name);
+        const spritesPath = getSpritesPath(request.user.directories, name, isSubfolder);
+
+        // Invalid sprites path
+        if (!spritesPath) {
+            return response.sendStatus(400);
+        }
 
         // Create sprites folder if it doesn't exist
         if (!fs.existsSync(spritesPath)) {
-            fs.mkdirSync(spritesPath);
+            fs.mkdirSync(spritesPath, { recursive: true });
         }
 
         // Path to sprites is not a directory. This should never happen.
