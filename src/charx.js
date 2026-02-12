@@ -261,16 +261,26 @@ export class CharXParser {
                 storageCategory = 'misc';
             }
 
-            // Use hyphens for sprites so ST's expression label extraction works correctly
-            // (sprites.js extracts label via regex that splits on dash or dot)
-            const useHyphens = storageCategory === 'sprite';
-            // Strip trailing extension from name if present (e.g., "image.png" with ext "png")
-            const nameWithoutExt = this.stripTrailingImageExtension(asset.name, ext);
+            let baseName;
+            if (storageCategory === 'misc') {
+                // Preserve original filename for misc/gallery images (don't lowercase/normalize)
+                // so creator-hardcoded links in the card aren't broken
+                const zipFileName = path.parse(asset.zipPath).name;
+                const sanitized = sanitize(zipFileName);
+                baseName = sanitized || this.getCharXAssetBaseName(asset.name, `${storageCategory}-${asset.order ?? 0}`, false);
+            } else {
+                // Use hyphens for sprites so ST's expression label extraction works correctly
+                // (sprites.js extracts label via regex that splits on dash or dot)
+                const useHyphens = storageCategory === 'sprite';
+                // Strip trailing extension from name if present (e.g., "image.png" with ext "png")
+                const nameWithoutExt = this.stripTrailingImageExtension(asset.name, ext);
+                baseName = this.getCharXAssetBaseName(nameWithoutExt, `${storageCategory}-${asset.order ?? 0}`, useHyphens);
+            }
             acc.push({
                 ...asset,
                 ext,
                 storageCategory,
-                baseName: this.getCharXAssetBaseName(nameWithoutExt, `${storageCategory}-${asset.order ?? 0}`, useHyphens),
+                baseName,
             });
 
             return acc;

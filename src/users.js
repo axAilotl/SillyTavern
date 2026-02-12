@@ -962,6 +962,42 @@ function createRouteHandler(directoryFn) {
 }
 
 /**
+ * Creates a route handler for serving character assets with a fallback chain:
+ * 1. Sprites: characters/{charName}/{file}
+ * 2. Gallery: user/images/{charName}/{file}
+ * 3. Backgrounds: characters/{charName}/backgrounds/{file}
+ * This allows short URLs like /characters/Seraphina/smile.png to resolve
+ * across all character asset directories.
+ * @returns {import('express').RequestHandler}
+ */
+function createCharacterAssetRouteHandler() {
+    return async (req, res) => {
+        try {
+            const filePath = decodeURIComponent(req.params[0]);
+            const dirs = req.user.directories;
+
+            // Try sprites first (characters/{charName}/{file}) — preserves current behavior
+            const spritePath = path.join(dirs.characters, filePath);
+            if (fs.existsSync(spritePath)) {
+                invalidateFirefoxCache(filePath, req, res);
+                return res.sendFile(filePath, { root: dirs.characters });
+            }
+
+            // Try gallery (user/images/{charName}/{file})
+            const galleryPath = path.join(dirs.userImages, filePath);
+            if (fs.existsSync(galleryPath)) {
+                invalidateFirefoxCache(filePath, req, res);
+                return res.sendFile(filePath, { root: dirs.userImages });
+            }
+
+            return res.sendStatus(404);
+        } catch (error) {
+            return res.sendStatus(500);
+        }
+    };
+}
+
+/**
  * Creates a route handler for serving extensions.
  * @param {(req: import('express').Request) => string} directoryFn A function that returns the directory path to serve files from
  * @returns {import('express').RequestHandler}
@@ -1074,7 +1110,7 @@ export async function getAllEnabledUsers() {
  */
 export const router = express.Router();
 router.use('/backgrounds/*', createRouteHandler(req => req.user.directories.backgrounds));
-router.use('/characters/*', createRouteHandler(req => req.user.directories.characters));
+router.use('/characters/*', createCharacterAssetRouteHandler());
 router.use('/User%20Avatars/*', createRouteHandler(req => req.user.directories.avatars));
 router.use('/assets/*', createRouteHandler(req => req.user.directories.assets));
 router.use('/user/images/*', createRouteHandler(req => req.user.directories.userImages));
