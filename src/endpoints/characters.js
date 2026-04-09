@@ -1692,7 +1692,7 @@ router.post('/export', validateAvatarUrlMiddleware, async function (request, res
                     const mediaConfig = _.get(jsonObject, 'data.extensions.charx_media');
                     const exportAssets = collectCharXExportAssets(request.user.directories, characterFolder, mediaConfig);
                     const avatarExt = path.extname(filename).slice(1).toLowerCase() || 'png';
-                    const avatarArchivePath = `assets/icon/image/main.${avatarExt}`;
+                    const avatarArchivePath = `assets/icon/images/main.${avatarExt}`;
                     const charxCard = buildCharXCard(jsonObject, characterFolder, avatarArchivePath, avatarExt, exportAssets, mediaConfig);
 
                     const archive = archiver('zip');

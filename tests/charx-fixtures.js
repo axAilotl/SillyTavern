@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import archiver from 'archiver';
 import { PassThrough } from 'node:stream';
 import { finished } from 'node:stream/promises';
@@ -117,4 +119,20 @@ export async function buildSyntheticCharXArchive(characterName = 'Purrsephone', 
     await archive.finalize();
     await finished(output);
     return Buffer.concat(chunks);
+}
+export function writeSyntheticCharacterMediaTree(charactersDirectory, characterFolder = 'Purrsephone') {
+    mkdirSync(path.join(charactersDirectory, characterFolder, 'backgrounds'), { recursive: true });
+    mkdirSync(path.join(charactersDirectory, characterFolder, 'images'), { recursive: true });
+    mkdirSync(path.join(charactersDirectory, characterFolder, 'audio'), { recursive: true });
+    mkdirSync(path.join(charactersDirectory, characterFolder, 'video'), { recursive: true });
+    mkdirSync(path.join(charactersDirectory, characterFolder, 'json'), { recursive: true });
+
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'excited-smile-final.png'), 'sprite-emotion');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'smug-face-final.webp'), 'sprite-expression');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'backgrounds', 'Forest Dawn Scene.webp'), 'background-image');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'backgrounds', 'Main Panorama Loop.webm'), 'background-video');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'images', 'Gallery Pose A.webp'), 'gallery-image');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'audio', 'Theme Mix (Lo-Fi).mp3'), 'theme-audio');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'video', 'Reaction Cam 01.webm'), 'reaction-video');
+    writeFileSync(path.join(charactersDirectory, characterFolder, 'json', 'Character Regex.json'), '{"version":1}');
 }
