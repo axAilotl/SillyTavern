@@ -157,11 +157,9 @@ export class CharXParser {
     stripTrailingAssetExtension(name, expectedExt) {
         if (!name || !expectedExt) return name;
         const lower = name.toLowerCase();
-        // Check if name ends with the expected extension
         if (lower.endsWith(`.${expectedExt}`)) {
             return name.slice(0, -(expectedExt.length + 1));
         }
-        // Also check for any supported asset extension at the end
         for (const ext of CHARX_SUPPORTED_ASSET_EXTENSIONS) {
             if (lower.endsWith(`.${ext}`)) {
                 return name.slice(0, -(ext.length + 1));
@@ -439,11 +437,11 @@ export function persistCharXAssets(assets, bufferMap, directories, characterFold
  * @typedef {Object} CharXExportAsset
  * @property {string} sourcePath
  * @property {string} fullPath
- * @property {'sprite' | 'background' | 'gallery' | 'file' | 'bgm' | 'ambient' | 'blip'} category
+ * @property {'sprite' | 'background' | 'image' | 'audio' | 'video' | 'json'} category
  * @property {string} exportName
  * @property {string} ext
  * @property {string} archivePath
- * @property {'expression' | 'background' | 'custom'} assetType
+ * @property {'emotion' | 'background' | 'other'} assetType
  */
 
 function toPosixPath(filePath) {
@@ -465,41 +463,29 @@ function listSupportedFiles(directoryPath, allowedExtensions) {
 function getCharXArchiveDirectory(category, ext) {
     switch (category) {
         case 'sprite':
-            return 'assets/expression/image';
+            return 'assets/emotion/images';
         case 'background':
-            return 'assets/background/image';
-        case 'gallery':
-            if (CHARX_VIDEO_EXTENSIONS.has(ext)) {
-                return 'assets/custom/video';
-            }
-            return 'assets/custom/images';
-        case 'bgm':
-        case 'ambient':
-        case 'blip':
-            return 'assets/custom/audio';
-        case 'file':
+            return CHARX_VIDEO_EXTENSIONS.has(ext) ? 'assets/background/video' : 'assets/background/images';
+        case 'image':
+            return 'assets/other/images';
+        case 'audio':
+            return 'assets/other/audio';
+        case 'video':
+            return 'assets/other/video';
+        case 'json':
         default:
-            if (CHARX_AUDIO_EXTENSIONS.has(ext)) {
-                return 'assets/custom/audio';
-            }
-            if (CHARX_VIDEO_EXTENSIONS.has(ext)) {
-                return 'assets/custom/video';
-            }
-            if (CHARX_IMAGE_EXTENSIONS.has(ext)) {
-                return 'assets/custom/images';
-            }
-            return 'assets/custom/files';
+            return 'assets/other/other';
     }
 }
 
 function getCharXAssetType(category) {
     switch (category) {
         case 'sprite':
-            return 'expression';
+            return 'emotion';
         case 'background':
             return 'background';
         default:
-            return 'custom';
+            return 'other';
     }
 }
 
@@ -560,25 +546,29 @@ function discoverCharXExportCandidates(directories, characterFolder) {
         new Set([...CHARX_IMAGE_EXTENSIONS, ...CHARX_VIDEO_EXTENSIONS]),
     );
     pushDiscovered(
-        'gallery',
-        path.join(directories.userImages, safeCharacterFolder),
-        path.posix.join('user', 'images', safeCharacterFolder),
-        new Set([...CHARX_IMAGE_EXTENSIONS, ...CHARX_VIDEO_EXTENSIONS]),
+        'image',
+        path.join(directories.characters, safeCharacterFolder, 'images'),
+        path.posix.join('characters', safeCharacterFolder, 'images'),
+        CHARX_IMAGE_EXTENSIONS,
     );
     pushDiscovered(
-        'file',
-        path.join(directories.files, safeCharacterFolder),
-        path.posix.join('user', 'files', safeCharacterFolder),
-        CHARX_SUPPORTED_EXPORT_EXTENSIONS,
+        'audio',
+        path.join(directories.characters, safeCharacterFolder, 'audio'),
+        path.posix.join('characters', safeCharacterFolder, 'audio'),
+        CHARX_AUDIO_EXTENSIONS,
     );
-    for (const category of ['bgm', 'ambient', 'blip']) {
-        pushDiscovered(
-            /** @type {CharXExportAsset['category']} */ (category),
-            path.join(directories.characters, safeCharacterFolder, category),
-            path.posix.join('characters', safeCharacterFolder, category),
-            CHARX_AUDIO_EXTENSIONS,
-        );
-    }
+    pushDiscovered(
+        'video',
+        path.join(directories.characters, safeCharacterFolder, 'video'),
+        path.posix.join('characters', safeCharacterFolder, 'video'),
+        CHARX_VIDEO_EXTENSIONS,
+    );
+    pushDiscovered(
+        'json',
+        path.join(directories.characters, safeCharacterFolder, 'json'),
+        path.posix.join('characters', safeCharacterFolder, 'json'),
+        CHARX_JSON_EXTENSIONS,
+    );
 
     return discovered;
 }
@@ -629,20 +619,21 @@ function escapeRegexLiteral(value) {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildCharXRegexReplacementPath(characterFolder, exportName) {
+function buildCharXRegexReplacementPath(characterFolder, category, exportName) {
     const encodedCharacterFolder = encodeURIComponent(characterFolder);
+    const encodedCategory = encodeURIComponent(category === 'image' ? 'images' : category);
     const encodedFileName = encodeURIComponent(exportName);
-    return `/characters/${encodedCharacterFolder}/${encodedFileName}`;
+    return `/characters/${encodedCharacterFolder}/${encodedCategory}/${encodedFileName}`;
 }
 
 function buildCharXRegexScripts(characterFolder, assets) {
     return assets
-        .filter(asset => asset.assetType === 'custom' && (CHARX_IMAGE_EXTENSIONS.has(asset.ext) || CHARX_AUDIO_EXTENSIONS.has(asset.ext) || CHARX_VIDEO_EXTENSIONS.has(asset.ext)))
+        .filter(asset => ['image', 'audio', 'video'].includes(asset.category))
         .map(asset => ({
             id: crypto.randomUUID(),
             scriptName: `CharX media: ${asset.exportName}`,
             findRegex: `(?<![/\\\\\\w])${escapeRegexLiteral(asset.exportName)}(?![/\\\\\\w])`,
-            replaceString: buildCharXRegexReplacementPath(characterFolder, asset.exportName),
+            replaceString: buildCharXRegexReplacementPath(characterFolder, asset.category, asset.exportName),
             trimStrings: [],
             placement: [CHARX_REGEX_AI_OUTPUT],
             disabled: false,
@@ -693,9 +684,7 @@ export function buildCharXCard(card, characterFolder, avatarArchivePath, avatarE
         : [];
     const generatedScripts = buildCharXRegexScripts(characterFolder, assets);
 
-    if (generatedScripts.length > 0) {
-        _.set(charxCard, 'data.extensions.regex_scripts', [...existingScripts, ...generatedScripts]);
-    }
+    _.set(charxCard, 'data.extensions.regex_scripts', [...existingScripts, ...generatedScripts]);
 
     return charxCard;
 }
