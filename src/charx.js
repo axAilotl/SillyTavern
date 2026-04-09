@@ -14,7 +14,6 @@ const CHARX_AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a
 const CHARX_VIDEO_EXTENSIONS = new Set(MEDIA_EXTENSIONS.filter(ext => !CHARX_IMAGE_EXTENSIONS.has(ext) && !CHARX_AUDIO_EXTENSIONS.has(ext)));
 const CHARX_JSON_EXTENSIONS = new Set(['json']);
 const CHARX_SUPPORTED_ASSET_EXTENSIONS = new Set([...MEDIA_EXTENSIONS, ...CHARX_JSON_EXTENSIONS]);
-const CHARX_SUPPORTED_EXPORT_EXTENSIONS = new Set([...MEDIA_EXTENSIONS, ...CHARX_JSON_EXTENSIONS]);
 const CHARX_SPRITE_TYPES = new Set(['emotion', 'expression']);
 const CHARX_BACKGROUND_TYPES = new Set(['background']);
 const CHARX_REGEX_AI_OUTPUT = 2;
