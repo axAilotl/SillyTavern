@@ -38,7 +38,7 @@ jobs:
         # https://github.com/marketplace/actions/setup-node-js-environment
         uses: actions/setup-node@v4.3.0
         with:
-          node-version: 20
+          node-version: 22.23.4
 
       - name: Run npm install
         run: npm ci
